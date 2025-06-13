@@ -1,0 +1,114 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/*",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Jason Li <xjason.li@gmail.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/xjasonli/cel-cxx"
+rust-version = "1.70"
+homepage = "https://github.com/xjasonli/cel-cxx"
+readme = "README.md"
+keywords = ["cel", "expression", "language", "ffi", "cxx", "google"]
+
+[workspace.dependencies]
+cel-cxx = { path = "." }
+cel-cxx-ffi = { path = "crates/cel-cxx-ffi", version = "0.1.0" }
+cel-cxx-macros = { path = "crates/cel-cxx-macros", version = "0.1.0" }
+cel-build-utils = { path = "crates/cel-build-utils", version = "0.1.0" }
+
+cxx = { version = "1.0", features = ["c++17"] }
+cxx-build = { version = "1.0", features = ["parallel"] }
+thiserror = { version = "2.0" }
+anyhow = "1"
+glob = "0.3"
+tonic = { version = "0.13" }
+tokio = { version = "1"}
+async-std = { version = "1" }
+async-scoped = { version = "0.9" }
+itertools = { version = "0.14" }
+chrono = { version = "0.4" }
+dyn-clone = "1"
+prost = { version = "0.13" }
+prost-types = { version = "0.13" }
+prost-reflect = { version = "0.15" }
+pbjson = { version = "0.7" }
+pbjson-types = { version = "0.7" }
+paste = "1"
+futures = { version = "0.3" }
+pin-project-lite = "0.2"
+ouroboros = "0.18"
+syn = "2"
+quote = "1"
+prettyplease = "0.2"
+proc-macro2 = "1"
+semver = "1"
+sha2 = "0.10"
+regex = "1"
+reqwest = "0.12"
+downloader = { version = "0.2", default-features = false, features = ["rustls-tls", "verify"] }
+
+
+[package]
+name = "cel-cxx"
+description = "A Rust-native interface for Common Expression Language (CEL), implemented as a high-level idiomatic Rust wrapper around google/cel-cpp"
+categories = ["api-bindings", "parser-implementations", "ffi", "embedded"]
+documentation = "https://docs.rs/cel-cxx"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+
+[features]
+default = ["derive"]
+derive = ["dep:cel-cxx-macros"]
+async = ["dep:async-scoped", "dep:futures", "dep:pin-project-lite"]
+tokio = ["async", "dep:tokio", "async-scoped/use-tokio"]
+async-std = ["async", "dep:async-std", "async-scoped/use-async-std"]
+
+[dependencies]
+cel-cxx-ffi = { workspace = true }
+cel-cxx-macros = { workspace = true, optional = true }
+cxx = { workspace = true }
+paste = { workspace = true }
+itertools = { workspace = true }
+chrono = { workspace = true }
+dyn-clone = { workspace = true }
+ouroboros = { workspace = true }
+futures = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["rt"] }
+async-std = { workspace = true, optional = true }
+async-scoped = { workspace = true, optional = true }
+pin-project-lite = { workspace = true, optional = true }
+prost = { workspace = true }
+prost-reflect = { workspace = true }
+
+[dev-dependencies]
+cel-cxx = { workspace = true, features = ["async", "tokio", "async-std"] }
+tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros"] }
+async-std = { workspace = true, features = ["attributes"] }
+anyhow = { workspace = true }
+futures = { workspace = true }
+
+[[example]]
+name = "helloworld"
+path = "examples/helloworld.rs"
+
+[[example]]
+name = "tokio"
+path = "examples/tokio.rs"
+required-features = ["tokio"]
+
+[[example]]
+name = "async-std"
+path = "examples/async-std.rs"
+required-features = ["async-std"]

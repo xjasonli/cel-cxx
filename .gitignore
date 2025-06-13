@@ -1,0 +1,5 @@
+/.vscode
+/.cache
+/target
+compile_commands.json
+Cargo.lock

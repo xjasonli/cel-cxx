@@ -1,0 +1,12 @@
+aquery --experimental_cc_static_library
+aquery --java_runtime_version=remotejdk_21
+
+build --experimental_cc_static_library
+build --java_runtime_version=remotejdk_21
+
+build --features=-compiler_param_file
+build --host_features=-compiler_param_file
+
+build --features=-layering_check 
+build --host_features=-layering_check
+

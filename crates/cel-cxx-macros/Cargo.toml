@@ -1,0 +1,24 @@
+[package]
+name = "cel-cxx-macros"
+description = "Macros for the cel-cxx crate"
+categories = ["api-bindings", "parser-implementations"]
+documentation = "https://docs.rs/cel-cxx-macros"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+
+[lib]
+name = "cel_cxx_macros"
+proc-macro = true
+
+[dependencies]
+syn = { workspace = true }
+quote = { workspace = true }
+proc-macro2 = { workspace = true }
+

@@ -1,0 +1,29 @@
+[package]
+name = "cel-cxx-ffi"
+description = "FFI bindings for the cel-cxx crate"
+categories = ["api-bindings", "ffi"]
+documentation = "https://docs.rs/cel-cxx-ffi"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+
+[features]
+default = []
+
+[dependencies]
+cxx = { workspace = true }
+dyn-clone = { workspace = true }
+chrono = { workspace = true }
+
+[build-dependencies]
+cel-build-utils = { workspace = true }
+cxx-build = { workspace = true }
+glob = { workspace = true }
+anyhow = { workspace = true }
+

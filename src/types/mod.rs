@@ -1,0 +1,897 @@
+use std::fmt::Debug;
+
+mod display;
+mod convert;
+use crate::Kind;
+
+pub use convert::InvalidMapKeyType;
+
+/// CEL type representation.
+/// 
+/// This enum represents all possible types in the CEL type system. CEL supports
+/// a rich type system including primitive types, complex types, and Protocol Buffer
+/// types. Each type corresponds to values that can be used in CEL expressions.
+/// 
+/// # Examples
+/// 
+/// ## Basic Type Usage
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// // Create different types
+/// let int_type = Type::Int;
+/// let string_type = Type::String;
+/// let list_type = Type::List(ListType::new(Type::String));
+/// 
+/// // Check the kind of a type
+/// assert_eq!(int_type.kind(), Kind::Int);
+/// ```
+/// 
+/// ## Map Types
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// let map_type = Type::Map(MapType::new(
+///     MapKeyType::String,
+///     Type::Int
+/// ));
+/// 
+/// assert_eq!(map_type.kind(), Kind::Map);
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub enum Type {
+    /// Null type - represents the absence of a value.
+    /// 
+    /// This corresponds to CEL's `null` literal.
+    Null,
+
+    /// Boolean type - represents true/false values.
+    /// 
+    /// This corresponds to CEL's `bool` type and literals like `true` and `false`.
+    Bool,
+
+    /// Signed 64-bit integer type.
+    /// 
+    /// This corresponds to CEL's `int` type and integer literals like `42`.
+    Int,
+
+    /// Unsigned 64-bit integer type.
+    /// 
+    /// This corresponds to CEL's `uint` type and unsigned integer literals like `42u`.
+    Uint,
+
+    /// Double-precision floating point type.
+    /// 
+    /// This corresponds to CEL's `double` type and floating-point literals like `3.14`.
+    Double,
+
+    /// String type.
+    /// 
+    /// This corresponds to CEL's `string` type and string literals like `"hello"`.
+    String,
+
+    /// Byte array type.
+    /// 
+    /// This corresponds to CEL's `bytes` type and byte literals like `b"hello"`.
+    Bytes,
+
+    /// Struct type for Protocol Buffer messages.
+    /// 
+    /// This represents structured data types, typically Protocol Buffer messages.
+    Struct(StructType),
+
+    /// Duration type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.Duration` and duration literals like `duration("1h")`.
+    Duration,
+
+    /// Timestamp type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.Timestamp` and timestamp literals like `timestamp("2023-01-01T00:00:00Z")`.
+    Timestamp,
+
+    /// List type - represents ordered collections.
+    /// 
+    /// This corresponds to CEL's list type and literals like `[1, 2, 3]`.
+    List(ListType),
+
+    /// Map type - represents key-value mappings.
+    /// 
+    /// This corresponds to CEL's map type and literals like `{"key": "value"}`.
+    Map(MapType),
+
+    /// Unknown type - used for values that cannot be determined at compile time.
+    /// 
+    /// This is typically used in error conditions or for dynamic values.
+    Unknown,
+
+    /// Type type - represents type values themselves.
+    /// 
+    /// This corresponds to CEL's type system where types can be values, such as `int` or `string`.
+    Type(TypeType),
+
+    /// Error type - represents error values.
+    /// 
+    /// This is used when evaluation results in an error condition.
+    Error,
+
+    /// Any type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.Any` which can hold any Protocol Buffer message.
+    Any,
+
+    /// Dynamic type - represents values whose type is determined at runtime.
+    /// 
+    /// This is used for values that can be of any type.
+    Dyn,
+
+    /// Opaque types - user-defined types that are not directly CEL types.
+    /// 
+    /// This allows integration of custom Rust types into CEL expressions.
+    Opaque(OpaqueType),
+
+    /// Optional type - represents values that may or may not be present.
+    /// 
+    /// This corresponds to CEL's optional types and the `optional` type constructor.
+    Optional(OptionalType),
+
+    /// Boolean wrapper type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.BoolValue`.
+    BoolWrapper,
+
+    /// Integer wrapper type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.Int32Value`.
+    IntWrapper,
+
+    /// Unsigned integer wrapper type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.UInt32Value`.
+    UintWrapper,
+
+    /// Double wrapper type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.DoubleValue`.
+    DoubleWrapper,
+
+    /// String wrapper type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.StringValue`.
+    StringWrapper,
+
+    /// Bytes wrapper type from Protocol Buffers.
+    /// 
+    /// This corresponds to `google.protobuf.BytesValue`.
+    BytesWrapper,
+
+    /// Type parameter type - used in generic type definitions.
+    /// 
+    /// This represents type parameters in generic contexts.
+    TypeParam(TypeParamType),
+
+    /// Function type - represents function signatures.
+    /// 
+    /// This is used to represent the types of functions and their signatures.
+    Function(FunctionType),
+
+    /// Enum type - represents enumeration types.
+    /// 
+    /// This corresponds to Protocol Buffer enum types.
+    Enum(EnumType),
+}
+
+impl Type {
+    /// Returns the kind of this type.
+    /// 
+    /// The kind represents the basic category of the type, which is useful
+    /// for type checking and dispatch logic.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// assert_eq!(Type::Int.kind(), Kind::Int);
+    /// assert_eq!(Type::String.kind(), Kind::String);
+    /// 
+    /// let list_type = Type::List(ListType::new(Type::Int));
+    /// assert_eq!(list_type.kind(), Kind::List);
+    /// ```
+    pub fn kind(&self) -> Kind {
+        match self {
+            Type::Null => Kind::Null,
+
+            Type::Bool => Kind::Bool,
+            Type::Int => Kind::Int,
+            Type::Uint => Kind::Uint,
+            Type::Double => Kind::Double,
+            Type::String => Kind::String,
+            Type::Bytes => Kind::Bytes,
+
+            Type::Struct(_) => Kind::Struct,
+            Type::Duration => Kind::Duration,
+            Type::Timestamp => Kind::Timestamp,
+
+            Type::List(_) => Kind::List,
+            Type::Map(_) => Kind::Map,
+
+            Type::Unknown => Kind::Unknown,
+            Type::Type(_) => Kind::Type,
+            Type::Error => Kind::Error,
+            Type::Any => Kind::Any,
+
+            Type::Dyn => Kind::Dyn,
+            Type::Opaque(_) | Type::Optional(_) => Kind::Opaque,
+
+            Type::BoolWrapper => Kind::BoolWrapper,
+            Type::IntWrapper => Kind::IntWrapper,
+            Type::UintWrapper => Kind::UintWrapper,
+            Type::DoubleWrapper => Kind::DoubleWrapper,
+            Type::StringWrapper => Kind::StringWrapper,
+            Type::BytesWrapper => Kind::BytesWrapper,
+
+            Type::TypeParam(_) => Kind::TypeParam,
+            Type::Function(_) => Kind::Function,
+            Type::Enum(_) => Kind::Enum,
+        }
+    }
+}
+
+/// Struct type for Protocol Buffer messages.
+/// 
+/// This represents a structured type, typically corresponding to a Protocol Buffer
+/// message type. Struct types are identified by their fully qualified name.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// let struct_type = StructType::new("google.protobuf.Duration");
+/// let type_instance = Type::Struct(struct_type);
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct StructType {
+    /// The fully qualified name of the struct type.
+    pub name: String,
+}
+
+impl StructType {
+    /// Creates a new struct type with the given name.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - The fully qualified name of the struct type
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let struct_type = StructType::new("my.package.MyMessage");
+    /// ```
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self { name: name.into() }
+    }
+}
+
+/// List type representing ordered collections.
+/// 
+/// List types specify the type of elements they contain. All elements in a
+/// CEL list must be of the same type (or compatible types).
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// // List of integers: list<int>
+/// let int_list = ListType::new(Type::Int);
+/// 
+/// // List of strings: list<string>
+/// let string_list = ListType::new(Type::String);
+/// 
+/// // Nested list: list<list<int>>
+/// let nested_list = ListType::new(Type::List(int_list));
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct ListType {
+    /// The type of elements in this list.
+    pub element: Box<Type>,
+}
+
+impl ListType {
+    /// Creates a new list type with the given element type.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `element` - The type of elements in the list
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let list_type = ListType::new(Type::String);
+    /// assert_eq!(list_type.element(), &Type::String);
+    /// ```
+    pub fn new(element: Type) -> Self {
+        Self { element: Box::new(element) }
+    }
+
+    /// Returns the element type of this list.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let list_type = ListType::new(Type::Int);
+    /// assert_eq!(list_type.element(), &Type::Int);
+    /// ```
+    pub fn element(&self) -> &Type {
+        &self.element
+    }
+}
+
+/// Map type representing key-value mappings.
+/// 
+/// Map types specify both the type of keys and the type of values. Not all
+/// types can be used as map keys - only certain primitive types are allowed.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// // Map from string to int: map<string, int>
+/// let string_to_int = MapType::new(MapKeyType::String, Type::Int);
+/// 
+/// // Map from int to list of strings: map<int, list<string>>
+/// let complex_map = MapType::new(
+///     MapKeyType::Int,
+///     Type::List(ListType::new(Type::String))
+/// );
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct MapType {
+    /// The type of keys in this map.
+    pub key: MapKeyType,
+    /// The type of values in this map.
+    pub value: Box<Type>,
+}
+
+impl MapType {
+    /// Creates a new map type with the given key and value types.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `key` - The type of keys in the map
+    /// * `value` - The type of values in the map
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let map_type = MapType::new(MapKeyType::String, Type::Int);
+    /// assert_eq!(map_type.key(), &MapKeyType::String);
+    /// assert_eq!(map_type.value(), &Type::Int);
+    /// ```
+    pub fn new(key: MapKeyType, value: Type) -> Self {
+        Self { key, value: Box::new(value) }
+    }
+
+    /// Returns the key type of this map.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let map_type = MapType::new(MapKeyType::Int, Type::String);
+    /// assert_eq!(map_type.key(), &MapKeyType::Int);
+    /// ```
+    pub fn key(&self) -> &MapKeyType {
+        &self.key
+    }
+
+    /// Returns the value type of this map.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let map_type = MapType::new(MapKeyType::String, Type::Double);
+    /// assert_eq!(map_type.value(), &Type::Double);
+    /// ```
+    pub fn value(&self) -> &Type {
+        &self.value
+    }
+}
+
+/// Type type representing type values.
+/// 
+/// This represents CEL's type system where types themselves can be values.
+/// For example, the expression `type(42)` returns a type value representing `int`.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// // Generic type: type
+/// let generic_type = TypeType::new(None);
+/// 
+/// // Parameterized type: type<string>
+/// let parameterized_type = TypeType::new(Some(Type::String));
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct TypeType {
+    /// Optional type parameter for parameterized types.
+    pub parameter: Option<Box<Type>>,
+}
+
+impl TypeType {
+    /// Creates a new type type with an optional parameter.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `parameter` - Optional type parameter
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// // Generic type
+    /// let generic = TypeType::new(None);
+    /// 
+    /// // Specific type
+    /// let specific = TypeType::new(Some(Type::String));
+    /// ```
+    pub fn new(parameter: Option<Type>) -> Self {
+        Self { parameter: parameter.map(Box::new) }
+    }
+
+    /// Returns the type parameter if present.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let type_type = TypeType::new(Some(Type::Int));
+    /// assert_eq!(type_type.parameter(), Some(&Type::Int));
+    /// ```
+    pub fn parameter(&self) -> Option<&Type> {
+        self.parameter.as_ref().map(|p| &**p)
+    }
+}
+
+/// Opaque type for user-defined types.
+/// 
+/// Opaque types allow you to integrate custom Rust types into CEL expressions.
+/// They are identified by name and can have type parameters for generic types.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// // Simple opaque type: MyType
+/// let simple = OpaqueType::new("MyType", vec![]);
+/// 
+/// // Generic opaque type: MyGeneric<string, int>
+/// let generic = OpaqueType::new("MyGeneric", vec![Type::String, Type::Int]);
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct OpaqueType {
+    /// The name of the opaque type.
+    pub name: String,
+    /// Type parameters for generic opaque types.
+    pub parameters: Vec<Type>,
+}
+
+impl OpaqueType {
+    /// Creates a new opaque type with the given name and type parameters.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - The name of the opaque type
+    /// * `parameters` - Type parameters for generic opaque types
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// // Simple opaque type
+    /// let simple = OpaqueType::new("MyType", vec![]);
+    /// 
+    /// // Generic opaque type
+    /// let generic = OpaqueType::new("Container", vec![Type::String]);
+    /// ```
+    pub fn new<S: Into<String>>(name: S, parameters: Vec<Type>) -> Self {
+        Self { name: name.into(), parameters }
+    }
+
+    /// Returns the name of this opaque type.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let opaque_type = OpaqueType::new("MyType", vec![]);
+    /// assert_eq!(opaque_type.name(), "MyType");
+    /// ```
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the type parameters of this opaque type.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let opaque_type = OpaqueType::new("Container", vec![Type::Int, Type::String]);
+    /// assert_eq!(opaque_type.parameters().len(), 2);
+    /// ```
+    pub fn parameters(&self) -> &[Type] {
+        &self.parameters
+    }
+}
+
+/// Optional type representing values that may or may not be present.
+/// 
+/// Optional types wrap another type to indicate that values of that type
+/// may be absent. This is similar to Rust's `Option<T>` type.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// // Optional string: optional<string>
+/// let optional_string = OptionalType::new(Type::String);
+/// 
+/// // Optional list: optional<list<int>>
+/// let optional_list = OptionalType::new(
+///     Type::List(ListType::new(Type::Int))
+/// );
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct OptionalType {
+    /// The type that may or may not be present.
+    pub parameter: Box<Type>,
+}
+
+impl OptionalType {
+    /// Creates a new optional type wrapping the given type.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `parameter` - The type that may be optional
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let optional_int = OptionalType::new(Type::Int);
+    /// assert_eq!(optional_int.parameter(), &Type::Int);
+    /// ```
+    pub fn new(parameter: Type) -> Self {
+        Self { parameter: Box::new(parameter) }
+    }
+
+    /// Returns the wrapped type.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let optional_string = OptionalType::new(Type::String);
+    /// assert_eq!(optional_string.parameter(), &Type::String);
+    /// ```
+    pub fn parameter(&self) -> &Type {
+        &self.parameter
+    }
+}
+
+/// Type parameter type used in generic type definitions.
+/// 
+/// Type parameters represent placeholders for types in generic contexts.
+/// They are typically used in function signatures and generic type definitions.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// let type_param = TypeParamType::new("T");
+/// assert_eq!(type_param.name(), "T");
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct TypeParamType {
+    /// The name of the type parameter.
+    pub name: String,
+}
+
+impl TypeParamType {
+    /// Creates a new type parameter with the given name.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - The name of the type parameter (e.g., "T", "U", "Key", "Value")
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let type_param = TypeParamType::new("T");
+    /// let another_param = TypeParamType::new("Key");
+    /// ```
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self { name: name.into() }
+    }
+
+    /// Returns the name of this type parameter.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let type_param = TypeParamType::new("T");
+    /// assert_eq!(type_param.name(), "T");
+    /// ```
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+/// Function type representing function signatures.
+/// 
+/// Function types describe the signature of functions, including their
+/// parameter types and return type. This is used for type checking
+/// function calls and declarations.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// // Function type: (string, int) -> bool
+/// let func_type = FunctionType::new(
+///     Type::Bool,
+///     vec![Type::String, Type::Int]
+/// );
+/// 
+/// // No-argument function: () -> string
+/// let no_arg_func = FunctionType::new(Type::String, vec![]);
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct FunctionType {
+    /// The return type of the function.
+    pub result: Box<Type>,
+    /// The parameter types of the function.
+    pub arguments: Vec<Type>,
+}
+
+impl FunctionType {
+    /// Creates a new function type with the given return type and parameters.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `result` - The return type of the function
+    /// * `arguments` - The parameter types of the function
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// // Function that takes two ints and returns a string
+    /// let func_type = FunctionType::new(
+    ///     Type::String,
+    ///     vec![Type::Int, Type::Int]
+    /// );
+    /// ```
+    pub fn new(result: Type, arguments: Vec<Type>) -> Self {
+        Self {
+            result: Box::new(result),
+            arguments,
+        }
+    }
+
+    /// Returns the return type of this function.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let func_type = FunctionType::new(Type::Bool, vec![Type::String]);
+    /// assert_eq!(func_type.result(), &Type::Bool);
+    /// ```
+    pub fn result(&self) -> &Type {
+        &self.result
+    }
+
+    /// Returns the parameter types of this function.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let func_type = FunctionType::new(Type::Int, vec![Type::String, Type::Bool]);
+    /// assert_eq!(func_type.arguments().len(), 2);
+    /// ```
+    pub fn arguments(&self) -> &[Type] {
+        &self.arguments
+    }
+
+    /// Generates a unique identifier for this function type.
+    /// 
+    /// This creates a string representation of the function signature that
+    /// can be used for function resolution and overload disambiguation.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - The name of the function
+    /// * `member` - Whether this is a member function
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let func_type = FunctionType::new(Type::Int, vec![Type::String]);
+    /// let id = func_type.id("myFunc", false);
+    /// // Results in something like "myFunc(String)"
+    /// ```
+    pub fn id(&self, name: &str, member: bool) -> String {
+        use itertools::Itertools;
+        if member && self.arguments.len() > 0 {
+            format!("({}).{}({})", self.arguments[0], name, self.arguments[1..].iter().format(", "))
+        } else {
+            format!("{}({})", name, self.arguments.iter().format(", "))
+        }
+    }
+}
+
+/// Enum type representing enumeration types.
+/// 
+/// Enum types correspond to Protocol Buffer enum types and represent
+/// a fixed set of named integer constants.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// let enum_type = EnumType::new("my.package.Color");
+/// assert_eq!(enum_type.name(), "my.package.Color");
+/// ```
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct EnumType {
+    /// The fully qualified name of the enum type.
+    pub name: String,
+}
+
+impl EnumType {
+    /// Creates a new enum type with the given name.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `name` - The fully qualified name of the enum type
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let enum_type = EnumType::new("google.rpc.Code");
+    /// ```
+    pub fn new<S: Into<String>>(name: S) -> Self {
+        Self { name: name.into() }
+    }
+
+    /// Returns the name of this enum type.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let enum_type = EnumType::new("my.Status");
+    /// assert_eq!(enum_type.name(), "my.Status");
+    /// ```
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+/// Types that can be used as map keys.
+/// 
+/// CEL maps can only use certain types as keys. This enum represents
+/// the allowed key types in CEL map literals and map type definitions.
+/// 
+/// # Examples
+/// 
+/// ```rust,no_run
+/// use cel_cxx::*;
+/// 
+/// // String keys are common
+/// let string_key_map = MapType::new(MapKeyType::String, Type::Int);
+/// 
+/// // Integer keys are also supported
+/// let int_key_map = MapType::new(MapKeyType::Int, Type::String);
+/// 
+/// // Check the kind of a key type
+/// assert_eq!(MapKeyType::String.kind(), Kind::String);
+/// ```
+/// 
+/// # Note
+/// 
+/// Not all CEL types can be used as map keys. Only primitive types that
+/// are hashable and comparable are allowed.
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[repr(u8)]
+pub enum MapKeyType {
+    /// Boolean keys - `true` and `false`.
+    Bool,
+    
+    /// Signed integer keys.
+    Int,
+    
+    /// Unsigned integer keys.
+    Uint,
+    
+    /// String keys (most common).
+    String,
+    
+    /// Dynamic key type - determined at runtime.
+    Dyn,
+    
+    /// Type parameter key type - used in generic contexts.
+    TypeParam(TypeParamType),
+}
+
+impl MapKeyType {
+    /// Returns the kind of this map key type.
+    /// 
+    /// This provides the basic category of the key type for type checking
+    /// and dispatch purposes.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// assert_eq!(MapKeyType::String.kind(), Kind::String);
+    /// assert_eq!(MapKeyType::Int.kind(), Kind::Int);
+    /// assert_eq!(MapKeyType::Bool.kind(), Kind::Bool);
+    /// ```
+    pub fn kind(&self) -> Kind {
+        match self {
+            MapKeyType::Bool => Kind::Bool,
+            MapKeyType::Int => Kind::Int,
+            MapKeyType::Uint => Kind::Uint,
+            MapKeyType::String => Kind::String,
+            MapKeyType::Dyn => Kind::Dyn,
+            MapKeyType::TypeParam(_) => Kind::TypeParam,
+        }
+    }
+}

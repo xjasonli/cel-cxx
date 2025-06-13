@@ -1,0 +1,6 @@
+bazel-*
+external
+compile_commands.json
+MODULE.bazel.lock
+.cache
+.vscode
