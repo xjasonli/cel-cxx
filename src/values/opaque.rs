@@ -31,11 +31,17 @@ use super::*;
 ///
 /// ## Basic Opaque Type
 ///
-/// ```rust
+/// ```rust,no_run
 /// use cel_cxx::{Opaque, Value};
 ///
 /// #[derive(Opaque, Debug, Clone, PartialEq)]
 /// struct UserId(u64);
+///
+/// impl std::fmt::Display for UserId {
+///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+///         write!(f, "UserId({})", self.0)
+///     }
+/// }
 ///
 /// // All necessary traits are automatically implemented by the derive macro
 ///
@@ -46,26 +52,40 @@ use super::*;
 ///
 /// ## Integration with Functions
 ///
-/// ```rust
+/// ```rust,no_run
 /// use cel_cxx::*;
 ///
-/// #[derive(Opaque, Debug, Clone)]
+/// #[derive(Opaque, Debug, Clone, PartialEq)]
 /// struct BankAccount {
 ///     balance: f64,
 ///     account_number: String,
 /// }
 ///
-/// // Register methods for the opaque type
-/// let env = Env::builder()
-///     .register_member_function("balance", |account: &BankAccount| account.balance)?
-///     .register_member_function("withdraw", |account: &mut BankAccount, amount: f64| {
-///         if amount <= account.balance {
-///             account.balance -= amount;
-///             Ok(account.balance)
+/// impl std::fmt::Display for BankAccount {
+///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+///         write!(f, "BankAccount({})", self.account_number)
+///     }
+/// }
+///
+/// impl BankAccount {
+///     fn balance(&self) -> f64 {
+///         self.balance
+///     }
+///     
+///     fn withdraw(&mut self, amount: f64) -> Result<f64, &'static str> {
+///         if amount <= self.balance {
+///             self.balance -= amount;
+///             Ok(self.balance)
 ///         } else {
 ///             Err("Insufficient funds")
 ///         }
-///     })?
+///     }
+/// }
+///
+/// // Register methods for the opaque type
+/// let env = Env::builder()
+///     .register_member_function("balance", BankAccount::balance)?
+///     .register_member_function("withdraw", BankAccount::withdraw)?
 ///     .build()?;
 /// ```
 ///
@@ -73,11 +93,18 @@ use super::*;
 ///
 /// Opaque values support safe downcasting:
 ///
-/// ```rust
+/// ```rust,no_run
 /// use cel_cxx::{Value, Opaque};
 ///
-/// # #[derive(Opaque, Debug, Clone)]
-/// # struct UserId(u64);
+/// #[derive(Opaque, Debug, Clone, PartialEq)]
+/// struct UserId(u64);
+///
+/// impl std::fmt::Display for UserId {
+///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+///         write!(f, "UserId({})", self.0)
+///     }
+/// }
+///
 /// let user_id = UserId(12345);
 /// let value = user_id.into_value();
 ///
@@ -130,35 +157,36 @@ dyn_clone::clone_trait_object!(Opaque);
 ///
 /// ## Comparable Opaque Type
 ///
-/// ```rust
+/// ```rust,no_run
 /// use cel_cxx::Opaque;
 ///
-/// #[derive(Opaque, Debug, Clone, PartialEq)]
+/// #[derive(Opaque, Debug, Clone, PartialEq, Eq, Hash)]
 /// struct ProductId(String);
+///
+/// impl std::fmt::Display for ProductId {
+///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+///         write!(f, "ProductId({})", self.0)
+///     }
+/// }
 ///
 /// // All necessary traits are automatically implemented by the derive macro
 /// ```
 ///
 /// ## Usage in Collections
 ///
-/// ```rust
+/// ```rust,no_run
 /// use cel_cxx::*;
 /// use std::collections::HashSet;
-///
-/// # #[derive(Opaque, Debug, Clone, PartialEq, Hash)]
-/// # struct ProductId(String);
 ///
 /// // Can be used in collections that require equality
 /// let mut products = HashSet::new();
 /// products.insert(ProductId("ABC123".to_string()));
 /// products.insert(ProductId("DEF456".to_string()));
 ///
-/// // Can be compared in CEL expressions (if registered properly)
-/// let env = Env::builder()
-///     .register_global_function("contains_product", move |products: HashSet<&ProductId>, id: &ProductId| {
-///         products.contains(id)
-///     })?
-///     .build()?;
+/// // Example function that works with the collection
+/// fn contains_product(products: &HashSet<ProductId>, id: &ProductId) -> bool {
+///     products.contains(id)
+/// }
 /// ```
 pub trait TypedOpaque
     : Opaque

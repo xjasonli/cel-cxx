@@ -84,7 +84,7 @@
 /// - **Validation**: Ensure variable bindings match declared types
 /// - **Lookup**: Efficient variable type resolution during compilation
 /// - **Iteration**: Enumerate all declared variables
-pub mod registry;
+mod registry;
 pub use registry::*;
 
 /// Variable bindings for runtime value storage.
@@ -98,5 +98,5 @@ pub use registry::*;
 /// - **Type checking**: Validate that bound values match declared types
 /// - **Efficient lookup**: Fast variable resolution during evaluation
 /// - **Lifetime management**: Proper handling of borrowed values
-pub mod bindings;
+mod bindings;
 pub use bindings::*;

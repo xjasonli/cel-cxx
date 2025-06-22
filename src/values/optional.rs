@@ -195,11 +195,11 @@ impl<T> Optional<T> {
     /// use cel_cxx::Optional;
     ///
     /// let opt = Optional::new(5);
-    /// let filtered = opt.filter(|&&x| x > 3);
+    /// let filtered = opt.filter(|&x| x > 3);
     /// assert_eq!(filtered.into_option(), Some(5));
     ///
     /// let opt = Optional::new(2);
-    /// let filtered = opt.filter(|&&x| x > 3);
+    /// let filtered = opt.filter(|&x| x > 3);
     /// assert_eq!(filtered.into_option(), None);
     /// ```
     pub fn filter<P>(self, predicate: P) -> Self
@@ -332,7 +332,7 @@ impl<T> Optional<T> {
     /// use cel_cxx::Optional;
     ///
     /// let mut opt = Optional::new(42);
-    /// let taken = opt.take_if(|x| **x > 40);
+    /// let taken = opt.take_if(|x| *x > 40);
     /// assert_eq!(taken.into_option(), Some(42));
     /// ```
     pub fn take_if<P>(&mut self, predicate: P) -> Optional<T>
@@ -459,7 +459,8 @@ impl<T> Optional<&T> {
     /// ```rust,no_run
     /// use cel_cxx::Optional;
     ///
-    /// let opt_ref = Optional::new(&"hello".to_string());
+    /// let hello_string = "hello".to_string();
+    /// let opt_ref = Optional::new(&hello_string);
     /// let opt_owned = opt_ref.cloned();
     /// assert_eq!(opt_owned.into_option(), Some("hello".to_string()));
     /// ```
@@ -497,7 +498,7 @@ impl<T, E> Optional<Result<T, E>> {
     /// ```rust,no_run
     /// use cel_cxx::Optional;
     ///
-    /// let opt_result = Optional::new(Ok(42));
+    /// let opt_result: Optional<Result<i32, &str>> = Optional::new(Ok(42));
     /// let result_opt = opt_result.transpose();
     /// assert_eq!(result_opt, Ok(Optional::new(42)));
     /// ```

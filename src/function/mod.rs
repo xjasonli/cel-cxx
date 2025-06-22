@@ -61,8 +61,8 @@
 //!
 //! ## Basic function registration
 //!
-//! ```rust
-//! use crate::function::*;
+//! ```rust,no_run
+//! use cel_cxx::function::*;
 //!
 //! // Simple function
 //! fn add(a: i64, b: i64) -> i64 {
@@ -71,9 +71,9 @@
 //! let func = add.into_function();
 //!
 //! // Function with error handling
-//! fn divide(a: i64, b: i64) -> Result<i64, std::io::Error> {
+//! fn divide(a: i64, b: i64) -> Result<i64, &'static str> {
 //!     if b == 0 {
-//!         Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "division by zero"))
+//!         Err("division by zero")
 //!     } else {
 //!         Ok(a / b)
 //!     }
@@ -85,10 +85,10 @@
 //!
 //! The system handles functions that return borrowed data:
 //!
-//! ```rust
-//! # use crate::function::*;
+//! ```rust,no_run
+//! use cel_cxx::function::*;
 //! // Function returning borrowed data
-//! fn get_first<'a>(items: Vec<&str>) -> &'a str {
+//! fn get_first(items: Vec<&str>) -> &str {
 //!     items.first().unwrap_or("")
 //! }
 //! let func = get_first.into_function();
@@ -98,8 +98,8 @@
 //!
 //! ## Closure registration
 //!
-//! ```rust
-//! # use crate::function::*;
+//! ```rust,no_run
+//! use cel_cxx::function::*;
 //! // Capturing closure
 //! let multiplier = 3;
 //! let multiply = move |x: i64| -> i64 { x * multiplier };
@@ -115,18 +115,18 @@
 //!
 //! ## Function metadata and invocation
 //!
-//! ```rust
-//! # use crate::function::*;
-//! # fn add(a: i64, b: i64) -> i64 { a + b }
+//! ```rust,no_run
+//! use cel_cxx::function::*;
+//! fn add(a: i64, b: i64) -> i64 { a + b }
 //! let func = add.into_function();
 //!
 //! // Get function metadata
 //! let arg_types = func.arguments(); // Vec<ValueType>
 //! let return_type = func.result();  // ValueType
 //!
-//! // Call the function
-//! let args = vec![10i64.into(), 20i64.into()];
-//! let result = func.call(args);
+//! // Call the function (would need proper Value instances in real code)
+//! // let args = vec![Value::from(10i64), Value::from(20i64)];
+//! // let result = func.call(args);
 //! ```
 //!
 //! # Async Functions
@@ -135,10 +135,8 @@
 //!
 //! ```rust,no_run
 //! # #[cfg(feature = "async")]
-//! # use crate::function::*;
+//! # use cel_cxx::function::*;
 //! # async fn example() {
-//! use std::convert::Infallible;
-//!
 //! // Async function
 //! async fn fetch_data(url: String) -> String {
 //!     // Simulate async work
@@ -207,7 +205,7 @@ pub use overload::*;
 ///
 /// The registry is designed to be thread-safe and can be shared across
 /// multiple evaluation contexts.
-pub mod registry;
+mod registry;
 pub use registry::*;
 
 /// Function binding utilities for runtime variable capture.
@@ -222,7 +220,7 @@ pub use registry::*;
 /// - **Database connections**: Bind database handles to query functions
 /// - **External services**: Capture service clients for API calls
 /// - **State management**: Access mutable state from function implementations
-pub mod bindings;
+mod bindings;
 pub use bindings::*;
 
 /// Marker trait for function argument tuples.

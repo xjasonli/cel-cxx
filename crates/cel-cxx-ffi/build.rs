@@ -47,10 +47,8 @@ fn is_docs_build() -> bool {
 
 /// Create dummy artifacts for documentation builds
 fn create_dummy_artifacts() -> Result<()> {
-    // Create minimal build script output to satisfy cargo
-    println!("cargo:rustc-link-lib=static=cel-cxx");
-    
-    // Add rerun-if-changed for source files so cargo knows about them
+    // For documentation builds, we don't need to create any artifacts
+    // Just add rerun-if-changed for source files so cargo knows about them
     let hh_pattern = format!("include/**/*.h");
     if let Ok(paths) = glob::glob(&hh_pattern) {
         for path in paths.flatten() {

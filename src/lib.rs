@@ -389,6 +389,7 @@ pub use error::*;
 /// # Ok::<(), cel_cxx::Error>(())
 /// ```
 pub mod function;
+pub use function::*;
 
 /// Variable declaration and binding utilities.
 ///
@@ -419,6 +420,7 @@ pub mod function;
 /// # Ok::<(), cel_cxx::Error>(())
 /// ```
 pub mod variable;
+pub use variable::*;
 
 /// Activation context for expression evaluation.
 pub mod activation;

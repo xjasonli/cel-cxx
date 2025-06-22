@@ -174,7 +174,6 @@ pub trait ActivationInterface<'f, Fm: FnMarker = ()> {
 /// let program = env.compile("1 + 2").unwrap();
 /// let result = program.evaluate(()).unwrap();
 /// ```
-#[derive(Debug)]
 pub struct Activation<'f, Fm: FnMarker = ()> {
     variables: VariableBindings<'f>,
     functions: FunctionBindings<'f>,
@@ -580,5 +579,14 @@ impl ActivationInterface<'static> for &() {
 
     fn functions(&self) -> &FunctionBindings<'static> {
         &EMPTY_FUNCTIONS
+    }
+}
+
+impl<'f, Fm: FnMarker> std::fmt::Debug for Activation<'f, Fm> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Activation")
+            .field("variables", &self.variables)
+            .field("functions", &self.functions)
+            .finish()
     }
 }

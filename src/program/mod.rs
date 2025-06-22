@@ -181,7 +181,6 @@ use crate::marker::Async;
 /// // Check the return type
 /// println!("Return type: {:?}", program.return_type());
 /// ```
-#[derive(Clone, Debug)]
 pub struct Program<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
     pub(crate) inner: Arc<ProgramInner<'f>>,
     pub(crate) _fn_marker: std::marker::PhantomData<Fm>,
@@ -379,6 +378,24 @@ const _: () = {
         }
     }
 };
+
+impl<'f, Fm: FnMarker, Rm: RuntimeMarker> std::fmt::Debug for Program<'f, Fm, Rm> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Program")
+            .field("inner", &self.inner)
+            .finish()
+    }
+}
+
+impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Clone for Program<'f, Fm, Rm> {
+    fn clone(&self) -> Self {
+        Program {
+            inner: self.inner.clone(),
+            _fn_marker: self._fn_marker,
+            _rt_marker: self._rt_marker,
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {

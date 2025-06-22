@@ -215,6 +215,8 @@ async fn simple_async_fn() -> i32 {
 #[test]
 fn call_async_spawn() -> Result<(), Error> {
     let rt = Runtime::new().map_err(|e| Error::invalid_argument(e.to_string()))?;
+    let _guard = rt.enter();
+
     let handle = spawn_async_task("test message".to_string());
     let result = rt.block_on(handle).map_err(|e| Error::invalid_argument(e.to_string()))?;
     println!("Spawned async task result: {}", result);

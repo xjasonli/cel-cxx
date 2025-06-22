@@ -37,8 +37,8 @@ pub trait BlockingRunner: 'static {
 
 /// Tokio runtime for CEL asynchronous runtime.
 #[cfg(feature = "tokio")]
-#[derive(Debug)]
-pub struct Tokio;
+#[allow(missing_debug_implementations)]
+pub enum Tokio {}
 
 /// Tokio runtime implementation.
 #[cfg(feature = "tokio")]
@@ -62,8 +62,8 @@ pub mod tokio {
 
 /// Async-std runtime for CEL asynchronous runtime.
 #[cfg(feature = "async-std")]
-#[derive(Debug)]
-pub struct AsyncStd;
+#[allow(missing_debug_implementations)]
+pub enum AsyncStd {}
 
 /// Async-std runtime implementation.
 #[cfg(feature = "async-std")]

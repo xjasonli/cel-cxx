@@ -174,12 +174,11 @@ mod async_marker {
     /// 
     /// // Create an async-capable environment
     /// let env = Env::<Async>::builder()
-    ///     .force_async()
     ///     .build()
     ///     .unwrap();
     /// # }
     /// ```
-    #[derive(Debug, Clone, Copy)]
+    #[allow(missing_debug_implementations)]
     pub enum Async {}
 
     /// Function marker implementation for async functions.

@@ -52,7 +52,6 @@ use crate::marker::Async;
 ///     
 /// let program = env.compile("add(10, 20)").unwrap();
 /// ```
-#[derive(Clone, Debug)]
 pub struct Env<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
     pub(crate) inner: Arc<EnvInner<'f>>,
     _fn_marker: std::marker::PhantomData<Fm>,
@@ -148,7 +147,6 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
 ///     .build()
 ///     .unwrap();
 /// ```
-#[derive(Debug, Default)]
 pub struct EnvBuilder<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
     function_registry: FunctionRegistry<'f>,
     variable_registry: VariableRegistry,
@@ -917,3 +915,42 @@ const _: () = {
         }
     }
 };
+
+impl<'f, Fm: FnMarker, Rm: RuntimeMarker> std::fmt::Debug for Env<'f, Fm, Rm> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Env")
+            .field("inner", &self.inner)
+            .finish()
+    }
+}
+
+impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Clone for Env<'f, Fm, Rm> {
+    fn clone(&self) -> Self {
+        Env {
+            inner: self.inner.clone(),
+            _fn_marker: self._fn_marker,
+            _rt_marker: self._rt_marker,
+        }
+    }
+}
+
+
+impl<'f, Fm: FnMarker, Rm: RuntimeMarker> std::fmt::Debug for EnvBuilder<'f, Fm, Rm> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EnvBuilder")
+            .field("function_registry", &self.function_registry)
+            .field("variable_registry", &self.variable_registry)
+            .finish()
+    }
+}
+
+impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Default for EnvBuilder<'f, Fm, Rm> {
+    fn default() -> Self {
+        EnvBuilder {
+            function_registry: FunctionRegistry::new(),
+            variable_registry: VariableRegistry::new(),
+            _fn_marker: std::marker::PhantomData,
+            _rt_marker: std::marker::PhantomData,
+        }
+    }
+}

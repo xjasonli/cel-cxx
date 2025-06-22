@@ -616,7 +616,7 @@ impl MapKey {
 /// let int_const = Constant::Int(42);
 /// let string_const = Constant::String("hello".to_string());
 /// ```
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum Constant {
     /// Null constant
     #[default]

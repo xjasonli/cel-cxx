@@ -231,8 +231,8 @@ impl VariableRegistry {
 /// assert!(constant_entry.is_constant());
 ///
 /// // Create from declaration
-/// let decl_entry = VariableDeclOrConstant::new_decl(ValueType::String);
-/// assert!(decl_entry.is_decl());
+/// let decl_entry = VariableDeclOrConstant::new(ValueType::String);
+/// assert!(!decl_entry.is_constant());
 /// ```
 ///
 /// [`Constant`]: crate::values::Constant

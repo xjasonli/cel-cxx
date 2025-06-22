@@ -114,7 +114,7 @@ fn test_list_function_overload() -> Result<(), Error> {
 
         let res = program.evaluate(&activation)?;
         println!("li64 num: {:?}", res);
-        assert_eq!(res, Value::Int(6)); // len(5) + 1
+        assert_eq!(res, Value::Uint(6)); // len(5) + 1
     }
 
     // Test string list
@@ -128,7 +128,7 @@ fn test_list_function_overload() -> Result<(), Error> {
 
         let res = program.evaluate(&activation)?;
         println!("ls num: {:?}", res);
-        assert_eq!(res, Value::Int(5)); // len(2) + 3
+        assert_eq!(res, Value::Uint(5)); // len(2) + 3
     }
 
     // Test optional list
@@ -142,7 +142,7 @@ fn test_list_function_overload() -> Result<(), Error> {
 
         let res = program.evaluate(&activation)?;
         println!("loi32 num: {:?}", res);
-        assert_eq!(res, Value::Int(7)); // len(3) + 4
+        assert_eq!(res, Value::Uint(7)); // len(3) + 4
     }
 
     Ok(())

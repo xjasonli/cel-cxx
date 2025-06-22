@@ -24,7 +24,7 @@
 //!
 //! ## In Synchronous Code (no `async` feature)
 //!
-//! ```rust
+//! ```rust,no_run
 //! # #[cfg(not(feature = "async"))]
 //! # {
 //! use cel_cxx::MaybeFuture;
@@ -41,7 +41,7 @@
 //!
 //! ## In Asynchronous Code (with `async` feature)
 //!
-//! ```rust
+//! ```rust,no_run
 //! # #[cfg(feature = "async")]
 //! # async fn example() {
 //! use cel_cxx::MaybeFuture;
@@ -100,7 +100,7 @@ mod imp {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # #[cfg(not(feature = "async"))]
     /// # {
     /// use cel_cxx::MaybeFuture;
@@ -151,7 +151,7 @@ mod imp {
     ///
     /// ## Working with immediate results
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # #[cfg(feature = "async")]
     /// # {
     /// use cel_cxx::MaybeFuture;
@@ -164,7 +164,7 @@ mod imp {
     ///
     /// ## Working with futures
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # #[cfg(feature = "async")]
     /// # async fn example() {
     /// use cel_cxx::MaybeFuture;
@@ -193,7 +193,7 @@ mod imp {
         ///
         /// # Examples
         ///
-        /// ```rust
+        /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::MaybeFuture;
@@ -210,7 +210,7 @@ mod imp {
         ///
         /// # Examples
         ///
-        /// ```rust
+        /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::MaybeFuture;
@@ -229,7 +229,7 @@ mod imp {
         ///
         /// # Examples
         ///
-        /// ```rust
+        /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::MaybeFuture;
@@ -249,7 +249,7 @@ mod imp {
         ///
         /// # Examples
         ///
-        /// ```rust
+        /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::MaybeFuture;
@@ -287,7 +287,7 @@ mod imp {
         ///
         /// # Examples
         ///
-        /// ```rust
+        /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::MaybeFuture;
@@ -308,7 +308,7 @@ mod imp {
         ///
         /// # Examples
         ///
-        /// ```rust
+        /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # async fn example() {
         /// use cel_cxx::MaybeFuture;
@@ -336,7 +336,7 @@ mod imp {
         ///
         /// # Examples
         ///
-        /// ```rust
+        /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::MaybeFuture;
@@ -358,7 +358,7 @@ mod imp {
         ///
         /// # Examples
         ///
-        /// ```rust
+        /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # async fn example() {
         /// use cel_cxx::MaybeFuture;
@@ -446,7 +446,7 @@ pub mod doc_examples {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # #[cfg(not(feature = "async"))]
     /// # {
     /// use cel_cxx::MaybeFuture;
@@ -459,8 +459,10 @@ pub mod doc_examples {
     #[cfg_attr(docsrs, doc(cfg(not(feature = "async"))))]
     pub type MaybeFutureSyncVersion<'a, T, E = crate::Error> = Result<T, E>;
 
+    #[cfg(feature = "async")]
     use futures::future::BoxFuture;
 
+    #[cfg(feature = "async")]
     /// **This is the asynchronous version of `MaybeFuture` (when `async` feature is enabled).**
     ///
     /// When the `async` feature is enabled, `MaybeFuture` is an enum that can hold
@@ -483,7 +485,7 @@ pub mod doc_examples {
     ///
     /// ## Working with immediate results
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # #[cfg(feature = "async")]
     /// # {
     /// use cel_cxx::MaybeFuture;
@@ -496,7 +498,7 @@ pub mod doc_examples {
     ///
     /// ## Working with futures
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// # #[cfg(feature = "async")]
     /// # async fn example() {
     /// use cel_cxx::MaybeFuture;
