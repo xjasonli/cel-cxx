@@ -1,8 +1,135 @@
+//! Compiled CEL program evaluation.
+//!
+//! This module provides the [`Program`] type, which represents a compiled CEL expression
+//! ready for evaluation. Programs are created by compiling CEL expressions using an
+//! [`Env`](crate::Env) and can be evaluated multiple times with different variable
+//! bindings (activations).
+//!
+//! # Key Features
+//!
+//! - **Compiled expressions**: CEL expressions are parsed and compiled once, then evaluated many times
+//! - **Type safety**: Programs know their return type at compile time
+//! - **Variable binding**: Support for dynamic variable values through activations
+//! - **Async support**: Programs can contain and evaluate async functions
+//! - **Runtime selection**: Choose between different async runtimes (Tokio, async-std)
+//!
+//! # Program Types
+//!
+//! Programs are parameterized by function and runtime markers:
+//!
+//! - **`Program<'f>`**: Synchronous program with sync functions only
+//! - **`AsyncProgram<'f>`**: Program that can contain async functions
+//! - **`Program<'f, Fm, Rm>`**: Full type with function marker `Fm` and runtime marker `Rm`
+//!
+//! # Evaluation Model
+//!
+//! Programs use an activation-based evaluation model:
+//!
+//! 1. **Compilation**: Parse and type-check the CEL expression
+//! 2. **Activation**: Bind variables and functions for a specific evaluation
+//! 3. **Evaluation**: Execute the compiled expression with the bound values
+//!
+//! # Examples
+//!
+//! ## Basic synchronous evaluation
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! // Create environment and compile expression
+//! let env = Env::builder()
+//!     .declare_variable::<String>("user_name")
+//!     .declare_variable::<i64>("user_age")
+//!     .build()?;
+//!
+//! let program = env.compile("'Hello ' + user_name + ', you are ' + string(user_age)")?;
+//!
+//! // Create activation with variable bindings
+//! let activation = Activation::new()
+//!     .bind_variable("user_name", "Alice".to_string())?
+//!     .bind_variable("user_age", 30i64)?;
+//!
+//! // Evaluate the program
+//! let result = program.evaluate(activation)?;
+//! println!("{}", result); // "Hello Alice, you are 30"
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+//!
+//! ## Working with functions
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! // Register custom function
+//! let env = Env::builder()
+//!     .register_global_function("multiply", |a: i64, b: i64| a * b)?
+//!     .declare_variable::<i64>("x")?
+//!     .build()?;
+//!
+//! let program = env.compile("multiply(x, 2) + 1")?;
+//!
+//! let activation = Activation::new()
+//!     .bind_variable("x", 21i64)?;
+//!
+//! let result = program.evaluate(activation)?;
+//! assert_eq!(result, Value::Int(43));
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+//!
+//! ## Async evaluation
+//!
+//! ```rust,no_run
+//! # #[cfg(feature = "async")]
+//! # async fn example() -> Result<(), cel_cxx::Error> {
+//! use cel_cxx::*;
+//! use cel_cxx::r#async::Tokio;
+//!
+//! // Register async function
+//! let env = Env::builder()
+//!     .register_global_function("fetch_data", |url: String| async move {
+//!         // Simulate async work
+//!         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+//!         format!("Data from {}", url)
+//!     })?
+//!     .build()?;
+//!
+//! let program = env.compile("fetch_data('https://api.example.com')")?
+//!     .use_runtime::<Tokio>();
+//!
+//! let result = program.evaluate(()).await?;
+//! println!("{}", result); // "Data from https://api.example.com"
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Reusing programs
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! let env = Env::builder()
+//!     .declare_variable::<i64>("value")
+//!     .build()?;
+//!
+//! // Compile once
+//! let program = env.compile("value * value")?;
+//!
+//! // Evaluate multiple times with different values
+//! for i in 1..=5 {
+//!     let activation = Activation::new()
+//!         .bind_variable("value", i)?;
+//!     
+//!     let result = program.evaluate(activation)?;
+//!     println!("{} * {} = {}", i, i, result);
+//! }
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+
 use std::sync::Arc;
 mod inner;
 mod eval_dispatch;
 use eval_dispatch::{EvalDispatcher, EvalDispatch};
-use super::{Type, Value, Error, ActivationInterface};
+use super::{ValueType, Value, Error, ActivationInterface};
 use crate::{FnMarker, FnMarkerAggr, RuntimeMarker, FnResult};
 
 pub(crate) use inner::ProgramInner;
@@ -78,7 +205,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Program<'f, Fm, Rm> {
     /// 
     /// # Returns
     /// 
-    /// A reference to the [`Type`] that this program returns.
+    /// A reference to the [`ValueType`] that this program returns.
     /// 
     /// # Examples
     /// 
@@ -91,7 +218,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Program<'f, Fm, Rm> {
     /// println!("Return type: {:?}", program.return_type());
     /// // Output: Return type: Int
     /// ```
-    pub fn return_type(&self) -> &Type {
+    pub fn return_type(&self) -> &ValueType {
         self.inner.return_type()
     }
 

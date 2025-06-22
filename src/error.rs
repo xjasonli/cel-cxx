@@ -209,20 +209,27 @@ impl std::fmt::Display for Code {
 impl Error {
     /// Creates a new error with the specified code and message.
     /// 
+    /// This is the fundamental constructor for creating errors. Most users
+    /// should prefer the specific constructor methods like [`invalid_argument`],
+    /// [`not_found`], etc., which are more descriptive.
+    /// 
     /// # Arguments
     /// 
-    /// * `code` - The error code
-    /// * `message` - The error message
+    /// * `code` - The error code indicating the type of error
+    /// * `message` - A descriptive message explaining the error
     /// 
     /// # Examples
     /// 
     /// ```rust
     /// use cel_cxx::{Error, Code};
     /// 
-    /// let error = Error::new(Code::InvalidArgument, "Invalid expression syntax");
+    /// let error = Error::new(Code::InvalidArgument, "Invalid input provided");
     /// assert_eq!(error.code(), Code::InvalidArgument);
-    /// assert_eq!(error.message(), "Invalid expression syntax");
+    /// assert_eq!(error.message(), "Invalid input provided");
     /// ```
+    /// 
+    /// [`invalid_argument`]: Self::invalid_argument
+    /// [`not_found`]: Self::not_found
     pub fn new(code: Code, message: impl Into<String>) -> Self {
         Self {
             code,
@@ -230,9 +237,18 @@ impl Error {
         }
     }
 
-    /// Creates an "OK" status with the given message.
+    /// Creates an "ok" status with the given message.
     /// 
-    /// Note: This is rarely used for actual errors, but may be useful in some contexts.
+    /// This is rarely used for actual errors, but may be useful in some
+    /// contexts where a status needs to indicate success with additional information.
+    /// 
+    /// # Examples
+    /// 
+    /// ```rust
+    /// use cel_cxx::Error;
+    /// 
+    /// let status = Error::ok("Operation completed successfully");
+    /// ```
     pub fn ok(message: impl Into<String>) -> Self {
         Self::new(Code::Ok, message)
     }
@@ -515,30 +531,68 @@ impl Error {
         Self::from_std_error(err.into())
     }
 
-    /// Create a `Status` from various types of `Error`.
+    /// Creates a CEL error from a standard library error.
     ///
-    /// Inspects the error source chain for recognizable errors, including statuses, HTTP2, and
-    /// hyper, and attempts to maps them to a `Status`, or else returns an Unknown `Status`.
+    /// This method attempts to extract meaningful error information from
+    /// standard library errors and convert them to CEL errors. It inspects
+    /// the error source chain for recognizable error types.
+    ///
+    /// # Arguments
+    ///
+    /// * `err` - The standard library error to convert
+    ///
+    /// # Returns
+    ///
+    /// A CEL `Error` with an appropriate error code and message.
+    /// If the error type is not recognized, it will be mapped to `Code::Unknown`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use cel_cxx::Error;
+    /// use std::io;
+    ///
+    /// let io_error = io::Error::new(io::ErrorKind::NotFound, "File not found");
+    /// let cel_error = Error::from_std_error(Box::new(io_error));
+    /// ```
     pub fn from_std_error(err: Box<dyn std::error::Error + Send + Sync + 'static>) -> Self {
         Self::try_from_std_error(err).unwrap_or_else(|err| {
             Self::new(Code::Unknown, err.to_string())
         })
     }
 
-    /// Create a `Status` from various types of `Error`.
+    /// Attempts to create a CEL error from a standard library error.
     ///
-    /// Returns the error if a status could not be created.
+    /// This method is similar to [`from_std_error`] but returns the original
+    /// error if it cannot be converted to a CEL error.
     ///
-    /// # Downcast stability
-    /// This function does not provide any stability guarantees around how it will downcast errors into
-    /// status codes.
+    /// # Arguments
+    ///
+    /// * `err` - The standard library error to convert
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Error)` if the conversion was successful, or `Err(original_error)`
+    /// if the error type could not be recognized.
+    ///
+    /// # Downcast Stability
+    ///
+    /// This function does not provide any stability guarantees around how it
+    /// will downcast errors into status codes. The conversion logic may change
+    /// in future versions.
+    ///
+    /// [`from_std_error`]: Self::from_std_error
     pub fn try_from_std_error(
         err: Box<dyn std::error::Error + Send + Sync + 'static>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let err = match err.downcast::<Error>() {
+            Ok(error) => return Ok(*error),
+            Err(err) => err,
+        };
+
         if let Some(error) = Self::find_in_source_chain(&*err) {
             return Ok(error);
         }
-
         Err(err)
     }
 
@@ -548,9 +602,15 @@ impl Error {
         let mut source = Some(err);
 
         while let Some(err) = source {
+            if let Some(error) = err.downcast_ref::<Error>() {
+                return Some((*error).clone());
+            }
+
             if let Some(invalid_mapkey_type) = err.downcast_ref::<InvalidMapKeyType>() {
                 return Some(Self::invalid_argument(invalid_mapkey_type.0.to_string()));
             }
+
+            // TODO: Add more error types here
 
             source = err.source();
         }
@@ -570,8 +630,40 @@ impl std::fmt::Display for Error {
     }
 }
 
-impl<E: std::error::Error + Send + Sync + 'static> From<E> for Error {
-    fn from(err: E) -> Self {
-        Self::from_std_error_generic(Box::new(err))
+impl std::error::Error for Error {}
+
+/// Trait for converting values into CEL errors.
+///
+/// This trait provides a standardized way to convert different error types
+/// into CEL [`Error`] instances. It is automatically implemented for all
+/// types that implement the standard library's `Error` trait.
+///
+/// # Examples
+///
+/// ```rust
+/// use cel_cxx::{Error, IntoError};
+/// use std::io;
+///
+/// let io_error = io::Error::new(io::ErrorKind::NotFound, "File not found");
+/// let cel_error = io_error.into_error();
+/// ```
+///
+/// # Automatic Implementation
+///
+/// This trait is automatically implemented for any type that implements
+/// `std::error::Error + Send + Sync + 'static`, so you typically don't
+/// need to implement it manually.
+pub trait IntoError {
+    /// Converts this value into a CEL error.
+    ///
+    /// # Returns
+    ///
+    /// A CEL [`Error`] representing this error condition.
+    fn into_error(self) -> Error;
+}
+
+impl<E: std::error::Error + Send + Sync + 'static> IntoError for E {
+    fn into_error(self) -> Error {
+        Error::from_std_error_generic(Box::new(self))
     }
 }

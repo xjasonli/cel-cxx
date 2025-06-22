@@ -5,8 +5,8 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    exercise7().await?;
-    exercise8().await?;
+    exercise1().await?;
+    exercise2().await?;
     Ok(())
 }
 
@@ -23,16 +23,23 @@ impl std::fmt::Display for Student {
     }
 }
 
-async fn exercise7() -> Result<(), Error> {
+impl Student {
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+    
+    async fn get_age(&self) -> i32 {
+        self.age
+    }
+}
+
+async fn exercise1() -> Result<(), Error> {
     println!("exercise7 - testing async method function");
     let env = Env::builder()
         .declare_variable::<Student>("student")?
-        .register_member_function("get_name", |student: Student| -> Result<String, Error> {
-            Ok(student.name.clone())
-        })?
-        .register_member_function("get_age", async |student: Student| -> Result<i32, Error> {
-            Ok(student.age)
-        })?
+        // ✨ Register struct methods directly using RustType::method_name syntax
+        .register_member_function("get_name", Student::get_name)?
+        .register_member_function("get_age", Student::get_age)?
         .use_tokio()
         .build()?;
 
@@ -51,7 +58,7 @@ async fn exercise7() -> Result<(), Error> {
 }
 
 // register async global function and async variable provider
-async fn exercise8() -> Result<()> {
+async fn exercise2() -> Result<()> {
     println!("exercise8 - testing async global function and async variable provider");
     let env = Env::builder()
         .declare_variable::<i64>("a")?

@@ -1,62 +1,62 @@
 use super::*;
 
-impl From<StructType> for Type {
+impl From<StructType> for ValueType {
     fn from(value: StructType) -> Self {
-        Type::Struct(value)
+        ValueType::Struct(value)
     }
 }
 
-impl From<ListType> for Type {
+impl From<ListType> for ValueType {
     fn from(value: ListType) -> Self {
-        Type::List(value)
+        ValueType::List(value)
     }
 }
 
-impl From<MapType> for Type {
+impl From<MapType> for ValueType {
     fn from(value: MapType) -> Self {
-        Type::Map(value)
+        ValueType::Map(value)
     }
 }
 
-impl From<TypeType> for Type {
+impl From<TypeType> for ValueType {
     fn from(value: TypeType) -> Self {
-        Type::Type(value)
+        ValueType::Type(value)
     }
 }
 
-impl From<OpaqueType> for Type {
+impl From<OpaqueType> for ValueType {
     fn from(value: OpaqueType) -> Self {
-        Type::Opaque(value)
+        ValueType::Opaque(value)
     }
 }
 
-impl From<OptionalType> for Type {
+impl From<OptionalType> for ValueType {
     fn from(value: OptionalType) -> Self {
-        Type::Optional(value)
+        ValueType::Optional(value)
     }
 }
 
-impl From<TypeParamType> for Type {
+impl From<TypeParamType> for ValueType {
     fn from(value: TypeParamType) -> Self {
-        Type::TypeParam(value)
+        ValueType::TypeParam(value)
     }
 }
 
-impl From<FunctionType> for Type {
+impl From<FunctionType> for ValueType {
     fn from(value: FunctionType) -> Self {
-        Type::Function(value)
+        ValueType::Function(value)
     }
 }
 
-impl From<EnumType> for Type {
+impl From<EnumType> for ValueType {
     fn from(value: EnumType) -> Self {
-        Type::Enum(value)
+        ValueType::Enum(value)
     }
 }
 
 /// Error type for invalid map key type conversions.
 ///
-/// `InvalidMapKeyType` is returned when attempting to convert a [`Type`] to a [`MapKeyType`]
+/// `InvalidMapKeyType` is returned when attempting to convert a [`ValueType`] to a [`MapKeyType`]
 /// fails because the type is not a valid map key type. According to the CEL specification,
 /// only basic comparable types (bool, int, uint, string) can be used as map keys.
 ///
@@ -76,7 +76,7 @@ impl From<EnumType> for Type {
 /// assert!(result.is_err());
 /// ```
 #[derive(Debug, Clone)]
-pub struct InvalidMapKeyType(pub Type);
+pub struct InvalidMapKeyType(pub ValueType);
 
 impl InvalidMapKeyType {
     /// Creates a new `InvalidMapKeyType` error.
@@ -88,7 +88,7 @@ impl InvalidMapKeyType {
     /// # Returns
     ///
     /// New `InvalidMapKeyType` instance
-    pub fn new(ty: Type) -> Self {
+    pub fn new(ty: ValueType) -> Self {
         Self(ty)
     }
 }
@@ -101,30 +101,30 @@ impl std::fmt::Display for InvalidMapKeyType {
 
 impl std::error::Error for InvalidMapKeyType {}
 
-impl From<MapKeyType> for Type {
+impl From<MapKeyType> for ValueType {
     fn from(key: MapKeyType) -> Self {
         match key {
-            MapKeyType::Bool => Type::Bool,
-            MapKeyType::Int => Type::Int,
-            MapKeyType::Uint => Type::Uint,
-            MapKeyType::String => Type::String,
-            MapKeyType::Dyn => Type::Dyn,
-            MapKeyType::TypeParam(tp) => Type::TypeParam(tp),
+            MapKeyType::Bool => ValueType::Bool,
+            MapKeyType::Int => ValueType::Int,
+            MapKeyType::Uint => ValueType::Uint,
+            MapKeyType::String => ValueType::String,
+            MapKeyType::Dyn => ValueType::Dyn,
+            MapKeyType::TypeParam(tp) => ValueType::TypeParam(tp),
         }
     }
 }
 
-impl TryFrom<Type> for MapKeyType {
+impl TryFrom<ValueType> for MapKeyType {
     type Error = InvalidMapKeyType;
 
-    fn try_from(value: Type) -> Result<Self, Self::Error> {
+    fn try_from(value: ValueType) -> Result<Self, Self::Error> {
         match value {
-            Type::Bool => Ok(MapKeyType::Bool),
-            Type::Int => Ok(MapKeyType::Int),
-            Type::Uint => Ok(MapKeyType::Uint),
-            Type::String => Ok(MapKeyType::String),
-            Type::Dyn => Ok(MapKeyType::Dyn),
-            Type::TypeParam(tp) => Ok(MapKeyType::TypeParam(tp)),
+            ValueType::Bool => Ok(MapKeyType::Bool),
+            ValueType::Int => Ok(MapKeyType::Int),
+            ValueType::Uint => Ok(MapKeyType::Uint),
+            ValueType::String => Ok(MapKeyType::String),
+            ValueType::Dyn => Ok(MapKeyType::Dyn),
+            ValueType::TypeParam(tp) => Ok(MapKeyType::TypeParam(tp)),
             _ => Err(InvalidMapKeyType::new(value)),
         }
     }

@@ -8,13 +8,13 @@ struct FunctionOverload<'f> {
 
 struct FfiFunctionImpl<'f> {
     descriptor: cxx::SharedPtr<FunctionDescriptor>,
-    overloads: Vec<rust::function::FunctionImpl<'f>>,
+    overloads: Vec<rust::function::Function<'f>>,
 }
 
 impl<'f> FfiFunctionImpl<'f> {
     fn new(
         descriptor: cxx::SharedPtr<FunctionDescriptor>,
-        overloads: Vec<rust::function::FunctionImpl<'f>>,
+        overloads: Vec<rust::function::Function<'f>>,
     ) -> Self {
         Self { descriptor, overloads }
     }
@@ -83,13 +83,8 @@ impl<'f> FfiActivationImpl<'f> {
                 let descriptor = FunctionDescriptor::new_shared(name, member, types, true);
                 let mut type_overloads= Vec::new();
                 for type_overload in kind_overload.entries() {
-                    match type_overload {
-                        rust::function::FunctionDeclOrImpl::Impl(implementation) => {
-                            type_overloads.push(implementation.clone());
-                        }
-                        _ => {
-                            // 忽略 decl, decl 仅用在编译期使用
-                        }
+                    if let Some(fn_impl) = type_overload.r#impl() {
+                        type_overloads.push(fn_impl.clone());
                     }
                 }
                 let implementation = Function::new(FfiFunctionImpl::new(descriptor.clone(), type_overloads));
@@ -154,7 +149,7 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
             }
             Some(rust::variable::VariableBinding::Provider(provider)) => {
                 // 运行时获取同步 provider 的值
-                let res = provider.call();
+                let res = provider.call(vec![]);
 
                 #[cfg(not(feature = "async"))]
                 {
@@ -212,8 +207,6 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
 #[cfg(feature = "async")]
 pub(crate) mod async_activation {
     use crate::r#async::{BlockingRunner, abort::Abortable};
-    use crate::function::FunctionImpl;
-    use crate::variable::ValueProvider;
     use std::sync::{Arc, Mutex};
     use super::*;
 
@@ -232,7 +225,7 @@ pub(crate) mod async_activation {
     {
         pub(crate) fn new(
             descriptor: cxx::SharedPtr<FunctionDescriptor>,
-            overloads: Vec<rust::function::FunctionImpl<'f>>,
+            overloads: Vec<rust::function::Function<'f>>,
             abortable: Arc<Mutex<Abortable>>,
         ) -> Self {
             let overloads= overloads.iter().map(|overload| AbortableFunctionRunner::new(overload.clone(), abortable.clone())).collect::<Vec<_>>();
@@ -317,13 +310,8 @@ pub(crate) mod async_activation {
                     let descriptor = FunctionDescriptor::new_shared(name, member, types, true);
                     let mut type_overloads= Vec::new();
                     for type_overload in kind_overload.entries() {
-                        match type_overload {
-                            rust::function::FunctionDeclOrImpl::Impl(implementation) => {
-                                type_overloads.push(implementation.clone());
-                            }
-                            _ => {
-                                // 忽略 decl, decl 仅用在编译期使用
-                            }
+                        if let Some(fn_impl) = type_overload.r#impl() {
+                            type_overloads.push(fn_impl.clone());
                         }
                     }
                     let implementation = Function::new(FfiAsyncFunctionImpl::<R>::new(descriptor.clone(), type_overloads, abortable.clone()));
@@ -426,17 +414,17 @@ pub(crate) mod async_activation {
 
     #[derive(Debug, Clone)]
     struct AbortableFunctionRunner<'f, R: BlockingRunner> {
-        function: FunctionImpl<'f>,
+        function: rust::function::Function<'f>,
         abortable: Arc<Mutex<Abortable>>,
         _marker: std::marker::PhantomData<R>,
     }
 
     impl<'f, R: BlockingRunner> AbortableFunctionRunner<'f, R> {
-        fn new(function: FunctionImpl<'f>, abortable: Arc<Mutex<Abortable>>) -> Self {
+        fn new(function: rust::function::Function<'f>, abortable: Arc<Mutex<Abortable>>) -> Self {
             Self { function, abortable, _marker: std::marker::PhantomData }
         }
 
-        fn function_impl(&self) -> &FunctionImpl<'f> {
+        fn function_impl(&self) -> &rust::function::Function<'f> {
             &self.function
         }
 
@@ -452,18 +440,18 @@ pub(crate) mod async_activation {
 
     #[derive(Debug, Clone)]
     struct AbortableProviderRunner<'f, R: BlockingRunner> {
-        provider: ValueProvider<'f>,
+        provider: rust::function::Function<'f>,
         abortable: Arc<Mutex<Abortable>>,
         _marker: std::marker::PhantomData<R>,
     }
 
     impl<'f, R: BlockingRunner> AbortableProviderRunner<'f, R> {
-        fn new(provider: ValueProvider<'f>, abortable: Arc<Mutex<Abortable>>) -> Self {
+        fn new(provider: rust::function::Function<'f>, abortable: Arc<Mutex<Abortable>>) -> Self {
             Self { provider, abortable, _marker: std::marker::PhantomData }
         }
 
         fn call(&self) -> Result<rust::Value, rust::Error> {
-            match self.provider.call() {
+            match self.provider.call(vec![]) {
                 rust::MaybeFuture::Result(result) => result,
                 rust::MaybeFuture::Future(fut) => {
                     run_until_aborted::<R>(fut, self.abortable.clone())

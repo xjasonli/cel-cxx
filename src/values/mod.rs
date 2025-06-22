@@ -1,52 +1,182 @@
-//! CEL value type system.
+//! CEL Value Types and Operations
 //!
-//! This module defines the value type system for CEL expressions, including all basic and composite data types.
+//! This module provides the core value types used in CEL expressions, along with
+//! comprehensive conversion and manipulation utilities. It forms the foundation
+//! of the CEL type system, supporting both primitive and composite data types.
 //!
-//! # Primary Types
+//! # Value Type Hierarchy
 //!
-//! - [`values::Value`]: Main CEL value type enum supporting all CEL data types
-//! - [`values::MapKey`]: Map key type supporting only basic comparable types
-//! - [`values::Optional`]: Optional value type similar to `Option<T>` but CEL-compatible
-//! - [`values::Opaque`]: Opaque value type for storing externally-defined custom types
+//! The CEL value system is built around several core types:
 //!
-//! # Conversion Traits
+//! ## Primitive Types
+//! - **Null**: Represents absent values (`null`)
+//! - **Bool**: Boolean values (`true`, `false`)
+//! - **Int**: 64-bit signed integers (`i64`)
+//! - **Uint**: 64-bit unsigned integers (`u64`) 
+//! - **Double**: IEEE 754 double-precision floating point (`f64`)
+//! - **String**: UTF-8 encoded strings
+//! - **Bytes**: Arbitrary byte sequences
 //!
-//! - [`values::IntoValue`]: Convert Rust types to CEL values
-//! - [`values::FromValue`]: Convert CEL values to Rust types
-//! - [`values::TypedValue`]: Values with type information
-//! - [`values::IntoMapKey`] / [`values::FromMapKey`]: Map key conversions
+//! ## Time Types
+//! - **Duration**: Protocol Buffers Duration type (represents time spans)
+//! - **Timestamp**: Protocol Buffers Timestamp type (represents points in time)
+//!
+//! ## Composite Types
+//! - **List**: Ordered collections of values (`Vec<Value>`)
+//! - **Map**: Key-value mappings (`HashMap<MapKey, Value>`)
+//! - **Struct**: Protocol Buffers message types (not yet implemented)
+//! - **Optional**: Wrapper for optional values
+//!
+//! ## Special Types
+//! - **Type**: Meta-type representing CEL types themselves
+//! - **Error**: Error values from failed operations
+//! - **Unknown**: Partially evaluated expressions (not yet implemented)
+//! - **Opaque**: Custom user-defined types
+//!
+//! # Type Conversion System
+//!
+//! The module provides a comprehensive type conversion system built on Generic
+//! Associated Types (GATs) for safe, zero-cost conversions between Rust and CEL types.
+//!
+//! ## Core Conversion Traits
+//!
+//! - [`TypedValue`]: Types that have a known CEL type
+//! - [`IntoValue`]: Convert Rust types to CEL values
+//! - [`FromValue`]: Convert CEL values to Rust types (with GATs)
+//! - [`IntoConstant`]: Convert to compile-time constants
+//!
+//! ## Map Key Conversion
+//!
+//! - [`TypedMapKey`]: Types that can be used as map keys
+//! - [`IntoMapKey`]: Convert to CEL map keys
+//! - [`FromMapKey`]: Convert from CEL map keys
+//!
+//! # Memory Management and Lifetimes
+//!
+//! The value system is designed for efficient memory usage:
+//! - **Zero-copy conversions** where possible (`&str` from `String` values)
+//! - **Controlled lifetime erasure** for safe reference handling
+//! - **Reference counting** for shared data structures
+//! - **Clone-on-write** semantics for expensive operations
 //!
 //! # Examples
 //!
-//! ```rust,no_run
+//! ## Basic Value Creation and Conversion
+//!
+//! ```rust
+//! use cel_cxx::{Value, IntoValue, FromValue};
+//!
+//! // Create values from Rust types
+//! let null_val = Value::Null;
+//! let bool_val = true.into_value();
+//! let int_val = 42i64.into_value();
+//! let string_val = "hello".into_value();
+//!
+//! // Convert back to Rust types
+//! let rust_bool: bool = bool_val.try_into()?;
+//! let rust_int: i64 = int_val.try_into()?;
+//! let rust_string: String = string_val.try_into()?;
+//! ```
+//!
+//! ## Working with Collections
+//!
+//! ```rust
 //! use cel_cxx::{Value, MapKey};
 //! use std::collections::HashMap;
 //!
-//! // Basic value types
-//! let null = Value::Null;
-//! let boolean = Value::Bool(true);
-//! let integer = Value::Int(42);
-//! let string = Value::String("hello".to_string());
+//! // Create a list
+//! let list = Value::List(vec![
+//!     Value::Int(1),
+//!     Value::Int(2),
+//!     Value::Int(3),
+//! ]);
 //!
-//! // Composite types
-//! let list = Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]);
-//!
+//! // Create a map
 //! let mut map = HashMap::new();
-//! map.insert(MapKey::String("key".to_string()), Value::String("value".to_string()));
-//! let map_value = Value::Map(map);
-//!
-//! // Type checking
-//! assert_eq!(integer.kind(), cel_cxx::Kind::Int);
-//! assert_eq!(string.value_type(), cel_cxx::Type::String);
+//! map.insert(MapKey::String("name".to_string()), Value::String("Alice".to_string()));
+//! map.insert(MapKey::String("age".to_string()), Value::Int(30));
+//! let map_val = Value::Map(map);
 //! ```
+//!
+//! ## Reference Conversions with Lifetimes
+//!
+//! ```rust
+//! use cel_cxx::{Value, FromValue};
+//!
+//! let string_val = Value::String("hello world".to_string());
+//!
+//! // Convert to borrowed string slice (zero-copy)
+//! let borrowed_str = <&str>::from_value(&string_val)?;
+//! assert_eq!(borrowed_str, "hello world");
+//!
+//! // The original value owns the data
+//! drop(string_val); // borrowed_str is no longer valid after this
+//! ```
+//!
+//! ## Custom Type Integration
+//!
+//! For custom opaque types, use the derive macro instead of manual implementation:
+//!
+//! ```rust
+//! use cel_cxx::Opaque;
+//!
+//! #[derive(Opaque, Debug, Clone, PartialEq)]
+//! struct UserId(u64);
+//!
+//! // All necessary traits (TypedValue, IntoValue, FromValue) are automatically implemented
+//!
+//! // Usage
+//! let user_id = UserId(12345);
+//! let value = user_id.into_value();
+//! let converted_back = UserId::from_value(&value)?;
+//! ```
+//!
+//! # Error Handling
+//!
+//! The module provides comprehensive error handling through:
+//! - [`FromValueError`]: Conversion failures from CEL values
+//! - [`FromMapKeyError`]: Map key conversion failures
+//! - Detailed error messages with type information
+//!
+//! ## Error Example
+//!
+//! ```rust
+//! use cel_cxx::{Value, FromValue, FromValueError};
+//!
+//! let string_val = Value::String("not a number".to_string());
+//! let result = i64::from_value(&string_val);
+//!
+//! match result {
+//!     Ok(num) => println!("Converted: {}", num),
+//!     Err(FromValueError { value, to_type, .. }) => {
+//!         println!("Cannot convert {:?} to {}", value, to_type);
+//!     }
+//! }
+//! ```
+//!
+//! # Performance Characteristics
+//!
+//! - **Conversion overhead**: Minimal for primitive types, optimized for references
+//! - **Memory usage**: Efficient representation, shared ownership where beneficial
+//! - **Type checking**: Compile-time where possible, fast runtime checks otherwise
+//! - **Collection operations**: Optimized for common access patterns
+//!
+//! # Thread Safety
+//!
+//! All value types are thread-safe:
+//! - Values can be shared across threads (`Send + Sync`)
+//! - Reference counting handles concurrent access safely
+//! - Conversion operations are atomic where required
 
 mod opaque;
 mod display;
 mod traits;
 mod impls;
+//mod impls_old;
 mod optional;
 
 use std::collections::HashMap;
+use arc_slice::{ArcStr, ArcBytes};
 use crate::{Kind, Error};
 use crate::types::*;
 
@@ -54,6 +184,23 @@ pub use opaque::*;
 pub use traits::*;
 pub use optional::*;
 
+/// CEL duration type.
+pub type Duration = chrono::Duration;
+
+/// CEL timestamp type.
+pub type Timestamp = chrono::DateTime<chrono::Utc>;
+
+/// CEL list value type.
+pub type ListValue = Vec<Value>;
+
+/// CEL map value type.
+pub type MapValue = HashMap<MapKey, Value>;
+
+/// CEL opaque value type.
+pub type OpaqueValue = Box<dyn Opaque>;
+
+/// CEL optional value type.
+pub type OptionalValue = Optional<Value>;
 
 /// Main CEL value type.
 ///
@@ -117,40 +264,40 @@ pub enum Value {
     Double(f64),
 
     /// UTF-8 string
-    String(String),
+    String(ArcStr),
 
     /// Byte array
-    Bytes(Vec<u8>),
+    Bytes(ArcBytes),
 
     /// Struct (not yet implemented)
     Struct(()),
 
     /// Duration (Protocol Buffers Duration)
-    Duration(chrono::Duration),
+    Duration(Duration),
 
     /// Timestamp (Protocol Buffers Timestamp)
-    Timestamp(chrono::DateTime<chrono::Utc>),
+    Timestamp(Timestamp),
 
     /// List of values
-    List(Vec<Value>),
+    List(ListValue),
 
     /// Key-value map
-    Map(HashMap<MapKey, Value>),
+    Map(MapValue),
 
     /// Unknown type (not yet implemented)
     Unknown(()),
 
     /// CEL type value
-    Type(Type),
+    Type(ValueType),
 
     /// Error value
     Error(Error),
 
     /// Opaque custom type
-    Opaque(Opaque),
+    Opaque(OpaqueValue),
 
     /// Optional value type
-    Optional(Optional<Value>),
+    Optional(OptionalValue),
 }
 
 impl Value {
@@ -192,7 +339,7 @@ impl Value {
     
     /// Returns the concrete type of this value.
     ///
-    /// Returns detailed [`Type`] information including generic parameters.
+    /// Returns detailed [`ValueType`] information including generic parameters.
     /// For container types (List, Map), infers element or key-value types.
     ///
     /// # Type Inference Rules
@@ -217,35 +364,35 @@ impl Value {
     /// let mixed_list = Value::List(vec![Value::Int(1), Value::String("hello".to_string())]);
     /// assert_eq!(mixed_list.value_type(), Type::List(ListType::new(Type::Dyn)));
     /// ```
-    pub fn value_type(&self) -> Type {
+    pub fn value_type(&self) -> ValueType {
         match &self {
-            Value::Null => Type::Null,
-            Value::Bool(_) => Type::Bool,
-            Value::Int(_) => Type::Int,
-            Value::Uint(_) => Type::Uint,
-            Value::Double(_) => Type::Double,
-            Value::String(_) => Type::String,
-            Value::Bytes(_) => Type::Bytes,
+            Value::Null => ValueType::Null,
+            Value::Bool(_) => ValueType::Bool,
+            Value::Int(_) => ValueType::Int,
+            Value::Uint(_) => ValueType::Uint,
+            Value::Double(_) => ValueType::Double,
+            Value::String(_) => ValueType::String,
+            Value::Bytes(_) => ValueType::Bytes,
             Value::Struct(_s) => {
                 todo!()
             }
-            Value::Duration(_) => Type::Duration,
-            Value::Timestamp(_) => Type::Timestamp,
+            Value::Duration(_) => ValueType::Duration,
+            Value::Timestamp(_) => ValueType::Timestamp,
             Value::List(list) => {
                 let mut iter = list.iter();
                 if let Some(v) = iter.next() {
                     let elem_type = v.value_type();
-                    if elem_type == Type::Dyn {
-                        return Type::List(ListType::new(Type::Dyn));
+                    if elem_type == ValueType::Dyn {
+                        return ValueType::List(ListType::new(ValueType::Dyn));
                     }
                     for v in iter {
                         if v.value_type() != elem_type {
-                            return Type::List(ListType::new(Type::Dyn));
+                            return ValueType::List(ListType::new(ValueType::Dyn));
                         }
                     }
-                    return Type::List(ListType::new(elem_type));
+                    return ValueType::List(ListType::new(elem_type));
                 }
-                Type::List(ListType::new(Type::Dyn))
+                ValueType::List(ListType::new(ValueType::Dyn))
             },
             Value::Map(m) => {
                 let mut iter = m.iter();
@@ -258,31 +405,31 @@ impl Value {
                                 key_type = None;
                             }
                         }
-                        if val_type != Type::Dyn {
+                        if val_type != ValueType::Dyn {
                             if v.value_type() != val_type {
-                                val_type = Type::Dyn;
+                                val_type = ValueType::Dyn;
                             }
                         }
 
-                        if key_type.is_none() && val_type == Type::Dyn {
+                        if key_type.is_none() && val_type == ValueType::Dyn {
                             break;
                         }
                     }
-                    return Type::Map(MapType::new(key_type.unwrap_or(MapKeyType::Dyn), val_type));
+                    return ValueType::Map(MapType::new(key_type.unwrap_or(MapKeyType::Dyn), val_type));
                 } else {
-                    return Type::Map(MapType::new(MapKeyType::Dyn, Type::Dyn));
+                    return ValueType::Map(MapType::new(MapKeyType::Dyn, ValueType::Dyn));
                 }
             },
-            Value::Unknown(_u) => Type::Unknown,
-            Value::Opaque(o) => Type::Opaque(o.opaque_type()),
+            Value::Unknown(_u) => ValueType::Unknown,
+            Value::Opaque(o) => ValueType::Opaque(o.opaque_type()),
             Value::Optional(opt) => {
                 if let Some(v) = opt.as_option() {
-                    return Type::Optional(OptionalType::new(v.value_type()));
+                    return ValueType::Optional(OptionalType::new(v.value_type()));
                 }
-                Type::Optional(OptionalType::new(Type::Dyn))
+                ValueType::Optional(OptionalType::new(ValueType::Dyn))
             },
-            Value::Type(_t) => Type::Type(TypeType::new(None)),
-            Value::Error(_e) => Type::Error,
+            Value::Type(_t) => ValueType::Type(TypeType::new(None)),
+            Value::Error(_e) => ValueType::Error,
         }
     }
 }
@@ -290,6 +437,31 @@ impl Value {
 impl Default for Value {
     fn default() -> Self {
         Value::Null
+    }
+}
+
+impl From<MapKey> for Value {
+    fn from(key: MapKey) -> Self {
+        match key {
+            MapKey::Bool(b) => Value::Bool(b),
+            MapKey::Int(i) => Value::Int(i),
+            MapKey::Uint(u) => Value::Uint(u),
+            MapKey::String(s) => Value::String(s),
+        }
+    }
+}
+
+impl TryFrom<Value> for MapKey {
+    type Error = FromValueError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Bool(b) => Ok(MapKey::Bool(b)),
+            Value::Int(i) => Ok(MapKey::Int(i)),
+            Value::Uint(u) => Ok(MapKey::Uint(u)),
+            Value::String(s) => Ok(MapKey::String(s)),
+            _ => Err(FromValueError::new(value, "MapKey")),
+        }
     }
 }
 
@@ -329,7 +501,7 @@ pub enum MapKey {
     /// Unsigned integer key
     Uint(u64),
     /// String key
-    String(String),
+    String(ArcStr),
 }
 
 impl MapKey {
@@ -417,15 +589,110 @@ impl MapKey {
     }
 }
 
-impl From<&str> for MapKey {
-    fn from(value: &str) -> Self {
-        MapKey::String(value.to_owned())
+/// CEL constant value.
+///
+/// `Constant` represents constant values known at compile time, supporting CEL's basic data types.
+/// Constants can be used for compile-time optimization and type inference.
+///
+/// # Supported Types
+///
+/// - `Null`: Null value
+/// - `Bool`: Boolean value
+/// - `Int`: 64-bit signed integer
+/// - `Uint`: 64-bit unsigned integer
+/// - `Double`: 64-bit floating point number
+/// - `String`: UTF-8 string
+/// - `Bytes`: Byte array
+/// - `Duration`: Time duration
+/// - `Timestamp`: Timestamp
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use cel_cxx::Constant;
+///
+/// let null_const = Constant::Null;
+/// let bool_const = Constant::Bool(true);
+/// let int_const = Constant::Int(42);
+/// let string_const = Constant::String("hello".to_string());
+/// ```
+#[derive(Debug, Clone, Default)]
+pub enum Constant {
+    /// Null constant
+    #[default]
+    Null,
+    /// Boolean constant
+    Bool(bool),
+    /// Signed integer constant
+    Int(i64),
+    /// Unsigned integer constant
+    Uint(u64),
+    /// Floating point constant
+    Double(f64),
+    /// Byte array constant
+    Bytes(ArcBytes),
+    /// String constant
+    String(ArcStr),
+    /// Duration constant
+    Duration(chrono::Duration),
+    /// Timestamp constant
+    Timestamp(chrono::DateTime<chrono::Utc>),
+}
+
+impl Constant {
+    /// Returns the type of the constant.
+    ///
+    /// Returns the CEL type corresponding to the constant value.
+    pub fn value_type(&self) -> ValueType {
+        match self {
+            Self::Null => ValueType::Null,
+            Self::Bool(_) => ValueType::Bool,
+            Self::Int(_) => ValueType::Int,
+            Self::Uint(_) => ValueType::Uint,
+            Self::Double(_) => ValueType::Double,
+            Self::Bytes(_) => ValueType::Bytes,
+            Self::String(_) => ValueType::String,
+            Self::Duration(_) => ValueType::Duration,
+            Self::Timestamp(_) => ValueType::Timestamp,
+        }
+    }
+
+    /// Converts the constant to a CEL value.
+    ///
+    /// Converts the constant to the corresponding [`Value`] type.
+    ///
+    /// [`Value`]: crate::Value
+    pub fn value(&self) -> Value {
+        match self {
+            Self::Null => Value::Null,
+            Self::Bool(value) => Value::Bool(*value),
+            Self::Int(value) => Value::Int(*value),
+            Self::Uint(value) => Value::Uint(*value),
+            Self::Double(value) => Value::Double(*value),
+            Self::Bytes(value) => Value::Bytes(value.clone()),
+            Self::String(value) => Value::String(value.clone()),
+            Self::Duration(value) => Value::Duration(*value),
+            Self::Timestamp(value) => Value::Timestamp(*value),
+        }
     }
 }
 
-impl From<&String> for MapKey {
-    fn from(value: &String) -> Self {
-        MapKey::String(value.to_owned())
+impl TryFrom<Value> for Constant {
+    type Error = FromValueError;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
+            Value::Null => Ok(Constant::Null),
+            Value::Bool(b) => Ok(Constant::Bool(b)),
+            Value::Int(i) => Ok(Constant::Int(i)),
+            Value::Uint(u) => Ok(Constant::Uint(u)),
+            Value::Double(d) => Ok(Constant::Double(d)),
+            Value::Bytes(b) => Ok(Constant::Bytes(b)),
+            Value::String(s) => Ok(Constant::String(s)),
+            Value::Duration(d) => Ok(Constant::Duration(d)),
+            Value::Timestamp(t) => Ok(Constant::Timestamp(t)),
+            _ => Err(FromValueError::new(value, "Constant")),
+        }
     }
 }
 
@@ -441,13 +708,13 @@ mod test {
             (Value::Int(1), Kind::Int),
             (Value::Uint(1), Kind::Uint),
             (Value::Double(1.0), Kind::Double),
-            (Value::String("test".to_string()), Kind::String),
-            (Value::Bytes(vec![1,2,3]), Kind::Bytes), 
+            (Value::String("test".into()), Kind::String),
+            (Value::Bytes(b"abc".into()), Kind::Bytes), 
             (Value::Duration(chrono::Duration::seconds(1)), Kind::Duration),
             (Value::Timestamp(chrono::Utc::now()), Kind::Timestamp),
             (Value::List(vec![]), Kind::List),
             (Value::Map(HashMap::new()), Kind::Map),
-            (Value::Type(Type::Null), Kind::Type),
+            (Value::Type(ValueType::Null), Kind::Type),
             (Value::Error(Error::invalid_argument("invalid").into()), Kind::Error),
             (Value::Optional(Optional::none()), Kind::Opaque),
         ];
@@ -463,7 +730,7 @@ mod test {
             (MapKey::Bool(true), Kind::Bool),
             (MapKey::Int(1), Kind::Int), 
             (MapKey::Uint(1), Kind::Uint),
-            (MapKey::String("test".to_string()), Kind::String),
+            (MapKey::String("test".into()), Kind::String),
         ];
 
         for (key, expected_kind) in cases {
@@ -474,20 +741,20 @@ mod test {
     #[test]
     fn test_value_type() {
         let cases = vec![
-            (Value::Null, Type::Null),
-            (Value::Bool(true), Type::Bool),
-            (Value::Int(1), Type::Int),
-            (Value::Uint(1), Type::Uint),
-            (Value::Double(1.0), Type::Double),
-            (Value::String("test".to_string()), Type::String),
-            (Value::Bytes(vec![1,2,3]), Type::Bytes),
-            (Value::Duration(chrono::Duration::seconds(1)), Type::Duration),
-            (Value::Timestamp(chrono::Utc::now()), Type::Timestamp),
-            (Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]), Type::List(ListType::new(Type::Int))),
-            (Value::Map(HashMap::from([(MapKey::String("test".to_string()), Value::Int(1))])), Type::Map(MapType::new(MapKeyType::String, Type::Int))),
-            (Value::Type(Type::Double), Type::Type(TypeType::new(None))),
-            (Value::Error(Error::invalid_argument("invalid").into()), Type::Error),
-            (Value::Optional(Optional::new(Value::Int(5))), Type::Optional(OptionalType::new(Type::Int))),
+            (Value::Null, ValueType::Null),
+            (Value::Bool(true), ValueType::Bool),
+            (Value::Int(1), ValueType::Int),
+            (Value::Uint(1), ValueType::Uint),
+            (Value::Double(1.0), ValueType::Double),
+            (Value::String("test".into()), ValueType::String),
+            (Value::Bytes(b"abc".into()), ValueType::Bytes),
+            (Value::Duration(chrono::Duration::seconds(1)), ValueType::Duration),
+            (Value::Timestamp(chrono::Utc::now()), ValueType::Timestamp),
+            (Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]), ValueType::List(ListType::new(ValueType::Int))),
+            (Value::Map(HashMap::from([(MapKey::String("test".into()), Value::Int(1))])), ValueType::Map(MapType::new(MapKeyType::String, ValueType::Int))),
+            (Value::Type(ValueType::Double), ValueType::Type(TypeType::new(None))),
+            (Value::Error(Error::invalid_argument("invalid").into()), ValueType::Error),
+            (Value::Optional(Optional::new(Value::Int(5))), ValueType::Optional(OptionalType::new(ValueType::Int))),
         ];
 
         for (i, (value, expected_type)) in cases.into_iter().enumerate() {

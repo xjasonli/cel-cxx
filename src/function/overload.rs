@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use super::*;
+use crate::Kind;
 
 /// Collection of function overloads grouped by argument kinds.
 ///
@@ -129,32 +129,26 @@ impl<T: FunctionTypeOverload> FunctionOverloads<T> {
 impl<'f> FunctionOverloads<FunctionDeclOrImpl<'f>> {
     /// Adds a function implementation to the overloads.
     ///
-    /// # Type Parameters
+    /// This method adds a concrete function implementation to the appropriate overload
+    /// group based on its signature. If no matching overload exists, a new one is created.
     ///
-    /// - `F`: Function implementation type
-    /// - `M`: Function marker (sync/async)
-    /// - `E`: Error type
-    /// - `R`: Return type
-    /// - `A`: Argument tuple type
+    /// # Arguments
     ///
-    /// # Parameters
-    ///
-    /// - `member`: Whether this is a member function
-    /// - `f`: Function implementation to add
+    /// * `member` - Whether this is a member function
+    /// * `f` - The function implementation to add
     ///
     /// # Returns
     ///
-    /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add_impl<F, M, E, R, A>(&mut self, member: bool, f: F) -> Result<&mut Self, Error>
-    where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: 'f,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
-    {
-        let erased = f.erased();
-        let kinds = erased.argument_kinds();
+    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if addition fails
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the function signature conflicts with existing registrations.
+    pub fn add_impl(&mut self, member: bool, f: Function<'f>) -> Result<&mut Self, Error> {
+        let kinds = f.arguments()
+            .into_iter()
+            .map(|t| t.kind())
+            .collect::<Vec<_>>();
         if let Some(overload) = self.find_mut(member, &kinds) {
             overload.add_impl(f)?;
         } else {
@@ -167,105 +161,107 @@ impl<'f> FunctionOverloads<FunctionDeclOrImpl<'f>> {
 
     /// Adds a function declaration to the overloads.
     ///
-    /// # Parameters
+    /// This method adds a function type signature (declaration) to the appropriate
+    /// overload group. Declarations provide type information for compile-time checking
+    /// without requiring an implementation.
     ///
-    /// - `member`: Whether this is a member function
-    /// - `result`: Return type of the function
-    /// - `args`: Argument types of the function
+    /// # Arguments
+    ///
+    /// * `member` - Whether this is a member function declaration
+    /// * `f` - The function type signature to add
     ///
     /// # Returns
     ///
-    /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add_decl<I>(&mut self, member: bool, result: Type, args: I) -> Result<&mut Self, Error>
-    where
-        I: IntoIterator<Item = Type>,
+    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if addition fails
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the function signature conflicts with existing registrations.
+    pub fn add_decl(&mut self, member: bool, f: FunctionType) -> Result<&mut Self, Error>
     {
-        let args = args.into_iter().collect::<Vec<_>>();
-        let kinds = args.iter().map(|t| t.kind()).collect::<Vec<_>>();
+        let kinds = f.arguments()
+            .into_iter()
+            .map(|t| t.kind())
+            .collect::<Vec<_>>();
         if let Some(overload) = self.find_mut(member, &kinds) {
-            overload.add_decl(result, args)?;
+            overload.add_decl(f)?;
         } else {
             let mut overload = FunctionKindOverload::new(member, kinds);
-            overload.add_decl(result, args)?;
+            overload.add_decl(f)?;
             self.0.push(overload);
         }
         Ok(self)
     }
-
-    /// Adds a function (implementation or declaration) to the overloads.
-    ///
-    /// This is a convenience method that automatically determines whether to add
-    /// an implementation or declaration based on the function type.
-    ///
-    /// # Type Parameters
-    ///
-    /// - `F`: Function type
-    /// - `M`: Function marker (sync/async)
-    /// - `E`: Error type
-    /// - `R`: Return type
-    /// - `A`: Argument tuple type
-    ///
-    /// # Parameters
-    ///
-    /// - `member`: Whether this is a member function
-    /// - `f`: Function to add
-    ///
-    /// # Returns
-    ///
-    /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add<F, M, E, R, A>(&mut self, member: bool, f: F) -> Result<&mut Self, Error>
-    where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: 'f,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
-    {
-        self.add_impl(member, f)
-    }
 }
 
-impl<'f> FunctionOverloads<FunctionImpl<'f>> {
-    /// Adds a function implementation to the function implementation overloads.
+impl<'f> FunctionOverloads<Function<'f>> {
+    /// Adds a function to the overloads.
     ///
-    /// This method is specifically for adding function implementations to
-    /// collections that only store implementations (not declarations).
+    /// This method adds a function to the appropriate overload group based on its
+    /// signature. This is used when working with pure function implementations
+    /// without separate declarations.
     ///
-    /// # Type Parameters
+    /// # Arguments
     ///
-    /// - `F`: Function implementation type
-    /// - `M`: Function marker (sync/async)
-    /// - `E`: Error type
-    /// - `R`: Return type
-    /// - `A`: Argument tuple type
-    ///
-    /// # Parameters
-    ///
-    /// - `member`: Whether this is a member function
-    /// - `f`: Function implementation to add
+    /// * `member` - Whether this is a member function
+    /// * `f` - The function to add
     ///
     /// # Returns
     ///
-    /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add<F, M, E, R, A>(&mut self, member: bool, f: F) -> Result<&mut Self, Error>
-    where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: 'f,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
-    {
-        let erased = f.erased();
-        if let Some(overload) = self.find_mut(member, &erased.argument_kinds()) {
+    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if addition fails
+    ///
+    /// # Errors
+    ///
+    /// Returns error if the function signature conflicts with existing registrations.
+    pub fn add(&mut self, member: bool, f: Function<'f>) -> Result<&mut Self, Error> {
+        let kinds = f.arguments()
+            .into_iter()
+            .map(|t| t.kind())
+            .collect::<Vec<_>>();
+        if let Some(overload) = self.find_mut(member, &kinds) {
             overload.add(f)?;
         } else {
-            let mut overload = FunctionKindOverload::new(member, erased.argument_kinds());
+            let mut overload = FunctionKindOverload::new(member, kinds);
             overload.add(f)?;
             self.0.push(overload);
         }
         Ok(self)
     }
 }
+
+/// Trait for extracting argument types from function-like objects.
+///
+/// This trait provides a unified interface for getting argument type information
+/// from different kinds of function objects (implementations, declarations, etc.).
+/// It is used internally by the overload resolution system.
+///
+/// # Implementation Note
+///
+/// This trait is automatically implemented for function types that can provide
+/// argument type information. It should not be implemented manually.
+pub trait FunctionTypeOverload {
+    /// Returns the argument types for this function.
+    ///
+    /// # Returns
+    ///
+    /// A vector of [`ValueType`] representing the function's argument types.
+    fn arguments(&self) -> Vec<ValueType>;
+}
+
+impl FunctionTypeOverload for FunctionDeclOrImpl<'_> {
+    fn arguments(&self) -> Vec<ValueType> {
+        self.decl()
+            .arguments()
+            .to_vec()
+    }
+}
+
+impl FunctionTypeOverload for Function<'_> {
+    fn arguments(&self) -> Vec<ValueType> {
+        self.arguments()
+    }
+}
+
 
 /// Function overload for a specific argument kind signature.
 ///
@@ -341,7 +337,7 @@ impl<T: FunctionTypeOverload> FunctionKindOverload<T> {
     /// # Returns
     ///
     /// Reference to the matching function, or `None` if not found
-    pub fn find(&self, args: &[Type]) -> Option<&T> {
+    pub fn find(&self, args: &[ValueType]) -> Option<&T> {
         self.entries.iter()
             .find(|entry| &entry.arguments() == args)
     }
@@ -378,7 +374,7 @@ impl<T: FunctionTypeOverload> FunctionKindOverload<T> {
     /// # Returns
     ///
     /// `Ok(())` if removal was successful, `Err(Error)` if not found
-    pub fn remove(&mut self, args: &[Type]) -> Result<(), Error> {
+    pub fn remove(&mut self, args: &[ValueType]) -> Result<(), Error> {
         if let Some(index) = self.entries.iter()
             .position(|entry| &entry.arguments() == args) {
             self.entries.remove(index);
@@ -395,63 +391,56 @@ impl<T: FunctionTypeOverload> FunctionKindOverload<T> {
 }
 
 impl<'f> FunctionKindOverload<FunctionDeclOrImpl<'f>> {
-    /// Adds a function implementation to this overload.
+    /// Adds a function implementation to this overload group.
     ///
-    /// # Type Parameters
+    /// This method adds a concrete function implementation to the overload group.
+    /// The function signature must match the argument kinds of this overload group.
     ///
-    /// - `F`: Function implementation type
-    /// - `M`: Function marker (sync/async)
-    /// - `E`: Error type
-    /// - `R`: Return type
-    /// - `A`: Argument tuple type
+    /// # Arguments
     ///
-    /// # Parameters
-    ///
-    /// - `f`: Function implementation to add
+    /// * `f` - The function implementation to add
     ///
     /// # Returns
     ///
-    /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add_impl<F, M, E, R, A>(&mut self, f: F) -> Result<&mut Self, Error>
-    where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: 'f,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
-    {
-        let erased = f.erased();
-        if let Some(_entry) = self.find(&erased.arguments()) {
+    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if the function already exists
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a function with the same exact signature already exists.
+    pub fn add_impl(&mut self, f: Function<'f>) -> Result<&mut Self, Error> {
+        if let Some(_entry) = self.find(&f.arguments()) {
             return Err(Error::invalid_argument("Function already exists"));
         }
         self.entries.push(FunctionDeclOrImpl::new_impl(f));
         Ok(self)
     }
 
-    /// Adds a function declaration to this overload.
+    /// Adds a function declaration to this overload group.
     ///
-    /// # Parameters
+    /// This method adds a function type signature (declaration) to the overload group.
+    /// The function signature must match the argument kinds of this overload group.
     ///
-    /// - `result`: Return type of the function
-    /// - `args`: Argument types of the function
+    /// # Arguments
+    ///
+    /// * `r#type` - The function type signature to add
     ///
     /// # Returns
     ///
-    /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add_decl<I>(&mut self, result: Type, args: I) -> Result<&mut Self, Error>
-    where
-        I: IntoIterator<Item = Type>,
-    {
-        let args = args.into_iter().collect::<Vec<_>>();
-        if let Some(_entry) = self.find(&args) {
+    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if the function already exists
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a function with the same exact signature already exists.
+    pub fn add_decl(&mut self, r#type: FunctionType) -> Result<&mut Self, Error> {
+        if let Some(_entry) = self.find(&r#type.arguments()) {
             return Err(Error::invalid_argument("Function already exists"));
         }
-        self.entries.push(FunctionDeclOrImpl::new_decl(result, args));
+        self.entries.push(FunctionDeclOrImpl::new(r#type));
         Ok(self)
     }
 }
 
-impl<'f> FunctionKindOverload<FunctionImpl<'f>> {
+impl<'f> FunctionKindOverload<Function<'f>> {
     /// Adds a function (implementation or declaration) to this overload.
     ///
     /// This is a convenience method that automatically determines whether to add
@@ -472,279 +461,109 @@ impl<'f> FunctionKindOverload<FunctionImpl<'f>> {
     /// # Returns
     ///
     /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add<F, M, E, R, A>(&mut self, f: F) -> Result<&mut Self, Error>
-    where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: 'f,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
+    pub fn add(&mut self, f: Function<'f>) -> Result<&mut Self, Error>
     {
-        let erased = f.erased();
-        if let Some(_entry) = self.find(&erased.arguments()) {
+        if let Some(_entry) = self.find(&f.arguments()) {
             return Err(Error::invalid_argument("Function already exists"));
         }
-        self.entries.push(Arc::new(f.into_erased()));
+        self.entries.push(f);
         Ok(self)
     }
 }
 
-/// Trait for function type overloads.
+/// Union type representing either a function declaration or implementation.
 ///
-/// `FunctionTypeOverload` provides a common interface for accessing type information
-/// from function declarations and implementations. This trait is used internally
-/// for type checking and function resolution.
-pub trait FunctionTypeOverload: Send + Sync {
-    /// Returns the return type of the function.
-    fn result(&self) -> Type;
-    
-    /// Returns the argument types of the function.
-    fn arguments(&self) -> Vec<Type>;
-}
-
-impl<'f> FunctionTypeOverload for FunctionImpl<'f> {
-    fn result(&self) -> Type {
-        ErasedFnImpl::result(&**self)
-    }
-
-    fn arguments(&self) -> Vec<Type> {
-        ErasedFnImpl::arguments(&**self)
-    }
-}
-
-/// Function declaration with type signature.
+/// `FunctionDeclOrImpl` can hold either:
+/// - A function type signature (declaration) for compile-time type checking
+/// - A concrete function implementation for runtime execution
+/// - Both a declaration and implementation (preferred)
 ///
-/// `FunctionDecl` represents a function declaration that provides only type information
-/// without an actual implementation. This is used for compile-time type checking
-/// when the implementation will be provided at runtime.
+/// This allows the system to provide type information even when implementations
+/// are not available, enabling better compile-time checking and error reporting.
 ///
 /// # Examples
 ///
 /// ```rust,no_run
-/// use cel_cxx::{Type, function::FunctionDecl};
+/// use cel_cxx::function::{FunctionDeclOrImpl, IntoFunction};
+/// use cel_cxx::types::FunctionType;
 ///
-/// // Declare a function: (string, int) -> string
-/// let decl = FunctionDecl::new(
-///     Type::String,
-///     vec![Type::String, Type::Int]
-/// );
+/// // Create from declaration only
+/// let func_type = FunctionType::new(/* ... */);
+/// let decl_only = FunctionDeclOrImpl::new_decl(func_type);
+///
+/// // Create from implementation (includes both decl and impl)
+/// let func = (|a: i32, b: i32| -> i32 { a + b }).into_function();
+/// let with_impl = FunctionDeclOrImpl::new_impl(func);
 /// ```
-#[derive(Debug)]
-pub struct FunctionDecl {
-    result: Type,
-    arguments: Vec<Type>,
+#[derive(Debug, Clone)]
+pub struct FunctionDeclOrImpl<'f> {
+    r#type: FunctionType,
+    r#impl: Option<Function<'f>>,
 }
 
-impl FunctionDecl {
-    /// Creates a new function declaration.
-    ///
-    /// # Parameters
-    ///
-    /// - `result`: Return type of the function
-    /// - `args`: Argument types of the function
-    ///
-    /// # Returns
-    ///
-    /// New `FunctionDecl` instance
-    pub fn new<I>(result: Type, args: I) -> Self
-    where
-        I: IntoIterator<Item = Type>,
-    {
-        Self { result, arguments: args.into_iter().collect() }
-    }
-
-    /// Returns the return type of the function.
-    ///
-    /// # Returns
-    ///
-    /// Clone of the function's return type
-    pub fn result(&self) -> Type {
-        self.result.clone()
-    }
-
-    /// Returns the argument types of the function.
-    ///
-    /// # Returns
-    ///
-    /// Clone of the function's argument types
-    pub fn arguments(&self) -> Vec<Type> {
-        self.arguments.clone()
-    }
-}
-
-impl FunctionTypeOverload for FunctionDecl {
-    fn result(&self) -> Type {
-        self.result.clone()
-    }
-    fn arguments(&self) -> Vec<Type> {
-        self.arguments.clone()
-    }
-}
-
-/// Function declaration or implementation.
-///
-/// `FunctionDeclOrImpl` is an enum that can hold either a function declaration
-/// (type signature only) or a function implementation (callable code). This allows
-/// the function system to handle both compile-time type checking and runtime execution.
-///
-/// # Variants
-///
-/// - `Decl`: Function declaration with type information only
-/// - `Impl`: Function implementation (callable code)
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use cel_cxx::{Type, function::{FunctionDecl, FunctionDeclOrImpl}};
-///
-/// // Create a declaration
-/// let decl = FunctionDecl::new(Type::String, vec![Type::Int]);
-/// let decl_or_impl = FunctionDeclOrImpl::Decl(decl);
-///
-/// // Check what type it is
-/// assert!(decl_or_impl.is_decl());
-/// assert!(!decl_or_impl.is_impl());
-/// ```
-pub enum FunctionDeclOrImpl<'f> {
-    /// Function declaration (type signature only)
-    Decl(FunctionDecl),
-    /// Function implementation (callable code)
-    Impl(FunctionImpl<'f>),
-}
-
-impl<'f> FunctionTypeOverload for FunctionDeclOrImpl<'f> {
-    fn result(&self) -> Type {
-        match self {
-            FunctionDeclOrImpl::Decl(d) => d.result(),
-            FunctionDeclOrImpl::Impl(i) => i.result(),
-        }
-    }
-
-    fn arguments(&self) -> Vec<Type> {
-        match self {
-            FunctionDeclOrImpl::Decl(d) => d.arguments(),
-            FunctionDeclOrImpl::Impl(i) => i.arguments(),
-        }
-    }
-}
 impl<'f> FunctionDeclOrImpl<'f> {
-    /// Creates a new function implementation variant.
+    /// Creates a new `FunctionDeclOrImpl` from a function implementation.
     ///
-    /// # Type Parameters
+    /// This constructor creates both the declaration (extracted from the function's
+    /// type signature) and stores the implementation for runtime execution.
     ///
-    /// - `F`: Function implementation type
-    /// - `M`: Function marker (sync/async)
-    /// - `E`: Error type
-    /// - `R`: Return type
-    /// - `A`: Argument tuple type
+    /// # Arguments
     ///
-    /// # Parameters
-    ///
-    /// - `f`: Function implementation
+    /// * `r#impl` - The function implementation
     ///
     /// # Returns
     ///
-    /// New `FunctionDeclOrImpl::Impl` variant
-    pub fn new_impl<F, M, E, R, A>(f: F) -> Self
-    where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: 'f,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for<'a> A: TypedArguments + 'f,
-    {
-        Self::Impl(Arc::new(f.into_erased()))
+    /// New `FunctionDeclOrImpl` containing both declaration and implementation
+    pub fn new_impl(r#impl: Function<'f>) -> Self {
+        Self {
+            r#type: r#impl.function_type(),
+            r#impl: Some(r#impl),
+        }
     }
 
-    /// Creates a new function declaration variant.
+    /// Creates a new `FunctionDeclOrImpl` from a function type declaration.
     ///
-    /// # Parameters
+    /// This constructor creates a declaration-only entry, useful for providing
+    /// type information without requiring an implementation.
     ///
-    /// - `result`: Return type of the function
-    /// - `args`: Argument types of the function
+    /// # Arguments
+    ///
+    /// * `r#type` - The function type signature
     ///
     /// # Returns
     ///
-    /// New `FunctionDeclOrImpl::Decl` variant
-    pub fn new_decl<I>(result: Type, args: I) -> Self
-    where
-        I: IntoIterator<Item = Type>,
-    {
-        Self::Decl(FunctionDecl::new(result, args))
+    /// New `FunctionDeclOrImpl` containing only the declaration
+    pub fn new(r#type: FunctionType) -> Self {
+        Self {
+            r#type,
+            r#impl: None,
+        }
     }
 
-    /// Returns `true` if this is a function implementation.
+    /// Returns whether this entry has a concrete implementation.
     ///
     /// # Returns
     ///
-    /// `true` if this contains an implementation, `false` if it contains a declaration
+    /// `true` if this entry contains a function implementation, `false` if declaration-only
     pub fn is_impl(&self) -> bool {
-        matches!(self, FunctionDeclOrImpl::Impl(_))
+        self.r#impl.is_some()
     }
 
-    /// Returns `true` if this is a function declaration.
+    /// Gets the function type declaration.
     ///
     /// # Returns
     ///
-    /// `true` if this contains a declaration, `false` if it contains an implementation
-    pub fn is_decl(&self) -> bool {
-        matches!(self, FunctionDeclOrImpl::Decl(_))
+    /// Reference to the function type signature
+    pub fn decl(&self) -> &FunctionType {
+        &self.r#type
     }
 
-    /// Returns a reference to the function implementation, if this is an implementation.
+    /// Gets the function implementation, if available.
     ///
     /// # Returns
     ///
-    /// `Some(&FunctionImpl)` if this contains an implementation, `None` if it contains a declaration
-    pub fn as_impl(&self) -> Option<&FunctionImpl<'f>> {
-        match self {
-            FunctionDeclOrImpl::Decl(_) => None,
-            FunctionDeclOrImpl::Impl(f) => Some(f),
-        }
-    }
-
-    /// Returns a reference to the function declaration, if this is a declaration.
-    ///
-    /// # Returns
-    ///
-    /// `Some(&FunctionDecl)` if this contains a declaration, `None` if it contains an implementation
-    pub fn as_decl(&self) -> Option<&FunctionDecl> {
-        match self {
-            FunctionDeclOrImpl::Decl(d) => Some(d),
-            FunctionDeclOrImpl::Impl(_) => None,
-        }
-    }
-
-    /// Converts this into a function implementation, if this is an implementation.
-    ///
-    /// # Returns
-    ///
-    /// `Some(FunctionImpl)` if this contains an implementation, `None` if it contains a declaration
-    pub fn into_impl(self) -> Option<FunctionImpl<'f>> {
-        match self {
-            FunctionDeclOrImpl::Decl(_) => None,
-            FunctionDeclOrImpl::Impl(i) => Some(i),
-        }
-    }
-
-    /// Converts this into a function declaration, if this is a declaration.
-    ///
-    /// # Returns
-    ///
-    /// `Some(FunctionDecl)` if this contains a declaration, `None` if it contains an implementation
-    pub fn into_decl(self) -> Option<FunctionDecl> {
-        match self {
-            FunctionDeclOrImpl::Decl(d) => Some(d),
-            FunctionDeclOrImpl::Impl(_) => None,
-        }
-    }
-}
-
-impl<'f> std::fmt::Debug for FunctionDeclOrImpl<'f> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FunctionDeclOrImpl::Decl(d) => f.debug_tuple("Decl").field(d).finish(),
-            FunctionDeclOrImpl::Impl(_) => f.debug_tuple("Impl").field(&"<function>").finish(),
-        }
+    /// `Some(&Function)` if implementation is available, `None` for declaration-only entries
+    pub fn r#impl(&self) -> Option<&Function<'f>> {
+        self.r#impl.as_ref()
     }
 }

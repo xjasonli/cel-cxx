@@ -1,10 +1,9 @@
-use std::sync::Arc;
 use std::collections::HashMap;
-use crate::types::Type;
+use crate::function::*;
+use crate::ValueType;
 use crate::values::*;
 use crate::marker::*;
 use crate::Error;
-use super::provider::*;
 
 /// Runtime variable bindings.
 ///
@@ -92,26 +91,24 @@ impl<'f> VariableBindings<'f> {
     where
         T: IntoValue + TypedValue,
     {
-        self.entries.insert(name.into(), VariableBinding::new_value(value));
+        self.entries.insert(name.into(), VariableBinding::from_value(value));
         Ok(self)
     }
 
-    /// Binds a variable value provider.
+    /// Binds a variable to a value provider.
     ///
-    /// Binds a variable name to a function provider that is called each time the variable is accessed.
-    /// This is useful for dynamically computed values (such as current time, random numbers, etc.).
+    /// Binds a variable name to a provider function that computes the value dynamically.
+    /// This enables lazy evaluation and allows variables to have values computed at runtime.
     ///
     /// # Type Parameters
     ///
-    /// - `F`: Provider function type
-    /// - `M`: Function marker (sync or async)
-    /// - `E`: Error type, must be convertible to [`Error`]
-    /// - `T`: Return value type, must implement `IntoValue + TypedValue`
+    /// - `F`: Provider function type, must implement `IntoFunction`
+    /// - `Fm`: Function marker type (sync/async)
     ///
     /// # Parameters
     ///
     /// - `name`: Variable name
-    /// - `provider`: Value provider function
+    /// - `provider`: Provider function that computes the variable value
     ///
     /// # Returns
     ///
@@ -121,34 +118,24 @@ impl<'f> VariableBindings<'f> {
     ///
     /// ```rust,no_run
     /// use cel_cxx::VariableBindings;
-    /// use std::time::{SystemTime, UNIX_EPOCH};
     ///
     /// let mut bindings = VariableBindings::new();
-    ///
-    /// // Bind dynamic timestamp
-    /// bindings.bind_provider("timestamp", || {
-    ///     Ok(SystemTime::now()
-    ///         .duration_since(UNIX_EPOCH)
+    /// bindings.bind_provider("current_time", || -> i64 {
+    ///     std::time::SystemTime::now()
+    ///         .duration_since(std::time::UNIX_EPOCH)
     ///         .unwrap()
-    ///         .as_secs() as i64)
-    /// })?;
-    ///
-    /// // Bind random number
-    /// bindings.bind_provider("random", || {
-    ///     Ok(rand::random::<f64>())
+    ///         .as_secs() as i64
     /// })?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn bind_provider<F, M, E, T>(
+    pub fn bind_provider<F, Fm>(
         &mut self, name: impl Into<String>, provider: F
     ) -> Result<&mut Self, Error>
     where
-        F: Provider<M, E, T> + Send + Sync + 'f,
-        M: FnMarker,
-        E: Into<Error> + Send + Sync + 'static,
-        T: IntoValue + TypedValue + 'f,
+        F: IntoFunction<'f, Fm>,
+        Fm: FnMarker,
     {
-        self.entries.insert(name.into(), VariableBinding::new_provider(provider));
+        self.entries.insert(name.into(), VariableBinding::from_provider(provider));
         Ok(self)
     }
 
@@ -181,6 +168,10 @@ impl<'f> VariableBindings<'f> {
     /// Returns an iterator over all variable bindings.
     ///
     /// The iterator yields `(name, binding)` pairs for all bound variables.
+    ///
+    /// # Returns
+    ///
+    /// Iterator yielding `(&str, &VariableBinding)` pairs
     pub fn entries(&self) -> impl Iterator<Item = (&str, &VariableBinding<'f>)> {
         self.entries.iter()
             .map(|(name, entry)| (name.as_str(), entry))
@@ -189,6 +180,10 @@ impl<'f> VariableBindings<'f> {
     /// Returns a mutable iterator over all variable bindings.
     ///
     /// The iterator yields `(name, binding)` pairs and allows modifying the bindings.
+    ///
+    /// # Returns
+    ///
+    /// Iterator yielding `(&str, &mut VariableBinding)` pairs
     pub fn entries_mut(&mut self) -> impl Iterator<Item = (&str, &mut VariableBinding<'f>)> {
         self.entries.iter_mut()
             .map(|(name, entry)| (name.as_str(), entry))
@@ -216,8 +211,21 @@ impl<'f> VariableBindings<'f> {
     }
 
     /// Returns the number of variable bindings.
+    ///
+    /// # Returns
+    ///
+    /// Number of bound variables
     pub fn len(&self) -> usize {
         self.entries.len()
+    }
+
+    /// Returns whether the bindings are empty.
+    ///
+    /// # Returns
+    ///
+    /// `true` if no variables are bound, `false` otherwise
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 }
 
@@ -234,13 +242,13 @@ impl<'f> VariableBindings<'f> {
 #[derive(Debug, Clone)]
 pub enum VariableBinding<'f> {
     /// Directly stored value binding, containing (type, value) tuple
-    Value((Type, Value)),
+    Value((ValueType, Value)),
     /// Dynamic provider binding, computing values through functions
-    Provider(ValueProvider<'f>),
+    Provider(Function<'f>),
 }
 
 impl<'f> VariableBinding<'f> {
-    /// Creates a value binding.
+    /// Creates a variable binding from a value.
     ///
     /// # Type Parameters
     ///
@@ -248,130 +256,115 @@ impl<'f> VariableBinding<'f> {
     ///
     /// # Parameters
     ///
-    /// - `value`: Value to bind
+    /// - `value`: The value to bind
     ///
-    /// # Examples
+    /// # Returns
     ///
-    /// ```rust,no_run
-    /// use cel_cxx::VariableBinding;
-    ///
-    /// let binding = VariableBinding::new_value("hello");
-    /// ```
-    pub fn new_value<T>(value: T) -> Self
-    where
-        T: IntoValue + TypedValue,
-    {
+    /// New `VariableBinding::Value` containing the value and its type
+    pub fn from_value<T: IntoValue + TypedValue>(value: T) -> Self {
         Self::Value((T::value_type(), value.into_value()))
     }
 
-    /// Creates a provider binding.
+    /// Creates a variable binding from a provider function.
     ///
     /// # Type Parameters
     ///
-    /// - `F`: Provider function type
-    /// - `M`: Function marker
-    /// - `E`: Error type
-    /// - `T`: Return value type
+    /// - `F`: Provider function type, must implement `IntoFunction`
+    /// - `Fm`: Function marker type (sync/async)
     ///
     /// # Parameters
     ///
-    /// - `provider`: Value provider function
+    /// - `provider`: The provider function
     ///
-    /// # Examples
+    /// # Returns
     ///
-    /// ```rust,no_run
-    /// use cel_cxx::VariableBinding;
-    ///
-    /// let binding = VariableBinding::new_provider(|| Ok(42i64));
-    /// ```
-    pub fn new_provider<F, M, E, T>(provider: F) -> Self
+    /// New `VariableBinding::Provider` containing the provider function
+    pub fn from_provider<F, Fm>(provider: F) -> Self
     where
-        F: Provider<M, E, T> + Send + Sync + 'f,
-        M: 'f,
-        E: Into<Error> + Send + Sync + 'static,
-        T: IntoValue + TypedValue + 'f,
+        F: IntoFunction<'f, Fm>,
+        Fm: FnMarker,
     {
-        let provider = provider.into_erased();
-        Self::Provider(Arc::new(provider))
+        Self::Provider(provider.into_function())
     }
 
-    /// Returns the type of the variable.
+    /// Returns the value type of this binding.
     ///
-    /// Returns the CEL type of the variable value.
-    pub fn value_type(&self) -> Type {
+    /// For value bindings, returns the stored type. For provider bindings,
+    /// returns the return type of the provider function.
+    ///
+    /// # Returns
+    ///
+    /// The [`ValueType`] of this binding
+    pub fn value_type(&self) -> ValueType {
         match self {
-            VariableBinding::Value((value_type, _value)) => value_type.clone(),
-            VariableBinding::Provider(provider) => provider.value_type(),
+            Self::Value((ty, _)) => ty.clone(),
+            Self::Provider(f) => f.function_type().result().clone(),
         }
     }
 
-    /// Checks if this is a value binding.
+    /// Returns whether this is a value binding.
     ///
     /// # Returns
     ///
-    /// Returns `true` if this is a value binding, `false` otherwise
+    /// `true` if this is a `Value` binding, `false` if it's a `Provider` binding
     pub fn is_value(&self) -> bool {
-        matches!(self, VariableBinding::Value(_))
+        matches!(self, Self::Value(_))
     }
 
-    /// Checks if this is a provider binding.
+    /// Returns whether this is a provider binding.
     ///
     /// # Returns
     ///
-    /// Returns `true` if this is a provider binding, `false` otherwise
+    /// `true` if this is a `Provider` binding, `false` if it's a `Value` binding
     pub fn is_provider(&self) -> bool {
-        matches!(self, VariableBinding::Provider(_))
+        matches!(self, Self::Provider(_))
     }
 
-    /// Returns a reference to the value (if this is a value binding).
+    /// Returns the value if this is a value binding.
     ///
     /// # Returns
     ///
-    /// - For value bindings, returns `Some(&Value)`
-    /// - For provider bindings, returns `None`
+    /// `Some(&Value)` if this is a value binding, `None` if it's a provider binding
     pub fn as_value(&self) -> Option<&Value> {
         match self {
-            VariableBinding::Value((_, value)) => Some(value),
-            VariableBinding::Provider(_) => None,
+            Self::Value((_, value)) => Some(value),
+            Self::Provider(_) => None,
         }
     }
 
-    /// Returns a reference to the provider (if this is a provider binding).
+    /// Returns the provider function if this is a provider binding.
     ///
     /// # Returns
     ///
-    /// - For provider bindings, returns `Some(&ValueProvider)`
-    /// - For value bindings, returns `None`
-    pub fn as_provider(&self) -> Option<&ValueProvider<'f>> {
+    /// `Some(&Function)` if this is a provider binding, `None` if it's a value binding
+    pub fn as_provider(&self) -> Option<&Function<'f>> {
         match self {
-            VariableBinding::Provider(provider) => Some(provider),
-            VariableBinding::Value(_) => None,
+            Self::Value(_) => None,
+            Self::Provider(f) => Some(f),
         }
     }
 
-    /// Extracts the value (if this is a value binding).
+    /// Converts this binding into a value if it's a value binding.
     ///
     /// # Returns
     ///
-    /// - For value bindings, returns `Some(Value)` and consumes the binding
-    /// - For provider bindings, returns `None`
+    /// `Some(Value)` if this is a value binding, `None` if it's a provider binding
     pub fn into_value(self) -> Option<Value> {
         match self {
-            VariableBinding::Value((_, value)) => Some(value),
-            VariableBinding::Provider(_) => None,
+            Self::Value((_, value)) => Some(value),
+            Self::Provider(_) => None,
         }
     }
 
-    /// Extracts the provider (if this is a provider binding).
+    /// Converts this binding into a provider function if it's a provider binding.
     ///
     /// # Returns
     ///
-    /// - For provider bindings, returns `Some(ValueProvider)` and consumes the binding
-    /// - For value bindings, returns `None`
-    pub fn into_provider(self) -> Option<ValueProvider<'f>> {
+    /// `Some(Function)` if this is a provider binding, `None` if it's a value binding
+    pub fn into_provider(self) -> Option<Function<'f>> {
         match self {
-            VariableBinding::Provider(provider) => Some(provider),
-            VariableBinding::Value(_) => None,
+            Self::Value(_) => None,
+            Self::Provider(f) => Some(f),
         }
     }
 }

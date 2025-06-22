@@ -1,5 +1,4 @@
 use std::ops::{Deref, DerefMut};
-use super::*;
 
 /// CEL-compatible optional value type.
 ///
@@ -9,7 +8,7 @@ use super::*;
 ///
 /// # Type Parameters
 ///
-/// - `T`: The type of the optional value, defaults to [`Value`]
+/// - `T`: The type of the optional value
 ///
 /// # Examples
 ///
@@ -32,7 +31,7 @@ use super::*;
 ///     .or(Optional::new(0));
 /// ```
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Optional<T = Value>(Box<Option<T>>);
+pub struct Optional<T>(Box<Option<T>>);
 
 impl<T> Optional<T> {
     /// Creates a new optional value containing the given value.

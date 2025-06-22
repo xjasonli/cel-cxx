@@ -114,11 +114,11 @@ pub(crate) fn value_to_rust<'a>(
         }
         ValueKind::String => {
             let string_value = value.get_string();
-            Ok(rust::Value::String(string_value.native_value()))
+            Ok(rust::Value::String(string_value.native_value().into()))
         }
         ValueKind::Bytes => {
             let bytes_value = value.get_bytes();
-            Ok(rust::Value::Bytes(bytes_value.native_value()))
+            Ok(rust::Value::Bytes(bytes_value.native_value().into()))
         }
         ValueKind::Struct => {
             todo!()
@@ -201,11 +201,17 @@ pub(crate) fn value_to_rust<'a>(
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct FfiOpaqueValueImpl(pub rust::Opaque);
+#[derive(Debug, Clone, Eq)]
+pub(crate) struct FfiOpaqueValueImpl(pub rust::OpaqueValue);
 impl std::fmt::Display for FfiOpaqueValueImpl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl core::cmp::PartialEq for FfiOpaqueValueImpl {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
     }
 }
 
@@ -216,7 +222,7 @@ impl FfiOpaqueValue for FfiOpaqueValueImpl {
 }
 
 pub(crate) fn opaque_value_from_rust<'a>(
-    value: &rust::Opaque,
+    value: &rust::OpaqueValue,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool
 ) -> cxx::UniquePtr<OpaqueValue<'a>> {
@@ -225,7 +231,7 @@ pub(crate) fn opaque_value_from_rust<'a>(
 }
 
 fn optional_value_from_rust<'a>(
-    value: &rust::Optional,
+    value: &rust::Optional<rust::Value>,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
     message_factory: &'a MessageFactory,

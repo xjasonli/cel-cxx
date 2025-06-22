@@ -45,7 +45,7 @@ use super::*;
 /// [`FunctionRegistry`]: crate::function::FunctionRegistry
 #[derive(Debug, Default)]
 pub struct FunctionBindings<'f> {
-    entries: HashMap<String, FunctionOverloads<FunctionImpl<'f>>>,
+    entries: HashMap<String, FunctionOverloads<Function<'f>>>,
 }
 
 impl<'f> FunctionBindings<'f> {
@@ -58,18 +58,25 @@ impl<'f> FunctionBindings<'f> {
 }
 
 impl<'f> FunctionBindings<'f> {
-    /// Binds a function implementation.
+    /// Binds a function implementation with zero-annotation type inference.
     ///
     /// Binds a callable function that can be invoked during CEL expression evaluation.
-    /// The function is automatically converted to the appropriate runtime representation.
+    /// The function signature is automatically inferred from the Rust function type, enabling
+    /// seamless runtime function binding without manual type annotations.
+    ///
+    /// # Zero-Annotation Features
+    ///
+    /// - **Automatic type inference**: Function signature extracted from Rust function type
+    /// - **Runtime binding**: Functions are immediately available for CEL evaluation
+    /// - **Lifetime handling**: Safe conversion of borrowed arguments like `&str`
+    /// - **Error conversion**: Automatic conversion of `Result<T, E>` return types
+    /// - **Async support**: Seamless handling of both sync and async functions
     ///
     /// # Type Parameters
     ///
-    /// - `F`: Function type, must implement [`FnImpl`]
-    /// - `M`: Function marker (sync or async)
-    /// - `E`: Error type, must be convertible to [`Error`]
-    /// - `R`: Return type, must implement [`IntoValue`] and [`TypedValue`]
-    /// - `A`: Argument tuple type, must implement [`TypedArguments`]
+    /// - `F`: Function type, must implement [`IntoFunction`]
+    /// - `Fm`: Function marker (sync or async), automatically inferred
+    /// - `Args`: Argument tuple type, automatically inferred from function signature
     ///
     /// # Parameters
     ///
@@ -83,39 +90,45 @@ impl<'f> FunctionBindings<'f> {
     ///
     /// # Examples
     ///
+    /// ## Basic function binding with automatic type inference
+    ///
     /// ```rust,no_run
-    /// use cel_cxx::{FunctionBindings, Error};
+    /// use cel_cxx::FunctionBindings;
     ///
     /// let mut bindings = FunctionBindings::new();
     ///
-    /// // Bind global function
-    /// fn power(base: i64, exp: i64) -> Result<i64, Error> {
-    ///     Ok(base.pow(exp as u32))
-    /// }
-    /// bindings.bind("power", false, power)?;
-    ///
-    /// // Bind member function
-    /// fn is_empty(s: String) -> Result<bool, Error> {
-    ///     Ok(s.is_empty())
-    /// }
-    /// bindings.bind("is_empty", true, is_empty)?;
+    /// // Zero-annotation function binding
+    /// bindings.bind("multiply", false, |a: i64, b: i64| a * b)?;
+    /// bindings.bind("upper", true, |s: String| s.to_uppercase())?;
+    /// bindings.bind("contains", true, |s: &str, substr: &str| s.contains(substr))?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn bind<F, M, E, R, A>(
+    ///
+    /// ## Runtime function binding with closures
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::FunctionBindings;
+    ///
+    /// let mut bindings = FunctionBindings::new();
+    /// let multiplier = 10;
+    ///
+    /// // Bind closure that captures environment
+    /// bindings.bind("scale", false, move |x: i64| x * multiplier)?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
+    pub fn bind<F, Fm, Args>(
         &mut self, name: impl Into<String>, member: bool, f: F
     ) -> Result<&mut Self, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarker,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
+        F: IntoFunction<'f, Fm, Args>,
+        Fm: FnMarker,
+        Args: Arguments,
     {
         let name = name.into();
         let entry = self.entries
             .entry(name)
             .or_insert_with(FunctionOverloads::new);
-        entry.add(member, f)?;
+        entry.add(member, f.into_function())?;
         Ok(self)
     }
 
@@ -138,15 +151,13 @@ impl<'f> FunctionBindings<'f> {
     /// bindings.bind_member("reverse", reverse)?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn bind_member<F, M, E, R, A>(
+    pub fn bind_member<F, Fm, Args>(
         &mut self, name: impl Into<String>, f: F
     ) -> Result<&mut Self, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarker,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
+        F: IntoFunction<'f, Fm, Args>,
+        Fm: FnMarker,
+        Args: Arguments,
     {
         self.bind(name, true, f)
     }
@@ -169,15 +180,13 @@ impl<'f> FunctionBindings<'f> {
     /// bindings.bind_global("min", min)?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn bind_global<F, M, E, R, A>(
+    pub fn bind_global<F, Fm, Args>(
         &mut self, name: impl Into<String>, f: F
     ) -> Result<&mut Self, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarker,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
+        F: IntoFunction<'f, Fm, Args>,
+        Fm: FnMarker,
+        Args: Arguments,
     {
         self.bind(name, false, f)
     }
@@ -191,7 +200,7 @@ impl<'f> FunctionBindings<'f> {
     /// # Returns
     ///
     /// Returns `Some(&FunctionOverloads)` if found, `None` otherwise
-    pub fn find(&self, name: &str) -> Option<&FunctionOverloads<FunctionImpl<'f>>> {
+    pub fn find(&self, name: &str) -> Option<&FunctionOverloads<Function<'f>>> {
         self.entries.get(name)
     }
 
@@ -204,14 +213,14 @@ impl<'f> FunctionBindings<'f> {
     /// # Returns
     ///
     /// Returns `Some(&mut FunctionOverloads)` if found, `None` otherwise
-    pub fn find_mut(&mut self, name: &str) -> Option<&mut FunctionOverloads<FunctionImpl<'f>>> {
+    pub fn find_mut(&mut self, name: &str) -> Option<&mut FunctionOverloads<Function<'f>>> {
         self.entries.get_mut(name)
     }
 
     /// Returns an iterator over all function entries.
     ///
     /// The iterator yields `(name, overloads)` pairs for all bound functions.
-    pub fn entries(&self) -> impl Iterator<Item = (&str, &FunctionOverloads<FunctionImpl<'f>>)> {
+    pub fn entries(&self) -> impl Iterator<Item = (&str, &FunctionOverloads<Function<'f>>)> {
         self.entries
             .iter()
             .map(|(name, entry)| (name.as_str(), entry))
@@ -220,7 +229,7 @@ impl<'f> FunctionBindings<'f> {
     /// Returns a mutable iterator over all function entries.
     ///
     /// The iterator yields `(name, overloads)` pairs and allows modifying the overloads.
-    pub fn entries_mut(&mut self) -> impl Iterator<Item = (&str, &mut FunctionOverloads<FunctionImpl<'f>>)> {
+    pub fn entries_mut(&mut self) -> impl Iterator<Item = (&str, &mut FunctionOverloads<Function<'f>>)> {
         self.entries
             .iter_mut()
             .map(|(name, entry)| (name.as_str(), entry))

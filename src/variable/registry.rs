@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::types::Type;
+use crate::ValueType;
 use crate::values::*;
 use crate::Error;
 
@@ -10,7 +10,7 @@ use crate::Error;
 /// can be either:
 ///
 /// - A constant value ([`Constant`]): A fixed value known at compile time
-/// - A variable declaration ([`VariableDecl`]): A type declaration with value provided at runtime
+/// - A variable declaration: A type declaration with value provided at runtime
 ///
 /// # Examples
 ///
@@ -31,24 +31,33 @@ use crate::Error;
 /// ```
 #[derive(Debug, Default)]
 pub struct VariableRegistry {
-    entries: HashMap<String, ConstantOrDecl>,
+    entries: HashMap<String, VariableDeclOrConstant>,
 }
 
 
 impl VariableRegistry {
     /// Creates a new empty variable registry.
+    ///
+    /// # Returns
+    ///
+    /// A new empty `VariableRegistry`
     pub fn new() -> Self {
         Self { entries: HashMap::new() }
     }
 
     /// Defines a constant value.
     ///
-    /// Constants are known at compile time and can be used for optimization and type inference.
+    /// Constants are values that are known at compile time and don't change during evaluation.
+    /// They can be used directly in CEL expressions without requiring runtime bindings.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `T`: The constant type, must implement [`IntoConstant`]
     ///
     /// # Parameters
     ///
     /// - `name`: The constant name
-    /// - `value`: The constant value, must implement [`Into<Constant>`]
+    /// - `value`: The constant value
     ///
     /// # Returns
     ///
@@ -61,15 +70,18 @@ impl VariableRegistry {
     ///
     /// let mut registry = VariableRegistry::new();
     /// registry
-    ///     .define_constant("MAX_SIZE", 1024i64)?
-    ///     .define_constant("DEFAULT_NAME", "unnamed")?;
+    ///     .define_constant("PI", 3.14159)?
+    ///     .define_constant("APP_NAME", "MyApp")?
+    ///     .define_constant("MAX_USERS", 1000i64)?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
+    ///
+    /// [`IntoConstant`]: crate::values::IntoConstant
     pub fn define_constant<T>(&mut self, name: impl Into<String>, value: T) -> Result<&mut Self, Error>
     where
-        T: Into<Constant>,
+        T: IntoConstant,
     {
-        self.entries.insert(name.into(), ConstantOrDecl::new_constant(value.into()));
+        self.entries.insert(name.into(), VariableDeclOrConstant::new_constant(value));
         Ok(self)
     }
 
@@ -110,21 +122,29 @@ impl VariableRegistry {
     where
         T: TypedValue,
     {
-        self.entries.insert(name.into(), ConstantOrDecl::new_decl(T::value_type()));
+        self.entries.insert(name.into(), VariableDeclOrConstant::new(T::value_type()));
         Ok(self)
     }
 
     /// Returns an iterator over all variable entries.
     ///
     /// The iterator yields `(name, entry)` pairs for all registered variables and constants.
-    pub fn entries(&self) -> impl Iterator<Item = (&String, &ConstantOrDecl)> {
+    ///
+    /// # Returns
+    ///
+    /// Iterator yielding `(&String, &VariableDeclOrConstant)` pairs
+    pub fn entries(&self) -> impl Iterator<Item = (&String, &VariableDeclOrConstant)> {
         self.entries.iter()
     }
 
     /// Returns a mutable iterator over all variable entries.
     ///
     /// The iterator yields `(name, entry)` pairs and allows modifying the entries.
-    pub fn entries_mut(&mut self) -> impl Iterator<Item = (&String, &mut ConstantOrDecl)> {
+    ///
+    /// # Returns
+    ///
+    /// Iterator yielding `(&String, &mut VariableDeclOrConstant)` pairs
+    pub fn entries_mut(&mut self) -> impl Iterator<Item = (&String, &mut VariableDeclOrConstant)> {
         self.entries.iter_mut()
     }
 
@@ -136,8 +156,8 @@ impl VariableRegistry {
     ///
     /// # Returns
     ///
-    /// Returns `Some(&ConstantOrDecl)` if found, `None` otherwise
-    pub fn find(&self, name: &str) -> Option<&ConstantOrDecl> {
+    /// Returns `Some(&VariableDeclOrConstant)` if found, `None` otherwise
+    pub fn find(&self, name: &str) -> Option<&VariableDeclOrConstant> {
         self.entries.get(name)
     }
 
@@ -149,8 +169,8 @@ impl VariableRegistry {
     ///
     /// # Returns
     ///
-    /// Returns `Some(&mut ConstantOrDecl)` if found, `None` otherwise
-    pub fn find_mut(&mut self, name: &str) -> Option<&mut ConstantOrDecl> {
+    /// Returns `Some(&mut VariableDeclOrConstant)` if found, `None` otherwise
+    pub fn find_mut(&mut self, name: &str) -> Option<&mut VariableDeclOrConstant> {
         self.entries.get_mut(name)
     }
 
@@ -162,8 +182,8 @@ impl VariableRegistry {
     ///
     /// # Returns
     ///
-    /// Returns `Some(ConstantOrDecl)` if the entry was found and removed, `None` otherwise
-    pub fn remove(&mut self, name: &str) -> Option<ConstantOrDecl> {
+    /// Returns `Some(VariableDeclOrConstant)` if the entry was found and removed, `None` otherwise
+    pub fn remove(&mut self, name: &str) -> Option<VariableDeclOrConstant> {
         self.entries.remove(name)
     }
 
@@ -173,315 +193,118 @@ impl VariableRegistry {
     }
 
     /// Returns the number of variable entries.
+    ///
+    /// # Returns
+    ///
+    /// Number of registered variables and constants
     pub fn len(&self) -> usize {
         self.entries.len()
     }
+
+    /// Returns whether the registry is empty.
+    ///
+    /// # Returns
+    ///
+    /// `true` if no variables or constants are registered, `false` otherwise
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
 }
 
-/// Variable entry that can be either a constant or a variable declaration.
+/// Union type representing either a variable declaration or constant definition.
 ///
-/// `ConstantOrDecl` represents an entry in the compile-time variable registry, which can be:
+/// `VariableDeclOrConstant` can hold either:
+/// - A constant value ([`Constant`]) that is known at compile time
+/// - A variable declaration ([`ValueType`]) that specifies the type for runtime binding
 ///
-/// - [`Constant`]: A compile-time known constant value
-/// - [`VariableDecl`]: A runtime variable type declaration
+/// This allows the registry to handle both compile-time constants and runtime variables
+/// in a unified way.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use cel_cxx::variable::VariableDeclOrConstant;
+/// use cel_cxx::types::ValueType;
+///
+/// // Create from constant
+/// let constant_entry = VariableDeclOrConstant::new_constant(42i64);
+/// assert!(constant_entry.is_constant());
+///
+/// // Create from declaration
+/// let decl_entry = VariableDeclOrConstant::new_decl(ValueType::String);
+/// assert!(decl_entry.is_decl());
+/// ```
+///
+/// [`Constant`]: crate::values::Constant
 #[derive(Debug)]
-pub enum ConstantOrDecl {
-    /// A constant value known at compile time
-    Constant(Constant),
-    /// A variable declaration containing only type information
-    Decl(VariableDecl),
+pub struct VariableDeclOrConstant {
+    r#type: ValueType,
+    constant: Option<Constant>,
 }
 
-impl ConstantOrDecl {
-    /// Creates a constant entry.
+impl VariableDeclOrConstant {
+    /// Creates a new constant entry.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `T`: The constant type, must implement [`IntoConstant`]
     ///
     /// # Parameters
     ///
-    /// - `value`: The constant value, must implement [`Into<Constant>`]
+    /// - `value`: The constant value
     ///
-    /// # Examples
+    /// # Returns
     ///
-    /// ```rust,no_run
-    /// use cel_cxx::ConstantOrDecl;
+    /// New `VariableDeclOrConstant` containing the constant value
     ///
-    /// let entry = ConstantOrDecl::new_constant(42i64);
-    /// ```
+    /// [`IntoConstant`]: crate::values::IntoConstant
     pub fn new_constant<T>(value: T) -> Self
     where
-        T: Into<Constant>,
+        T: IntoConstant,
     {
-        Self::Constant(value.into())
+        Self { r#type: T::value_type(), constant: Some(value.into_constant()) }
     }
 
-    /// Creates a variable declaration entry.
+    /// Creates a new variable declaration entry.
     ///
     /// # Parameters
     ///
     /// - `r#type`: The variable type
     ///
-    /// # Examples
+    /// # Returns
     ///
-    /// ```rust,no_run
-    /// use cel_cxx::{Type, ConstantOrDecl};
-    ///
-    /// let entry = ConstantOrDecl::new_decl(Type::String);
-    /// ```
-    pub fn new_decl(r#type: Type) -> Self {
-        Self::Decl(VariableDecl(r#type))
+    /// New `VariableDeclOrConstant` containing the type declaration
+    pub fn new(r#type: ValueType) -> Self {
+        Self { r#type, constant: None }
     }
 
-    /// Returns the type of the variable.
-    ///
-    /// For constants, returns the type of their value; for variable declarations, returns the declared type.
-    pub fn r#type(&self) -> Type {
-        match self {
-            Self::Constant(constant) => constant.value_type(),
-            Self::Decl(decl) => decl.value_type(),
-        }
-    }
-
-    /// Returns the value of the variable if it's a constant.
+    /// Returns whether this entry is a constant.
     ///
     /// # Returns
     ///
-    /// - For constant entries, returns `Some(Value)` containing the constant value
-    /// - For variable declaration entries, returns `None`
-    pub fn value(&self) -> Option<Value> {
-        match self {
-            Self::Constant(constant) => Some(constant.value()),
-            Self::Decl(_) => None,
-        }
+    /// `true` if this entry contains a constant value, `false` if it's a declaration
+    pub fn is_constant(&self) -> bool {
+        self.constant.is_some()
     }
-}
 
-impl VariableEntry for ConstantOrDecl {
-    fn value_type(&self) -> Type {
-        match self {
-            Self::Constant(constant) => constant.value_type(),
-            Self::Decl(decl) => decl.value_type(),
-        }
-    }
-}
-
-/// Trait for variable entries providing unified type access.
-pub trait VariableEntry {
-    /// Returns the type of the variable.
-    fn value_type(&self) -> Type;
-}
-
-/// Variable type declaration.
-///
-/// `VariableDecl` represents a runtime variable's type declaration.
-/// It doesn't contain an actual value; values are provided by [`Activation`] at runtime.
-///
-/// [`Activation`]: crate::Activation
-#[derive(Debug)]
-pub struct VariableDecl(Type);
-
-impl VariableEntry for VariableDecl {
-    fn value_type(&self) -> Type {
-        self.0.clone()
-    }
-}
-
-/// CEL constant value.
-///
-/// `Constant` represents constant values known at compile time, supporting CEL's basic data types.
-/// Constants can be used for compile-time optimization and type inference.
-///
-/// # Supported Types
-///
-/// - `Null`: Null value
-/// - `Bool`: Boolean value
-/// - `Int`: 64-bit signed integer
-/// - `Uint`: 64-bit unsigned integer
-/// - `Double`: 64-bit floating point number
-/// - `String`: UTF-8 string
-/// - `Bytes`: Byte array
-/// - `Duration`: Time duration
-/// - `Timestamp`: Timestamp
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use cel_cxx::Constant;
-///
-/// let null_const = Constant::Null;
-/// let bool_const = Constant::Bool(true);
-/// let int_const = Constant::Int(42);
-/// let string_const = Constant::String("hello".to_string());
-/// ```
-#[derive(Debug, Clone, Default)]
-pub enum Constant {
-    /// Null constant
-    #[default]
-    Null,
-    /// Boolean constant
-    Bool(bool),
-    /// Signed integer constant
-    Int(i64),
-    /// Unsigned integer constant
-    Uint(u64),
-    /// Floating point constant
-    Double(f64),
-    /// Byte array constant
-    Bytes(Vec<u8>),
-    /// String constant
-    String(String),
-    /// Duration constant
-    Duration(chrono::Duration),
-    /// Timestamp constant
-    Timestamp(chrono::DateTime<chrono::Utc>),
-}
-
-impl IntoValue for Constant {
-    fn into_value(self) -> Value {
-        self.value()
-    }
-}
-
-impl Constant {
-    /// Returns the type of the constant.
+    /// Gets the type of this entry.
     ///
-    /// Returns the CEL type corresponding to the constant value.
-    pub fn value_type(&self) -> Type {
-        match self {
-            Self::Null => Type::Null,
-            Self::Bool(_) => Type::Bool,
-            Self::Int(_) => Type::Int,
-            Self::Uint(_) => Type::Uint,
-            Self::Double(_) => Type::Double,
-            Self::Bytes(_) => Type::Bytes,
-            Self::String(_) => Type::String,
-            Self::Duration(_) => Type::Duration,
-            Self::Timestamp(_) => Type::Timestamp,
-        }
-    }
-
-    /// Converts the constant to a CEL value.
+    /// For constants, this is the type of the constant value.
+    /// For declarations, this is the declared variable type.
     ///
-    /// Converts the constant to the corresponding [`Value`] type.
+    /// # Returns
     ///
-    /// [`Value`]: crate::Value
-    pub fn value(&self) -> Value {
-        match self {
-            Self::Null => Value::Null,
-            Self::Bool(value) => Value::Bool(*value),
-            Self::Int(value) => Value::Int(*value),
-            Self::Uint(value) => Value::Uint(*value),
-            Self::Double(value) => Value::Double(*value),
-            Self::Bytes(value) => Value::Bytes(value.clone()),
-            Self::String(value) => Value::String(value.clone()),
-            Self::Duration(value) => Value::Duration(*value),
-            Self::Timestamp(value) => Value::Timestamp(*value),
-        }
+    /// Reference to the [`ValueType`] of this entry
+    pub fn decl(&self) -> &ValueType {
+        &self.r#type
     }
-}
 
-impl From<()> for Constant {
-    fn from(_: ()) -> Self {
-        Self::Null
-    }
-}
-
-impl From<bool> for Constant {
-    fn from(value: bool) -> Self {
-        Self::Bool(value)
-    }
-}
-
-impl From<i64> for Constant {
-    fn from(value: i64) -> Self {
-        Self::Int(value)
-    }
-}
-
-impl From<i32> for Constant {
-    fn from(value: i32) -> Self {
-        Self::Int(value as i64)
-    }
-}
-
-impl From<i16> for Constant {
-    fn from(value: i16) -> Self {
-        Self::Int(value as i64)
-    }
-}
-
-impl From<u64> for Constant {
-    fn from(value: u64) -> Self {
-        Self::Uint(value)
-    }
-}
-
-impl From<u32> for Constant {
-    fn from(value: u32) -> Self {
-        Self::Uint(value as u64)
-    }
-}
-
-impl From<u16> for Constant {
-    fn from(value: u16) -> Self {
-        Self::Uint(value as u64)
-    }
-}
-
-impl From<f64> for Constant {
-    fn from(value: f64) -> Self {
-        Self::Double(value)
-    }
-}
-
-impl From<f32> for Constant {
-    fn from(value: f32) -> Self {
-        Self::Double(value as f64)
-    }
-}
-
-impl From<Vec<u8>> for Constant {
-    fn from(value: Vec<u8>) -> Self {
-        Self::Bytes(value)
-    }
-}
-
-impl From<&[u8]> for Constant {
-    fn from(value: &[u8]) -> Self {
-        Self::Bytes(value.to_vec())
-    }
-}
-
-impl From<String> for Constant {
-    fn from(value: String) -> Self {
-        Self::String(value)
-    }
-}
-
-impl From<&str> for Constant {
-    fn from(value: &str) -> Self {
-        Self::String(value.to_string())
-    }
-}
-
-impl From<chrono::Duration> for Constant {
-    fn from(value: chrono::Duration) -> Self {
-        Self::Duration(value)
-    }
-}
-
-impl From<chrono::DateTime<chrono::Utc>> for Constant {
-    fn from(value: chrono::DateTime<chrono::Utc>) -> Self {
-        Self::Timestamp(value)
-    }
-}
-
-impl From<std::time::SystemTime> for Constant {
-    fn from(value: std::time::SystemTime) -> Self {
-        Self::Timestamp(chrono::DateTime::from(value))
-    }
-}
-
-impl VariableEntry for Constant {
-    fn value_type(&self) -> Type {
-        Constant::value_type(self)
+    /// Gets the constant value, if this entry is a constant.
+    ///
+    /// # Returns
+    ///
+    /// `Some(&Constant)` if this is a constant entry, `None` if it's a declaration
+    pub fn constant(&self) -> Option<&Constant> {
+        self.constant.as_ref()
     }
 }

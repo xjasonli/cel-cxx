@@ -1,10 +1,109 @@
+//! Activation context for CEL expression evaluation.
+//!
+//! This module provides the [`Activation`] type and related traits for managing
+//! variable and function bindings during CEL expression evaluation. Activations
+//! serve as the runtime context that provides values for variables and functions
+//! declared in the CEL environment.
+//!
+//! # Key Concepts
+//!
+//! ## Activation Interface
+//!
+//! The [`ActivationInterface`] trait defines the contract for providing variable
+//! and function bindings to the CEL evaluator. It provides access to:
+//!
+//! - **Variable bindings**: Map variable names to runtime values
+//! - **Function bindings**: Provide runtime function implementations
+//!
+//! ## Activation Types
+//!
+//! The module provides several activation types:
+//!
+//! - **`Activation<'f>`**: Standard activation for synchronous evaluation
+//! - **`AsyncActivation<'f>`**: Activation with async function support
+//! - **`()`**: Empty activation for expressions without variables/functions
+//!
+//! # Variable Binding
+//!
+//! Variables can be bound to values that match the types declared in the environment:
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! let activation = Activation::new()
+//!     .bind_variable("user_name", "Alice".to_string())?
+//!     .bind_variable("user_age", 30i64)?
+//!     .bind_variable("is_admin", true)?;
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+//!
+//! # Function Binding
+//!
+//! Functions can be bound at runtime to override or supplement environment functions:
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! let activation = Activation::new()
+//!     .bind_global_function("custom_add", |a: i64, b: i64| a + b)?
+//!     .bind_member_function("to_upper", |s: String| s.to_uppercase())?;
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+//!
+//! # Variable Providers
+//!
+//! For dynamic or computed values, you can bind variable providers:
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! let activation = Activation::new()
+//!     .bind_variable_provider("current_time", || {
+//!         std::time::SystemTime::now()
+//!             .duration_since(std::time::UNIX_EPOCH)
+//!             .unwrap()
+//!             .as_secs() as i64
+//!     })?;
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+//!
+//! # Empty Activations
+//!
+//! For expressions that don't require any bindings, you can use the unit type:
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! let env = Env::builder().build()?;
+//! let program = env.compile("1 + 2 * 3")?;
+//! let result = program.evaluate(())?; // No activation needed
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+//!
+//! # Async Support
+//!
+//! When the `async` feature is enabled, activations can contain async functions:
+//!
+//! ```rust,no_run
+//! # #[cfg(feature = "async")]
+//! # async fn example() -> Result<(), cel_cxx::Error> {
+//! use cel_cxx::*;
+//!
+//! let activation = AsyncActivation::new_async()
+//!     .bind_global_function("fetch_data", |url: String| async move {
+//!         // Simulate async work
+//!         format!("Data from {}", url)
+//!     })?;
+//! # Ok(())
+//! # }
+//! ```
+
 use std::marker::PhantomData;
 use crate::function::FunctionBindings;
 use crate::Error;
 use crate::variable::VariableBindings;
-use crate::values::{IntoValue, TypedValue, TypedArguments};
-use crate::variable::Provider;
-use crate::function::FnImpl;
+use crate::values::{IntoValue, TypedValue};
+use crate::function::{IntoFunction, Arguments};
 use crate::marker::*;
 
 /// Interface for providing variable and function bindings during evaluation.
@@ -234,10 +333,13 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
     /// # Type Parameters
     /// 
     /// * `S` - The type of the variable name (must convert to `String`)
-    /// * `F` - The provider function type
-    /// * `M` - The function marker type (sync/async)
-    /// * `E` - The error type that the provider can return
-    /// * `T` - The type of value the provider returns
+    /// * `F` - The provider function type (must implement `IntoFunction`)
+    /// * `Ffm` - The function marker type (sync/async)
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `Result` containing the updated activation with the appropriate
+    /// function marker type, or an error if the binding failed.
     /// 
     /// # Examples
     /// 
@@ -253,15 +355,13 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
     ///     })
     ///     .unwrap();
     /// ```
-    pub fn bind_variable_provider<S, F, M, E, T>(
+    pub fn bind_variable_provider<S, F, Ffm>(
         mut self, name: S, provider: F
-    ) -> Result<Activation<'f, <M as FnMarkerAggr<Fm>>::Output>, Error>
+    ) -> Result<Activation<'f, <Ffm as FnMarkerAggr<Fm>>::Output>, Error>
     where
         S: Into<String>,
-        F: Provider<M, E, T> + 'f,
-        M: FnMarkerAggr<Fm>,
-        E: Into<Error> + Send + Sync + 'static,
-        T: IntoValue + TypedValue + 'f,
+        F: IntoFunction<'f, Ffm>,
+        Ffm: FnMarkerAggr<Fm>,
     {
         self.variables.bind_provider(name, provider)?;
         Ok(Activation {
@@ -286,31 +386,37 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
     /// # Type Parameters
     /// 
     /// * `S` - The type of the function name (must convert to `String`)
-    /// * `F` - The function implementation type
-    /// * `M` - The function marker type (sync/async)
-    /// * `E` - The error type that the function can return
-    /// * `R` - The return type of the function
-    /// * `A` - The argument types of the function
+    /// * `F` - The function implementation type (must implement `IntoFunction`)
+    /// * `Ffm` - The function marker type (sync/async)
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `Result` containing the updated activation with the appropriate
+    /// function marker type, or an error if the binding failed.
     /// 
     /// # Examples
     /// 
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
+    /// // Bind a global function
     /// let activation = Activation::new()
     ///     .bind_function("double", false, |x: i64| -> i64 { x * 2 })
     ///     .unwrap();
+    /// 
+    /// // Bind a member function
+    /// let activation = Activation::new()
+    ///     .bind_function("to_upper", true, |s: String| -> String { s.to_uppercase() })
+    ///     .unwrap();
     /// ```
-    pub fn bind_function<S, F, M, E, R, A>(
+    pub fn bind_function<S, F, Ffm, Args>(
         mut self, name: S, member: bool, f: F
-    ) -> Result<Activation<'f, <M as FnMarkerAggr<Fm>>::Output>, Error>
+    ) -> Result<Activation<'f, <Ffm as FnMarkerAggr<Fm>>::Output>, Error>
     where
         S: Into<String>,
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarkerAggr<Fm>,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
+        F: IntoFunction<'f, Ffm, Args>,
+        Ffm: FnMarkerAggr<Fm>,
+        Args: Arguments,
     {
         self.functions.bind(name, member, f)?;
         Ok(Activation {
@@ -322,13 +428,24 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
 
     /// Binds a member function.
     /// 
-    /// Member functions are called on values of specific types using the dot notation.
-    /// This is a convenience method equivalent to `bind_function(name, true, f)`.
+    /// This is a convenience method for binding member functions (functions that
+    /// are called as methods on values, like `value.method()`).
     /// 
     /// # Arguments
     /// 
-    /// * `name` - The name of the member function
+    /// * `name` - The name of the function to bind
     /// * `f` - The function implementation
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `S` - The type of the function name (must convert to `String`)
+    /// * `F` - The function implementation type (must implement `IntoFunction`)
+    /// * `Ffm` - The function marker type (sync/async)
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `Result` containing the updated activation with the appropriate
+    /// function marker type, or an error if the binding failed.
     /// 
     /// # Examples
     /// 
@@ -336,34 +453,41 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
     /// use cel_cxx::*;
     /// 
     /// let activation = Activation::new()
-    ///     .bind_member_function("reverse", |s: String| -> String {
-    ///         s.chars().rev().collect()
-    ///     })
+    ///     .bind_member_function("to_upper", |s: String| -> String { s.to_uppercase() })
     ///     .unwrap();
     /// ```
-    pub fn bind_member_function<S, F, M, E, R, A>(
+    pub fn bind_member_function<S, F, Ffm, Args>(
         self, name: S, f: F
-    ) -> Result<Activation<'f, <M as FnMarkerAggr<Fm>>::Output>, Error>
+    ) -> Result<Activation<'f, <Ffm as FnMarkerAggr<Fm>>::Output>, Error>
     where
         S: Into<String>,
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarkerAggr<Fm>,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
+        F: IntoFunction<'f, Ffm, Args>,
+        Ffm: FnMarkerAggr<Fm>,
+        Args: Arguments,
     {
         self.bind_function(name, true, f)
     }
 
     /// Binds a global function.
     /// 
-    /// Global functions can be called directly by name from CEL expressions.
-    /// This is a convenience method equivalent to `bind_function(name, false, f)`.
+    /// This is a convenience method for binding global functions (functions that
+    /// can be called from any context).
     /// 
     /// # Arguments
     /// 
-    /// * `name` - The name of the global function
+    /// * `name` - The name of the function to bind
     /// * `f` - The function implementation
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `S` - The type of the function name (must convert to `String`)
+    /// * `F` - The function implementation type (must implement `IntoFunction`)
+    /// * `Ffm` - The function marker type (sync/async)
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a `Result` containing the updated activation with the appropriate
+    /// function marker type, or an error if the binding failed.
     /// 
     /// # Examples
     /// 
@@ -371,21 +495,17 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
     /// use cel_cxx::*;
     /// 
     /// let activation = Activation::new()
-    ///     .bind_global_function("pow", |base: f64, exp: f64| -> f64 {
-    ///         base.powf(exp)
-    ///     })
+    ///     .bind_global_function("double", |x: i64| -> i64 { x * 2 })
     ///     .unwrap();
     /// ```
-    pub fn bind_global_function<S, F, M, E, R, A>(
+    pub fn bind_global_function<S, F, Ffm, Args>(
         self, name: S, f: F
-    ) -> Result<Activation<'f, <M as FnMarkerAggr<Fm>>::Output>, Error>
+    ) -> Result<Activation<'f, <Ffm as FnMarkerAggr<Fm>>::Output>, Error>
     where
         S: Into<String>,
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarkerAggr<Fm>,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'f,
+        F: IntoFunction<'f, Ffm, Args>,
+        Ffm: FnMarkerAggr<Fm>,
+        Args: Arguments,
     {
         self.bind_function(name, false, f)
     }

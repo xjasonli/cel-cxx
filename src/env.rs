@@ -1,12 +1,12 @@
 use std::sync::Arc;
-use crate::{FnMarker, FnMarkerAggr, RuntimeMarker};
-use crate::function::{FunctionRegistry, FnImpl, FnDecl};
-use crate::variable::{VariableRegistry, Constant};
+use crate::{FnMarker, FnMarkerAggr, IntoConstant, RuntimeMarker};
+use crate::function::{Arguments, FunctionDecl, FunctionRegistry, IntoFunction};
+use crate::variable::VariableRegistry;
 
 mod inner;
 
 pub(crate) use inner::EnvInner;
-use crate::{Program, Error, IntoValue, TypedValue, TypedArguments};
+use crate::{Program, Error, TypedValue};
 use crate::ffi;
 
 #[cfg(feature = "async")]
@@ -182,41 +182,137 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// This method allows you to register custom functions that can be called
     /// from CEL expressions. The function can be either a global function or
     /// a member function of a type.
+    ///
+    /// # Function Registration Process
+    ///
+    /// When you register a function, the system:
+    /// 1. Extracts type information from the function signature
+    /// 2. Creates type-safe conversion wrappers
+    /// 3. Stores both the type signature and implementation
+    /// 4. Updates the function marker type to track sync/async status
+    ///
+    /// # Zero-Annotation Benefits
+    ///
+    /// Functions are registered without explicit type annotations:
+    /// - Argument types are automatically inferred
+    /// - Return types are automatically determined
+    /// - Error handling is automatically supported for `Result<T, E>` returns
+    /// - Reference parameters like `&str` are handled safely
     /// 
     /// # Arguments
     /// 
     /// * `name` - The name of the function as it will appear in CEL expressions
     /// * `member` - Whether this is a member function (`true`) or global function (`false`)
-    /// * `f` - The function implementation
+    /// * `f` - The function implementation (function pointer, closure, etc.)
     /// 
     /// # Type Parameters
     /// 
     /// * `F` - The function implementation type
-    /// * `M` - The function marker type (sync/async)
-    /// * `E` - The error type that the function can return
-    /// * `R` - The return type of the function
-    /// * `A` - The argument types of the function
+    /// * `Ffm` - The function marker type (sync/async) inferred from the function
+    /// * `Args` - The argument tuple type (automatically inferred)
+    /// 
+    /// # Returns
+    ///
+    /// A new `EnvBuilder` with updated function marker type. If this is the first
+    /// async function registered, the marker changes from `()` to `Async`.
+    ///
+    /// # Member vs Global Functions
+    ///
+    /// ## Global Functions
+    /// Called as `function_name(args...)`:
+    /// ```text
+    /// max(a, b)           // max function with two arguments
+    /// calculate(x, y, z)  // calculate function with three arguments
+    /// ```
+    ///
+    /// ## Member Functions  
+    /// Called as `object.method(args...)`:
+    /// ```text
+    /// text.contains(substring)    // contains method on string
+    /// list.size()                // size method on list
+    /// ```
+    ///
+    /// # Function Signature Support
+    ///
+    /// Supports various function signatures:
+    /// - **Simple functions**: `fn(T) -> U`
+    /// - **Functions with errors**: `fn(T) -> Result<U, E>`
+    /// - **Reference parameters**: `fn(&str, i64) -> String`
+    /// - **Multiple parameters**: Up to 10 parameters supported
+    /// - **Closures**: Move closures that capture environment
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error`] if:
+    /// - Function name conflicts with existing registration
+    /// - Function signature is invalid or unsupported
+    /// - Type inference fails
     /// 
     /// # Examples
     /// 
-    /// ```rust,no_run
+    /// ## Basic Functions
+    /// 
+    /// ```rust
     /// use cel_cxx::*;
     /// 
     /// let builder = Env::builder()
-    ///     .register_function("add", false, |x: i64, y: i64| -> i64 { x + y })
-    ///     .unwrap();
+    ///     .register_function("add", false, |a: i64, b: i64| a + b)?
+    ///     .register_function("greet", false, |name: &str| format!("Hello, {}!", name))?;
     /// ```
-    pub fn register_function<F, M, E, R, A>(
+    ///
+    /// ## Member Functions
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    ///
+    /// let builder = Env::builder()
+    ///     .register_function("contains", true, |text: &str, substr: &str| text.contains(substr))?
+    ///     .register_function("length", true, |text: &str| text.len() as i64)?;
+    /// 
+    /// // Usage in expressions:
+    /// // text.contains("hello")
+    /// // text.length()
+    /// ```
+    ///
+    /// ## Functions with Error Handling
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    /// use std::convert::Infallible;
+    ///
+    /// let builder = Env::builder()
+    ///     .register_function("divide", false, |a: f64, b: f64| -> Result<f64, Infallible> {
+    ///         if b == 0.0 {
+    ///             Err(Infallible)  // This won't actually be reached, just for example
+    ///         } else {
+    ///             Ok(a / b)
+    ///         }
+    ///     })?;
+    /// ```
+    ///
+    /// ## Closures with Captured Data
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    ///
+    /// let multiplier = 5;
+    /// let threshold = 100.0;
+    ///
+    /// let builder = Env::builder()
+    ///     .register_function("scale", false, move |x: i64| x * multiplier)?
+    ///     .register_function("check_limit", false, move |value: f64| value < threshold)?;
+    /// ```
+    pub fn register_function<F, Ffm, Args>(
         mut self, name: impl Into<String>, member: bool, f: F
-    ) -> Result<EnvBuilder<'f, <M as FnMarkerAggr<Fm>>::Output, Rm>, Error>
+    ) -> Result<EnvBuilder<'f, <Ffm as FnMarkerAggr<Fm>>::Output, Rm>, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarker + FnMarkerAggr<Fm>,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'a,
+        F: IntoFunction<'f, Ffm, Args>,
+        Ffm: FnMarker + FnMarkerAggr<Fm>,
+        Args: Arguments,
     {
-        self.function_registry.register(name, member, f)?;
+        self.function_registry
+            .register(name, member, f)?;
+
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
@@ -226,36 +322,79 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     }
 
     /// Registers a member function.
-    /// 
-    /// Member functions are called on values of specific types using the dot notation.
-    /// For example, if you register a member function "length" for strings,
-    /// it can be called as `"hello".length()`.
-    /// 
+    ///
+    /// This is a convenience method for registering member functions, equivalent to
+    /// calling `register_function(name, true, f)`. Member functions are called using
+    /// dot notation in CEL expressions: `object.method(args...)`.
+    ///
     /// # Arguments
-    /// 
-    /// * `name` - The name of the member function
+    ///
+    /// * `name` - The method name as it will appear in CEL expressions
     /// * `f` - The function implementation
-    /// 
+    ///
+    /// # Member Function Semantics
+    ///
+    /// Member functions in CEL follow these patterns:
+    /// - First parameter is the "receiver" (the object before the dot)
+    /// - Additional parameters become method arguments
+    /// - Called as `receiver.method(arg1, arg2, ...)`
+    ///
     /// # Examples
-    /// 
-    /// ```rust,no_run
+    ///
+    /// ## String Methods
+    ///
+    /// ```rust
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let builder = Env::builder()
-    ///     .register_member_function("double", |s: String| -> String { s + &s })
-    ///     .unwrap();
+    ///     .register_member_function("upper", |s: &str| s.to_uppercase())?
+    ///     .register_member_function("contains", |s: &str, substr: &str| s.contains(substr))?
+    ///     .register_member_function("repeat", |s: &str, n: i64| s.repeat(n as usize))?;
+    ///
+    /// // Usage in expressions:
+    /// // "hello".upper()           -> "HELLO"
+    /// // "hello world".contains("world") -> true
+    /// // "abc".repeat(3)           -> "abcabcabc"
     /// ```
-    pub fn register_member_function<F, M, E, R, A>(
+    ///
+    /// ## Numeric Methods
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    ///
+    /// let builder = Env::builder()
+    ///     .register_member_function("abs", |x: f64| x.abs())?
+    ///     .register_member_function("pow", |x: f64, exp: f64| x.powf(exp))?;
+    ///
+    /// // Usage in expressions:
+    /// // (-5.5).abs()     -> 5.5
+    /// // (2.0).pow(3.0)   -> 8.0
+    /// ```
+    ///
+    /// ## Collection Methods
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    ///
+    /// let builder = Env::builder()
+    ///     .register_member_function("len", |list: &Vec<i64>| list.len() as i64)?
+    ///     .register_member_function("contains", |list: &Vec<i64>, item: &i64| list.contains(item))?;
+    ///
+    /// // Usage in expressions (assuming list variable):
+    /// // my_list.len()         -> list length
+    /// // my_list.contains(42)  -> true/false
+    /// ```
+    pub fn register_member_function<F, Ffm, Args>(
         mut self, name: impl Into<String>, f: F
-    ) -> Result<EnvBuilder<'f, <M as FnMarkerAggr<Fm>>::Output, Rm>, Error>
+    ) -> Result<EnvBuilder<'f, <Ffm as FnMarkerAggr<Fm>>::Output, Rm>, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarkerAggr<Fm>,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'a,
+        F: IntoFunction<'f, Ffm, Args>,
+        Ffm: FnMarker + FnMarkerAggr<Fm>,
+        Args: Arguments,
     {
-        self.function_registry.register_member(name, f)?;
+        self.function_registry
+            .register_member(name, f)?;
+
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
@@ -265,34 +404,109 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     }
 
     /// Registers a global function.
-    /// 
-    /// Global functions can be called directly by name from CEL expressions.
-    /// 
+    ///
+    /// This is a convenience method for registering global functions, equivalent to
+    /// calling `register_function(name, false, f)`. Global functions are called directly
+    /// by name in CEL expressions: `function_name(args...)`.
+    ///
     /// # Arguments
-    /// 
-    /// * `name` - The name of the global function
+    ///
+    /// * `name` - The function name as it will appear in CEL expressions
     /// * `f` - The function implementation
-    /// 
+    ///
+    /// # Global Function Characteristics
+    ///
+    /// Global functions:
+    /// - Are called directly by name without a receiver object
+    /// - Can have 0 to 10 parameters
+    /// - Support all CEL-compatible parameter and return types
+    /// - Can capture environment variables (for closures)
+    ///
+    /// # Function Naming Guidelines
+    ///
+    /// - Use clear, descriptive names: `calculate_tax`, `format_date`
+    /// - Follow CEL naming conventions (snake_case is recommended)
+    /// - Avoid conflicts with built-in CEL functions
+    /// - Consider namespacing for domain-specific functions: `math_sqrt`, `string_trim`
+    ///
     /// # Examples
-    /// 
-    /// ```rust,no_run
+    ///
+    /// ## Mathematical Functions
+    ///
+    /// ```rust
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let builder = Env::builder()
-    ///     .register_global_function("max", |x: i64, y: i64| -> i64 { x.max(y) })
-    ///     .unwrap();
+    ///     .register_global_function("add", |a: i64, b: i64| a + b)?
+    ///     .register_global_function("multiply", |a: f64, b: f64| a * b)?
+    ///     .register_global_function("max", |a: i64, b: i64| if a > b { a } else { b })?;
+    ///
+    /// // Usage in expressions:
+    /// // add(10, 20)          -> 30
+    /// // multiply(2.5, 4.0)   -> 10.0
+    /// // max(15, 8)           -> 15
     /// ```
-    pub fn register_global_function<F, M, E, R, A>(
+    ///
+    /// ## String Processing Functions
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    ///
+    /// let builder = Env::builder()
+    ///     .register_global_function("concat", |a: &str, b: &str| format!("{}{}", a, b))?
+    ///     .register_global_function("trim_prefix", |s: &str, prefix: &str| {
+    ///         s.strip_prefix(prefix).unwrap_or(s).to_string()
+    ///     })?;
+    ///
+    /// // Usage in expressions:
+    /// // concat("Hello, ", "World!")     -> "Hello, World!"
+    /// // trim_prefix("prefixed_text", "prefixed_")  -> "text"
+    /// ```
+    ///
+    /// ## Business Logic Functions
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    ///
+    /// let builder = Env::builder()
+    ///     .register_global_function("calculate_discount", |price: f64, rate: f64| {
+    ///         price * (1.0 - rate.min(1.0).max(0.0))
+    ///     })?
+    ///     .register_global_function("is_valid_email", |email: &str| {
+    ///         email.contains('@') && email.contains('.')
+    ///     })?;
+    ///
+    /// // Usage in expressions:
+    /// // calculate_discount(100.0, 0.15)     -> 85.0
+    /// // is_valid_email("user@domain.com")   -> true
+    /// ```
+    ///
+    /// ## Functions with Complex Logic
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    /// use std::collections::HashMap;
+    ///
+    /// // Function that processes collections
+    /// let builder = Env::builder()
+    ///     .register_global_function("sum_positive", |numbers: &Vec<i64>| {
+    ///         numbers.iter().filter(|&&x| x > 0).sum::<i64>()
+    ///     })?;
+    ///
+    /// // Usage in expressions:
+    /// // sum_positive([1, -2, 3, -4, 5])  -> 9
+    /// ```
+    pub fn register_global_function<F, Ffm, Args>(
         mut self, name: impl Into<String>, f: F
-    ) -> Result<EnvBuilder<'f, <M as FnMarkerAggr<Fm>>::Output, Rm>, Error>
+    ) -> Result<EnvBuilder<'f, <Ffm as FnMarkerAggr<Fm>>::Output, Rm>, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarkerAggr<Fm>,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'a,
+        F: IntoFunction<'f, Ffm, Args>,
+        Ffm: FnMarker + FnMarkerAggr<Fm>,
+        Args: Arguments,
     {
-        self.function_registry.register_global(name, f)?;
+        self.function_registry
+            .register_global(name, f)?;
+
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
@@ -319,7 +533,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         mut self, name: impl Into<String>, member: bool
     ) -> Result<Self, Error>
     where
-        D: FnDecl,
+        D: FunctionDecl,
     {
         self.function_registry.declare::<D>(name, member)?;
         Ok(EnvBuilder {
@@ -343,7 +557,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         mut self, name: impl Into<String>
     ) -> Result<Self, Error>
     where
-        D: FnDecl,
+        D: FunctionDecl,
     {
         self.function_registry.declare_member::<D>(name)?;
         Ok(EnvBuilder {
@@ -367,7 +581,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         mut self, name: impl Into<String>
     ) -> Result<Self, Error>
     where
-        D: FnDecl,
+        D: FunctionDecl,
     {
         self.function_registry.declare_global::<D>(name)?;
         Ok(EnvBuilder {
@@ -400,7 +614,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         mut self, name: impl Into<String>, value: T
     ) -> Result<Self, Error>
     where
-        T: Into<Constant>,
+        T: IntoConstant,
     {
         self.variable_registry.define_constant(name, value)?;
         Ok(EnvBuilder {

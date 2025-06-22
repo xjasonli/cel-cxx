@@ -63,18 +63,24 @@ impl<'f> FunctionRegistry<'f> {
 }
 
 impl<'f> FunctionRegistry<'f> {
-    /// Registers a function implementation.
+    /// Registers a function implementation with zero-annotation type inference.
     ///
     /// Registers a callable function that can be invoked during CEL expression evaluation.
-    /// The function is automatically converted to the appropriate [`FnImpl`] trait object.
+    /// The function signature is automatically inferred from the Rust function type, eliminating
+    /// the need for manual type annotations.
+    ///
+    /// # Zero-Annotation Features
+    ///
+    /// - **Automatic type inference**: Function signature extracted from Rust function type
+    /// - **Lifetime handling**: Safe conversion of borrowed arguments like `&str`
+    /// - **Error conversion**: Automatic conversion of `Result<T, E>` return types
+    /// - **Async support**: Seamless handling of both sync and async functions
     ///
     /// # Type Parameters
     ///
-    /// - `F`: Function type, must implement [`FnImpl`]
-    /// - `M`: Function marker (sync or async)
-    /// - `E`: Error type, must be convertible to [`Error`]
-    /// - `R`: Return type, must implement [`IntoValue`] and [`TypedValue`]
-    /// - `A`: Argument tuple type, must implement [`TypedArguments`]
+    /// - `F`: Function type, must implement [`IntoFunction`]
+    /// - `Fm`: Function marker (sync or async), automatically inferred
+    /// - `Args`: Argument tuple type, automatically inferred from function signature
     ///
     /// # Parameters
     ///
@@ -88,39 +94,50 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// # Examples
     ///
+    /// ## Basic functions with automatic type inference
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::FunctionRegistry;
+    ///
+    /// let mut registry = FunctionRegistry::new();
+    ///
+    /// // Zero-annotation function registration
+    /// registry.register("add", false, |a: i64, b: i64| a + b)?;
+    /// registry.register("greet", false, |name: &str| format!("Hello, {}!", name))?;
+    /// registry.register("is_empty", true, |s: String| s.is_empty())?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
+    ///
+    /// ## Error handling with automatic conversion
+    ///
     /// ```rust,no_run
     /// use cel_cxx::{FunctionRegistry, Error};
     ///
     /// let mut registry = FunctionRegistry::new();
     ///
-    /// // Register global function
-    /// fn multiply(a: i64, b: i64) -> Result<i64, Error> {
-    ///     Ok(a * b)
-    /// }
-    /// registry.register("multiply", false, multiply)?;
-    ///
-    /// // Register member function
-    /// fn is_empty(s: String) -> Result<bool, Error> {
-    ///     Ok(s.is_empty())
-    /// }
-    /// registry.register("is_empty", true, is_empty)?;
+    /// // Functions returning Result are automatically handled
+    /// registry.register("divide", false, |a: i64, b: i64| -> Result<i64, Error> {
+    ///     if b == 0 {
+    ///         Err(Error::argument("Division by zero"))
+    ///     } else {
+    ///         Ok(a / b)
+    ///     }
+    /// })?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn register<F, M, E, R, A>(
+    pub fn register<F, Fm, Args>(
         &mut self, name: impl Into<String>, member: bool, f: F
     ) -> Result<&mut Self, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarker,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'a,
+        F: IntoFunction<'f, Fm, Args>,
+        Fm: FnMarker,
+        Args: Arguments,
     {
         let name = name.into();
         let entry = self.entries
             .entry(name)
             .or_insert_with(FunctionOverloads::new);
-        entry.add_impl(member, f)?;
+        entry.add_impl(member, f.into_function())?;
         Ok(self)
     }
 
@@ -143,15 +160,13 @@ impl<'f> FunctionRegistry<'f> {
     /// registry.register_member("upper", to_upper)?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn register_member<F, M, E, R, A>(
+    pub fn register_member<F, Fm, Args>(
         &mut self, name: impl Into<String>, f: F
     ) -> Result<&mut Self, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarker,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'a,
+        F: IntoFunction<'f, Fm, Args>,
+        Fm: FnMarker,
+        Args: Arguments,
     {
         self.register(name, true, f)
     }
@@ -174,15 +189,13 @@ impl<'f> FunctionRegistry<'f> {
     /// registry.register_global("max", max)?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn register_global<F, M, E, R, A>(
+    pub fn register_global<F, Fm, Args>(
         &mut self, name: impl Into<String>, f: F
     ) -> Result<&mut Self, Error>
     where
-        F: FnImpl<M, E, R, A> + 'f,
-        M: FnMarker,
-        E: Into<Error> + Send + Sync + 'static,
-        R: IntoValue + TypedValue + 'f,
-        for <'a> A: TypedArguments + 'a,
+        F: IntoFunction<'f, Fm, Args>,
+        Fm: FnMarker,
+        Args: Arguments,
     {
         self.register(name, false, f)
     }
@@ -191,11 +204,11 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// Declares a function type signature for compile-time type checking without providing
     /// an implementation. The function signature is determined by the generic parameter `D`
-    /// which must implement [`FnDecl`].
+    /// which must implement [`FunctionDecl`].
     ///
     /// # Type Parameters
     ///
-    /// - `D`: Function declaration type, must implement [`FnDecl`]
+    /// - `D`: Function declaration type, must implement [`FunctionDecl`]
     ///
     /// # Parameters
     ///
@@ -213,28 +226,41 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// let mut registry = FunctionRegistry::new();
     ///
-    /// // Declare function signatures for external implementation
+    /// // Declare global function signature
     /// registry.declare::<fn(String) -> Result<bool, Error>>("validate", false)?;
-    /// registry.declare::<fn(i64, i64) -> Result<i64, Error>>("compute", false)?;
+    ///
+    /// // Declare member function signature  
+    /// registry.declare::<fn(String) -> Result<i64, Error>>("size", true)?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn declare<D>(&mut self, name: impl Into<String>, member: bool) -> Result<&mut Self, Error>
     where
-        D: FnDecl,
+        D: FunctionDecl,
     {
         let name = name.into();
-        let result = D::result();
-        let args = D::arguments();
         let entry = self.entries
             .entry(name)
             .or_insert_with(FunctionOverloads::new);
-        entry.add_decl(member, result, args)?;
+        entry.add_decl(member, D::function_type())?;
         Ok(self)
     }
 
     /// Declares a member function signature.
     ///
-    /// Convenience method for declaring member function signatures.
+    /// Convenience method for declaring member function signatures for compile-time
+    /// type checking without providing implementations.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `D`: Function declaration type, must implement [`FunctionDecl`]
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: Function name
+    ///
+    /// # Returns
+    ///
+    /// Returns `&mut Self` to support method chaining
     ///
     /// # Examples
     ///
@@ -244,21 +270,33 @@ impl<'f> FunctionRegistry<'f> {
     /// let mut registry = FunctionRegistry::new();
     ///
     /// // Declare member function signature
-    /// registry.declare_member::<fn(String) -> Result<i64, Error>>("size")?;
-    /// # Ok::<(), cel_cxx::Error>(())
+    /// registry.declare_member::<fn(String) -> i64>("hash")?;
     /// ```
     pub fn declare_member<D>(
         &mut self, name: impl Into<String>
     ) -> Result<&mut Self, Error>
     where
-        D: FnDecl,
+        D: FunctionDecl,
     {
         self.declare::<D>(name, true)
     }
 
     /// Declares a global function signature.
     ///
-    /// Convenience method for declaring global function signatures.
+    /// Convenience method for declaring global function signatures for compile-time
+    /// type checking without providing implementations.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `D`: Function declaration type, must implement [`FunctionDecl`]
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: Function name
+    ///
+    /// # Returns
+    ///
+    /// Returns `&mut Self` to support method chaining
     ///
     /// # Examples
     ///
@@ -275,12 +313,12 @@ impl<'f> FunctionRegistry<'f> {
         &mut self, name: impl Into<String>
     ) -> Result<&mut Self, Error>
     where
-        D: FnDecl,
+        D: FunctionDecl,
     {
         self.declare::<D>(name, false)
     }
 
-    /// Finds a function overload set by name.
+    /// Finds function overloads by name.
     ///
     /// # Parameters
     ///
@@ -288,12 +326,12 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// # Returns
     ///
-    /// Returns `Some(&FunctionOverloads)` if found, `None` otherwise
+    /// `Some(&FunctionOverloads)` if found, `None` if not found
     pub fn find(&self, name: &str) -> Option<&FunctionOverloads<FunctionDeclOrImpl<'f>>> {
         self.entries.get(name)
     }
 
-    /// Finds a mutable function overload set by name.
+    /// Finds function overloads by name (mutable).
     ///
     /// # Parameters
     ///
@@ -301,30 +339,30 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// # Returns
     ///
-    /// Returns `Some(&mut FunctionOverloads)` if found, `None` otherwise
+    /// `Some(&mut FunctionOverloads)` if found, `None` if not found
     pub fn find_mut(&mut self, name: &str) -> Option<&mut FunctionOverloads<FunctionDeclOrImpl<'f>>> {
         self.entries.get_mut(name)
     }
 
     /// Returns an iterator over all function entries.
     ///
-    /// The iterator yields `(name, overloads)` pairs for all registered functions.
+    /// # Returns
+    ///
+    /// Iterator yielding `(&str, &FunctionOverloads)` pairs
     pub fn entries(&self) -> impl Iterator<Item = (&str, &FunctionOverloads<FunctionDeclOrImpl<'f>>)> {
-        self.entries
-            .iter()
-            .map(|(name, entry)| (name.as_str(), entry))
+        self.entries.iter().map(|(k, v)| (k.as_str(), v))
     }
 
     /// Returns a mutable iterator over all function entries.
     ///
-    /// The iterator yields `(name, overloads)` pairs and allows modifying the overloads.
+    /// # Returns
+    ///
+    /// Iterator yielding `(&str, &mut FunctionOverloads)` pairs
     pub fn entries_mut(&mut self) -> impl Iterator<Item = (&str, &mut FunctionOverloads<FunctionDeclOrImpl<'f>>)> {
-        self.entries
-            .iter_mut()
-            .map(|(name, entry)| (name.as_str(), entry))
+        self.entries.iter_mut().map(|(k, v)| (k.as_str(), v))
     }
 
-    /// Removes a function by name.
+    /// Removes all overloads for a function name.
     ///
     /// # Parameters
     ///
@@ -332,22 +370,35 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// # Returns
     ///
-    /// Returns `Ok(())` if successfully removed, or an error if the function doesn't exist
+    /// `Ok(())` if removal was successful, `Err(Error)` if function not found
     pub fn remove(&mut self, name: &str) -> Result<(), Error> {
-        if self.entries.remove(name).is_none() {
-            return Err(Error::not_found(format!("Function {} not found", name)));
-        }
+        self.entries.remove(name).ok_or_else(|| Error::not_found(format!("Function '{}' not found", name)))?;
         Ok(())
     }
 
-    /// Clears all function entries.
+    /// Clears all registered functions.
     pub fn clear(&mut self) {
         self.entries.clear();
     }
 
-    /// Returns the number of function entries.
+    /// Returns the number of registered function names.
+    ///
+    /// Note: This counts function names, not individual overloads.
+    ///
+    /// # Returns
+    ///
+    /// Number of registered function names
     pub fn len(&self) -> usize {
         self.entries.len()
+    }
+
+    /// Returns whether the registry is empty.
+    ///
+    /// # Returns
+    ///
+    /// `true` if no functions are registered, `false` otherwise
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
     }
 }
 
@@ -357,9 +408,8 @@ impl<'f> FunctionRegistry<'f> {
 #[allow(unused_imports)]
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, sync::Arc};
-
-    use crate::{Error, types::{OpaqueType, Type}, values::{TypedOpaqueValue, Value}, values::OpaqueValue};
+    use std::{collections::{BTreeMap, HashMap}, sync::Arc};
+    use crate::{Opaque, Error, types::{OpaqueType, ValueType}, values::{TypedOpaque, Value}, values::OpaqueValue, values::Optional};
 
     use super::*;
 
@@ -371,29 +421,31 @@ mod test {
     fn f4(a1: String, a2: String) -> Result<i64, Error> { Ok(5)}
     fn f5(a1: String, a2: String, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> { Ok(5)}
 
-    #[derive(Debug, Clone)]
-    struct MyOpaque;
+    #[derive(Opaque, Debug, Clone, PartialEq)]
+    #[cel_cxx(type = "MyOpaque", crate = crate)]
+    struct MyOpaque(pub i64);
 
     impl std::fmt::Display for MyOpaque {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "MyOpaque")
+            write!(f, "MyOpaque({})", self.0)
         }
     }
 
-    impl TypedOpaqueValue for MyOpaque {
-        fn opaque_type() -> crate::types::OpaqueType {
-            OpaqueType::new("fff", vec![])
-        }
-    }
-    impl PartialEq for MyOpaque {
-        fn eq(&self, other: &Self) -> bool {
-            true
-        }
-    }
+    fn f6(a1: String, a2: MyOpaque, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> { Ok(5)}
 
-    fn f6(a1: String, a2: Opaque<MyOpaque>, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> { Ok(5)}
+    fn f7(a1: &str) -> Result<(), Error> { Ok(())}
+
+    fn f8(a1: &MyOpaque) -> &MyOpaque { a1 }
+
+    fn f9(a1: Optional<&MyOpaque>) -> Result<Option<&MyOpaque>, Error> { Ok(a1.into_option()) }
 
     async fn async_f1(a1: String, a2: i64, a3: Option<String>) -> Result<i64, Error> { Ok(5)}
+
+    fn f_map1(a1: HashMap<String, Vec<u8>>) -> Result<(), Error> { Ok(()) }
+    fn f_map2(a1: HashMap<&str, &[u8]>) -> Result<(), Error> { Ok(()) }
+    fn f_map3<'a>(a1: HashMap<&'a str, &'a str>) -> Result<BTreeMap<&'a str, &'a str>, Error> {
+        Ok(BTreeMap::from_iter(a1.into_iter().map(|(k, v)| (k, v))))
+    }
 
     #[test]
     fn test_register() -> Result<(), Error>{
@@ -411,7 +463,14 @@ mod test {
             .register_member("f5", f5)?
             .register_global("lifetime_closure", lifetime_closure)?
             .register_global("f6", f6)?
+            .register_global("f7", f7)?
+            .register_global("f8", f8)?
+            .register_global("f9", f9)?
+            .register_global("f_map1", f_map1)?
+            .register_global("f_map2", f_map2)?
+            .register_global("f_map3", f_map3)?
         ;
+
         
         #[cfg(feature = "async")]
         let registry = registry.register_global("async_f1", async_f1)?;
@@ -421,20 +480,19 @@ mod test {
         //    .build(None);
         //let env = Env::new(function, variable);
 
-        let x = MyOpaque;
-        let y: Box<dyn OpaqueValue> = Box::new(x);
+        let x = MyOpaque(1);
+        let y: Box<dyn Opaque> = Box::new(x);
 
-        let value = Opaque::new(MyOpaque);
+        let value: OpaqueValue = Box::new(MyOpaque(1));
         assert_eq!(value.is::<MyOpaque>(), true);
         assert_eq!(value.downcast_ref::<MyOpaque>().is_some(), true);
         let value2 = value.clone().downcast::<MyOpaque>();
         assert_eq!(value2.is_ok(), true);
 
-        let value3 = value.into_inner();
+        let value3 = value.clone();
         assert_eq!(value3.is::<MyOpaque>(), true);
 
-        let value = Opaque(MyOpaque);
-        let value4 = value.upcast();
+        let value4: OpaqueValue = Box::new(MyOpaque(1));
         assert_eq!(value4.is::<MyOpaque>(), true);
         assert_eq!(value4.clone().downcast::<MyOpaque>().is_ok(), true);
         let value5 = value4.downcast::<MyOpaque>();

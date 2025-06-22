@@ -19,9 +19,14 @@ fn test_map_function() -> Result<(), Error> {
 
     let value = program.evaluate(())?;
     println!("value: {:?}", value);
-    let Value::List(list) = value else { todo!() };
+    
+    let Value::List(list) = value else { 
+        return Err(Error::invalid_argument("expected list".to_string()));
+    };
+    
     let mapres: Result<Vec<i64>, _> = list.into_iter()
-        .map(|v| i64::try_from(v).map_err(|_| Error::invalid_argument("invalid vec i64".to_string()))).collect();
+        .map(|v| i64::try_from(v).map_err(|_| Error::invalid_argument("invalid vec i64".to_string())))
+        .collect();
     println!("map res: {:?}", mapres?);
 
     Ok(())
@@ -31,33 +36,37 @@ fn test_map_function() -> Result<(), Error> {
 fn test_hand_map_function() -> Result<(), Error> {
     println!("test map function");
 
-    #[derive(Opaque)]
-    #[derive(Debug, Clone, PartialEq)]
-    #[cel_cxx(type = format!("{}.{}", MY_NAMESPACE, std::any::type_name::<Self>()))]
-    struct MyOpaqueGeneric<T: std::fmt::Debug + Clone + PartialEq + Send + Sync + 'static>(T);
+    #[derive(Opaque, Debug, Clone, PartialEq)]
+    #[cel_cxx(type = format!("{}.{}", MY_NAMESPACE, "TestOpaque"))]
+    struct TestOpaque(i64);
 
-    impl<T> std::fmt::Display for MyOpaqueGeneric<T>
-    where
-        T: std::fmt::Debug + Clone + PartialEq + Send + Sync + 'static
-    {
+    impl std::fmt::Display for TestOpaque {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "")
+            write!(f, "TestOpaque({})", self.0)
         }
     }
 
-    fn ty(_a: MyOpaqueGeneric<i64>) -> Result<String, Error> { Ok("i64".to_string()) }
-    fn val(a: MyOpaqueGeneric<i64>) -> Result<i64,Error> { Ok(a.0) }
-    fn sum(a: MyOpaqueGeneric<i64>, b: i64) -> Result<i64,Error> { Ok(a.0 + b) }
+    fn get_type(_a: TestOpaque) -> Result<String, Error> { 
+        Ok("i64".to_string()) 
+    }
+    
+    fn get_value(a: TestOpaque) -> Result<i64, Error> { 
+        Ok(a.0) 
+    }
+    
+    fn add_value(a: TestOpaque, b: i64) -> Result<i64, Error> { 
+        Ok(a.0 + b) 
+    }
 
     let env = Env::builder()
-        .register_member_function("ty", ty)?
-        .register_member_function("val", val)?
-        .register_member_function("sum", sum)?
-        .register_global_function("sum", sum)?
-        .register_global_function("val", val)?
+        .register_member_function("get_type", get_type)?
+        .register_member_function("get_value", get_value)?
+        .register_member_function("add_value", add_value)?
+        .register_global_function("add_value", add_value)?
+        .register_global_function("get_value", get_value)?
         .declare_variable::<i64>("a")?
         .declare_variable::<i64>("b")?
-        .declare_variable::<HashMap<i64, MyOpaqueGeneric<i64>>>("mp")?
+        .declare_variable::<HashMap<i64, TestOpaque>>("mp")?
         .build()?;
 
 
@@ -66,12 +75,12 @@ fn test_hand_map_function() -> Result<(), Error> {
     let program = env.compile(expr)?;
 
     let a: i64 = 5;
-    let mp: HashMap<i64, MyOpaqueGeneric<i64>> = HashMap::from([
-        (1, MyOpaqueGeneric(2)),
-        (2, MyOpaqueGeneric(4)),
-        (3, MyOpaqueGeneric(6)),
-        (4, MyOpaqueGeneric(8)),
-        (5, MyOpaqueGeneric(10)),
+    let mp: HashMap<i64, TestOpaque> = HashMap::from([
+        (1, TestOpaque(2)),
+        (2, TestOpaque(4)),
+        (3, TestOpaque(6)),
+        (4, TestOpaque(8)),
+        (5, TestOpaque(10)),
     ]);
 
     let activation = Activation::new()
@@ -81,12 +90,14 @@ fn test_hand_map_function() -> Result<(), Error> {
 
     let res = program.evaluate(&activation)?;
     println!("res: {:?}", res);
+    
     let Value::List(list) = res else {
-        assert!(false, "invalid value type");
-        return Ok(())
+        return Err(Error::invalid_argument("expected list".to_string()));
     };
+    
     let mapres: Result<Vec<i64>, _> = list.into_iter()
-        .map(|v| i64::try_from(v).map_err(|_| Error::invalid_argument("invalid vec i64".to_string()))).collect();
+        .map(|v| i64::try_from(v).map_err(|_| Error::invalid_argument("invalid vec i64".to_string())))
+        .collect();
     println!("map res: {:?}", mapres?);
 
     // let Value::String(tystr) = res else { todo!() };
@@ -110,10 +121,16 @@ fn test_list_expr() -> Result<(), Error> {
 
     let res = program.evaluate(&activation)?;
     println!("res: {:?}", res);
-    let Value::List(list) = res else { todo!() };
+    
+    let Value::List(list) = res else { 
+        return Err(Error::invalid_argument("expected list".to_string()));
+    };
+    
     let mapres: Result<Vec<Vec<i64>>, _> = list.into_iter()
-        .map(|v| Vec::<i64>::try_from(v).map_err(|_| Error::invalid_argument("invalid vec i64".to_string()))).collect();
+        .map(|v| Vec::<i64>::try_from(v).map_err(|_| Error::invalid_argument("invalid vec i64".to_string())))
+        .collect();
     println!("list res: {:?}", mapres?);
 
     Ok(())
 }
+

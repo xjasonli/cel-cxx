@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use super::{MapKey, OpaqueValue, Opaque, Value};
+use super::{MapKey, Value};
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -39,18 +39,6 @@ impl std::fmt::Display for MapKey {
             MapKey::Uint(u) => write!(f, "{}", u),
             MapKey::String(s) => write!(f, "{:?}", s),
         }
-    }
-}
-
-impl<T: OpaqueValue> std::fmt::Display for Opaque<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{{{}}}", self.0.opaque_type().name(), self.0)
-    }
-}
-
-impl std::fmt::Display for Opaque {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{{{}}}", self.0.opaque_type().name(), self.0)
     }
 }
 

@@ -11,7 +11,7 @@ pub struct ProgramInner<'f> {
 
     #[borrows(env, ffi_ctx)]
     #[covariant]
-    ffi_program: (cxx::UniquePtr<ffi::Program<'this, 'f>>, Type),
+    ffi_program: (cxx::UniquePtr<ffi::Program<'this, 'f>>, ValueType),
 }
 
 impl<'f> ProgramInner<'f> {
@@ -24,7 +24,9 @@ impl<'f> ProgramInner<'f> {
             env: env,
             ffi_ctx: ctx,
             ffi_program_builder: |env: &Arc<EnvInner<'f>>, ffi_ctx: &ffi::Ctx| {
-                let mut result = env.compiler().compile(source.as_ref(), None)?;
+                let mut result = env.compiler()
+                    .compile(source.as_ref(), None)
+                    .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
                 if !result.is_valid() {
                     let error = result.format_error();
                     return Err(Error::invalid_argument(error))
@@ -53,7 +55,7 @@ impl<'f> ProgramInner<'f> {
         self.with_ffi_program(|v| &v.0)
     }
 
-    pub fn return_type(&self) -> &Type {
+    pub fn return_type(&self) -> &ValueType {
         self.with_ffi_program(|v| &v.1)
     }
 

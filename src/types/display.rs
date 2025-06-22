@@ -2,7 +2,7 @@ use itertools::Itertools;
 use std::fmt::Display;
 use super::*;
 
-impl std::fmt::Display for Type {
+impl std::fmt::Display for ValueType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Null | Self::Unknown | Self::Error | Self::Any | Self::Dyn |

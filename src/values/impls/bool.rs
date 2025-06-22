@@ -1,0 +1,21 @@
+use crate::{types::*, values::*};
+use super::{impl_typed, impl_into, impl_from};
+
+impl_typed!(
+    Bool: Value, MapKey {
+        bool
+    }
+);
+
+impl_into!(
+    Bool: Value, MapKey, Constant {
+        bool => |self| self,
+    }
+);
+
+impl_from!(
+    Bool: Value, MapKey {
+        bool => |v| *v,
+        &bool as &'a bool => |v| v,
+    }
+);

@@ -1,505 +1,1112 @@
-//! CEL function system.
+//! Zero-annotation function registration for CEL expression evaluation.
 //!
-//! This module provides functionality for declaring, registering, and calling custom functions in CEL environments.
-//! The function system consists of:
+//! This module provides a type-safe, zero-annotation function registration system
+//! that allows Rust functions to be called from CEL expressions without manual
+//! type annotations or wrapper code.
 //!
-//! - [`function::FunctionRegistry`]: Compile-time function registry for declaring function signatures and registering implementations
-//! - [`function::FunctionBindings`]: Runtime function bindings for calling functions during evaluation
-//! - [`function::FunctionOverloads`]: Function overload management supporting multiple implementations with different signatures
+//! # Two Function Systems
 //!
-//! # Function Types
+//! This module provides two distinct but complementary function systems:
 //!
-//! The system supports both **function declarations** (type signatures only) and **function implementations** (callable code):
+//! ## 1. Function Registration (Runtime Implementation)
+//! - **Purpose**: Register actual callable Rust functions/closures
+//! - **Entry point**: [`IntoFunction`](crate::function::IntoFunction) trait and registration methods
+//! - **Usage**: `env.register_function("name", function_impl)`
+//! - **Provides**: Executable code that can be called during expression evaluation
 //!
-//! - **Declarations**: Use [`function::FnDecl`] trait for compile-time type checking
-//! - **Implementations**: Use [`function::FnImpl`] trait for runtime function calls
+//! ## 2. Function Declaration (Compile-Time Signatures)
+//! - **Purpose**: Declare function signatures for type checking without implementation
+//! - **Entry point**: [`FunctionDecl`](crate::function::FunctionDecl) trait and declaration methods  
+//! - **Usage**: `env.declare_function::<SignatureType>("name")`
+//! - **Provides**: Type information for compile-time validation and overload resolution
 //!
-//! Both traits are sealed and automatically implemented for compatible function types.
+//! These systems work together: you can declare functions for type checking during
+//! development, then provide implementations later, or register complete functions
+//! that include both signature and implementation.
+//!
+//! # Features
+//!
+//! - **Zero-annotation registration**: Functions can be registered without explicit type annotations
+//! - **Lifetime-aware closures**: Support for closures that capture environment variables
+//! - **Reference return types**: Safe handling of functions returning borrowed data like `&str`
+//! - **Unified error handling**: Automatic conversion of `Result<T, E>` return types
+//! - **Async function support**: Optional support for async functions (requires `async` feature)
+//! - **Thread safety**: All function implementations are `Send + Sync`
+//!
+//! # How Zero-Annotation Works
+//!
+//! The zero-annotation system is built on top of Rust's type system and Generic Associated Types (GATs).
+//! When you register a function, the system automatically:
+//!
+//! 1. **Extracts argument types** from the function signature using [`FunctionDecl`](crate::function::FunctionDecl)
+//! 2. **Infers return types** using the [`IntoResult`](crate::values::IntoResult) trait
+//! 3. **Generates type-safe converters** that handle lifetime erasure safely
+//! 4. **Creates a unified interface** through the [`Function`](crate::function::Function) struct
+//!
+//! ## Type Conversion Process
+//!
+//! For each argument type `T`, the system:
+//! - Uses `T: FromValue + TypedValue` to convert from CEL values
+//! - Leverages GATs (`FromValue::Output<'a>`) to handle borrowed data like `&str`
+//! - Safely handles lifetime relationships through internal conversion mechanisms
+//!
+//! ## Safety Guarantees
+//!
+//! The lifetime handling is safe because:
+//! - Source CEL values remain valid for the entire function call
+//! - Converted arguments are immediately consumed by the target function
+//! - No references escape the function call scope
 //!
 //! # Examples
 //!
+//! ## Basic function registration
+//!
+//! ```rust
+//! use crate::function::*;
+//!
+//! // Simple function
+//! fn add(a: i64, b: i64) -> i64 {
+//!     a + b
+//! }
+//! let func = add.into_function();
+//!
+//! // Function with error handling
+//! fn divide(a: i64, b: i64) -> Result<i64, std::io::Error> {
+//!     if b == 0 {
+//!         Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "division by zero"))
+//!     } else {
+//!         Ok(a / b)
+//!     }
+//! }
+//! let func = divide.into_function();
+//! ```
+//!
+//! ## Advanced: Reference return types
+//!
+//! The system handles functions that return borrowed data:
+//!
+//! ```rust
+//! # use crate::function::*;
+//! // Function returning borrowed data
+//! fn get_first<'a>(items: Vec<&str>) -> &'a str {
+//!     items.first().unwrap_or("")
+//! }
+//! let func = get_first.into_function();
+//!
+//! // The system automatically handles the lifetime relationships
+//! ```
+//!
+//! ## Closure registration
+//!
+//! ```rust
+//! # use crate::function::*;
+//! // Capturing closure
+//! let multiplier = 3;
+//! let multiply = move |x: i64| -> i64 { x * multiplier };
+//! let func = multiply.into_function();
+//!
+//! // String processing closure
+//! let prefix = String::from("Hello, ");
+//! let with_prefix = move |name: &str| -> String {
+//!     format!("{}{}", prefix, name)
+//! };
+//! let func = with_prefix.into_function();
+//! ```
+//!
+//! ## Function metadata and invocation
+//!
+//! ```rust
+//! # use crate::function::*;
+//! # fn add(a: i64, b: i64) -> i64 { a + b }
+//! let func = add.into_function();
+//!
+//! // Get function metadata
+//! let arg_types = func.arguments(); // Vec<ValueType>
+//! let return_type = func.result();  // ValueType
+//!
+//! // Call the function
+//! let args = vec![10i64.into(), 20i64.into()];
+//! let result = func.call(args);
+//! ```
+//!
+//! # Async Functions
+//!
+//! When the `async` feature is enabled, you can register async functions:
+//!
 //! ```rust,no_run
-//! use cel_cxx::{Env, Error};
+//! # #[cfg(feature = "async")]
+//! # use crate::function::*;
+//! # async fn example() {
+//! use std::convert::Infallible;
 //!
-//! // Define custom functions
-//! fn add_numbers(a: i64, b: i64) -> Result<i64, Error> {
-//!     Ok(a + b)
+//! // Async function
+//! async fn fetch_data(url: String) -> String {
+//!     // Simulate async work
+//!     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+//!     format!("Data from {}", url)
 //! }
 //!
-//! fn format_greeting(name: String) -> Result<String, Error> {
-//!     Ok(format!("Hello, {}!", name))
-//! }
-//!
-//! // Register functions in environment
-//! let env = Env::builder()
-//!     .register_global("add", add_numbers)?
-//!     .register_global("greet", format_greeting)?
-//!     .build()?;
-//!
-//! // Use in CEL expressions
-//! let program = env.compile("greet('World') + ' Result: ' + string(add(2, 3))")?;
-//! # Ok::<(), cel_cxx::Error>(())
+//! let func = fetch_data.into_function();
+//! // func.call() returns a Future that can be awaited
+//! # }
 //! ```
 
-//pub mod registry;
-
-use std::sync::Arc;
-use crate::Kind;
 use crate::values::*;
 use crate::types::*;
-use crate::marker::*;
+use crate::error::*;
 use crate::maybe_future::*;
-use crate::error::Error;
+use crate::marker::*;
+use std::sync::Arc;
 
-mod registry;
-mod overload;
-mod bindings;
+pub mod decl;
+pub use decl::*;
 
-pub use registry::*;
+/// Function overload management and resolution.
+///
+/// This module provides types and utilities for managing function overloads,
+/// allowing multiple function implementations with different signatures to
+/// be registered under the same name.
+///
+/// # Key Types
+///
+/// - [`FunctionOverloads`]: Container for multiple overloads of a function
+/// - [`FunctionKindOverload`]: Overloads grouped by argument kinds  
+/// - [`FunctionDeclOrImpl`]: Union type for declarations and implementations
+///
+/// # Overload Resolution
+///
+/// The system supports sophisticated overload resolution based on:
+/// - **Argument count**: Number of parameters
+/// - **Argument types**: CEL types of each parameter
+/// - **Member vs global**: Whether the function is called as a method
+///
+/// This enables natural function calls like:
+/// ```text
+/// // Different overloads of "format"
+/// format("Hello")              // format(string) -> string
+/// format("Hello %s", "World")  // format(string, string) -> string  
+/// format(42)                   // format(int) -> string
+/// ```
+pub mod overload;
 pub use overload::*;
+
+/// Function registry for managing registered functions.
+///
+/// This module provides the [`FunctionRegistry`] type which serves as the
+/// central repository for all functions available in a CEL environment.
+/// It handles function registration, lookup, and overload management.
+///
+/// # Features
+///
+/// - **Function registration**: Add new function implementations
+/// - **Declaration support**: Register type signatures without implementations
+/// - **Overload management**: Handle multiple signatures for the same function name
+/// - **Efficient lookup**: Fast function resolution during expression evaluation
+///
+/// # Thread Safety
+///
+/// The registry is designed to be thread-safe and can be shared across
+/// multiple evaluation contexts.
+pub mod registry;
+pub use registry::*;
+
+/// Function binding utilities for runtime variable capture.
+///
+/// This module provides utilities for binding functions with captured
+/// environment variables, enabling closures to access external state
+/// during CEL expression evaluation.
+///
+/// # Use Cases
+///
+/// - **Configuration binding**: Capture configuration values in closures
+/// - **Database connections**: Bind database handles to query functions
+/// - **External services**: Capture service clients for API calls
+/// - **State management**: Access mutable state from function implementations
+pub mod bindings;
 pub use bindings::*;
 
-/// Function declaration trait.
+/// Marker trait for function argument tuples.
 ///
-/// `FnDecl` provides static type information for function signatures. This trait is sealed and
-/// cannot be implemented directly by external crates. Instead, it is automatically implemented
-/// for function pointer types that meet specific criteria.
+/// This trait is automatically implemented for tuples of types that implement
+/// [`FromValue`] and [`TypedValue`]. It serves as a constraint to ensure
+/// type safety in function registration.
 ///
-/// # Automatically Implemented For
+/// The trait supports function signatures with 0 to 10 parameters. Each parameter
+/// type must be convertible from CEL values and have a known CEL type.
 ///
-/// The `FnDecl` trait is automatically implemented for function pointer types:
+/// # Implementation Details
 ///
-/// - `fn() -> R`
-/// - `fn(A1) -> R`
-/// - `fn(A1, A2) -> R`
-/// - `fn(A1, A2, A3) -> R`
-/// - ... (up to 10 arguments)
+/// This trait is sealed and cannot be implemented outside this crate. It is
+/// automatically implemented for valid argument tuple types through procedural
+/// macros.
 ///
-/// Where:
-/// - `R: IntoValue + TypedValue` (return type)
-/// - `A1, A2, ...: FromValue + TypedValue` (argument types)
+/// # Supported Argument Types
 ///
-/// # Examples of Valid Function Types
+/// Any type that implements both [`FromValue`] and [`TypedValue`] can be used
+/// as a function argument. This includes:
 ///
-/// ```rust,no_run
-/// use cel_cxx::{FunctionRegistry, Error};
+/// - **Primitive types**: `bool`, `i64`, `u64`, `f64`, `String`, `Vec<u8>`
+/// - **Reference types**: `&str`, `&[u8]` (with proper lifetime handling)
+/// - **Collection types**: `Vec<T>`, `HashMap<K, V>` where `T`, `K`, `V` are valid CEL types
+/// - **Custom types**: Types that implement the required traits
 ///
-/// let mut registry = FunctionRegistry::new();
-/// registry
-///     .declare_global::<fn() -> f64>("pi")?
-///     .declare_global::<fn(i64) -> i64>("square")?
-///     .declare_global::<fn(i64, i64, i64) -> i64>("add_three")?
-///     .declare_global::<fn(String, i64) -> String>("format_number")?;
-/// # Ok::<(), cel_cxx::Error>(())
-/// ```
-pub trait FnDecl {
-    /// Returns the argument types of the function.
-    fn arguments() -> Vec<Type>;
-    /// Returns the result type of the function.
-    fn result() -> Type;
-}
+/// # Note
+///
+/// This trait is sealed and cannot be implemented outside this crate.
+/// It supports function signatures with 0 to 10 parameters.
+pub trait Arguments: Sized + private::Sealed {}
 
-const _: () = {
-    macro_rules! impl_fn_decl {
-        ($($ty:ident),*) => {
-            paste::paste! {
-                impl<R, $($ty,)*> FnDecl for fn($($ty,)*) -> R
-                where
-                    R: IntoValue + TypedValue,
-                    $(
-                        $ty: FromValue + TypedValue,
-                    )*
-                {
-                    fn arguments() -> Vec<Type> {
-                        <($($ty,)*) as TypedArguments>::arguments_type()
-                    }
-
-                    fn result() -> Type {
-                        R::value_type()
-                    }
-                }
-            }
-        }
-    }
-
-    impl_fn_decl!();
-    impl_fn_decl!(A1);
-    impl_fn_decl!(A1, A2);
-    impl_fn_decl!(A1, A2, A3);
-    impl_fn_decl!(A1, A2, A3, A4);
-    impl_fn_decl!(A1, A2, A3, A4, A5);
-    impl_fn_decl!(A1, A2, A3, A4, A5, A6);
-    impl_fn_decl!(A1, A2, A3, A4, A5, A6, A7);
-    impl_fn_decl!(A1, A2, A3, A4, A5, A6, A7, A8);
-    impl_fn_decl!(A1, A2, A3, A4, A5, A6, A7, A8, A9);
-    impl_fn_decl!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
-};
-
-
-/// Function implementation trait.
+/// Trait for types that can be converted into function implementations.
 ///
-/// `FnImpl` defines the interface for callable CEL functions. This trait is sealed and cannot be
-/// implemented directly by external crates. Instead, it is automatically implemented for function
-/// types that meet specific criteria.
+/// This is the main entry point for function registration. Any Rust function
+/// or closure that meets the constraints can be converted into a [`Function`].
 ///
-/// # Automatically Implemented For
+/// # Type System Integration
 ///
-/// The `FnImpl` trait is automatically implemented for:
+/// The trait uses Rust's type system to automatically:
+/// - Extract function signatures using [`FunctionDecl`]
+/// - Handle argument conversion using [`FromValue`] with GATs
+/// - Manage return type conversion using [`IntoResult`]
+/// - Support both synchronous and asynchronous functions
 ///
-/// - **Synchronous functions and closures**: `Fn(A1, A2, ...) -> Result<R, E>` where:
-///   - `A1, A2, ...: FromValue + TypedValue` (argument types)
-///   - `R: IntoValue + TypedValue` (return type)
-///   - `E: Into<Error> + Send + Sync + 'static` (error type)
-///   - The function/closure is `Send + Sync`
+/// # Generic Associated Types (GATs)
 ///
-/// - **Asynchronous functions and closures** (when `async` feature is enabled): `Fn(A1, A2, ...) -> Fut` where:
-///   - `Fut: Future<Output = Result<R, E>> + Send` (future type)
-///   - `A1, A2, ...: FromValue + TypedValue` (argument types)
-///   - `R: IntoValue + TypedValue` (return type)
-///   - `E: Into<Error> + Send + Sync + 'static` (error type)
-///   - The function/closure is `Send + Sync`
+/// This trait leverages GATs to handle complex lifetime relationships:
+/// - Functions returning `&str` can borrow from input parameters
+/// - Closures can capture environment variables with appropriate lifetimes
+/// - The system maintains memory safety through controlled lifetime erasure
+///
+/// # Note
+///
+/// This trait is sealed and cannot be implemented outside this crate.
 ///
 /// # Type Parameters
 ///
-/// - `M`: Function marker indicating sync (`()`) or async (`Async`) mode
-/// - `E`: Error type, must be convertible to [`Error`]
-/// - `R`: Return type, must implement [`IntoValue`] and [`TypedValue`]
-/// - `A`: Argument tuple type
+/// - `'f`: Lifetime parameter for captured data in closures
+/// - `Fm`: Function marker (sync/async)
+/// - `Args`: Argument tuple type
 ///
-/// # Examples of Valid Function Types
+/// # Examples
 ///
-/// ```rust,no_run
-/// use cel_cxx::{FunctionRegistry, Error};
-/// use std::collections::HashMap;
-/// use std::convert::Infallible;
+/// ## Simple Functions
 ///
-/// let mut registry = FunctionRegistry::new();
-///
-/// // Simple function
-/// fn double(x: i64) -> Result<i64, Infallible> {
-///     Ok(x * 2)
+/// ```rust
+/// # use crate::function::IntoFunction;
+/// # use std::convert::Infallible;
+/// fn add(a: i64, b: i64) -> i64 { a + b }
+/// fn divide(a: i64, b: i64) -> Result<f64, Infallible> { 
+///     Ok(a as f64 / b as f64) 
 /// }
-/// registry.register_global("double", double)?;
 ///
-/// // Function with multiple arguments
-/// fn multiply(a: i64, b: i64) -> Result<i64, Infallible> {
-///     Ok(a * b)
-/// }
-/// registry.register_global("multiply", multiply)?;
-///
-/// // Function with different error type
-/// fn parse_int(s: String) -> Result<i64, std::num::ParseIntError> {
-///     s.parse::<i64>()
-/// }
-/// registry.register_global("parse_int", parse_int)?;
-///
-/// // Function with complex types
-/// fn map_size(map: HashMap<String, i64>) -> Result<i64, Infallible> {
-///     Ok(map.len() as i64)
-/// }
-/// registry.register_global("map_size", map_size)?;
-///
-/// // Closure capturing environment
-/// let multiplier = 3;
-/// let closure = move |x: i64| -> Result<i64, Infallible> {
-///     Ok(x * multiplier)
-/// };
-/// registry.register_global("triple", closure)?;
-///
-/// # Ok::<(), cel_cxx::Error>(())
+/// let add_func = add.into_function();
+/// let div_func = divide.into_function();
 /// ```
 ///
-/// # Async Examples (requires `async` feature)
+/// ## Closures with Captured Variables
 ///
-/// ```rust,no_run
-/// # #[cfg(feature = "async")]
-/// # {
-/// use std::convert::Infallible;
-/// use cel_cxx::{FunctionRegistry, Error};
-///
-/// let mut registry = FunctionRegistry::new();
-///
-/// // Async function
-/// async fn fetch_data(url: String) -> Result<String, Infallible> {
-///     // Simulate async operation
-///     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-///     Ok(format!("Data from {}", url))
-/// }
-/// registry.register_global("fetch", fetch_data)?;
-///
-/// // Async closure
-/// let timeout = 1000;
-/// let async_closure = async |delay: i64| -> Result<i64, Infallible> {
-///     tokio::time::sleep(tokio::time::Duration::from_millis(delay as u64)).await;
-///     Ok(timeout)
-/// };
-/// registry.register_global("wait", async_closure)?;
-///
-/// # Ok::<(), cel_cxx::Error>(())
-/// # }
+/// ```rust
+/// # use crate::function::IntoFunction;
+/// let factor = 2.5;
+/// let scale = move |x: f64| -> f64 { x * factor };
+/// let scale_func = scale.into_function();
 /// ```
-pub trait FnImpl<M, E, R, A>: private::Sealed<M, E, R, A> + Send + Sync {
-    /// Calls the function with the given arguments.
-    fn call<'this, 'a>(
-        &'this self,
-        args: Vec<Value>
-    ) -> MaybeFuture<'a, Value, Error>
-    where 'this: 'a, Self: 'a;
-
-    /// Returns the argument types of the function.
-    fn arguments(&self) -> Vec<Type>;
-
-    /// Returns the result type of the function.
-    fn result(&self) -> Type;
-
-    /// Returns a type-erased reference to this function.
-    fn erased<'this, 'f>(&'this self) -> &'this (dyn FnImpl<M, E, R, A> + 'f)
-    where 'this: 'f, Self: 'f + Sized { self }
-
-    /// Converts this function into a boxed trait object.
-    fn into_erased<'f>(self) -> BoxedFunction<'f, M, E, R, A>
-    where Self: Sized + 'f { Box::new(self) }
+///
+/// ## Functions with Reference Parameters
+///
+/// ```rust
+/// # use crate::function::IntoFunction;
+/// fn process_text(text: &str, uppercase: bool) -> String {
+///     if uppercase { text.to_uppercase() } else { text.to_lowercase() }
+/// }
+/// let process_func = process_text.into_function();
+/// ```
+pub trait IntoFunction<'f, Fm: FnMarker, Args = ()>: private::Sealed<Fm, Args> {
+    /// Convert this function into a type-erased implementation.
+    ///
+    /// This method performs the conversion from a strongly-typed Rust function
+    /// to a type-erased [`Function`] that can be called from CEL expressions.
+    ///
+    /// # Returns
+    ///
+    /// A [`Function`] that encapsulates the original function with:
+    /// - Type-safe argument conversion
+    /// - Return value conversion
+    /// - Error handling
+    /// - Async support (if applicable)
+    ///
+    /// # Performance
+    ///
+    /// The conversion is zero-cost at runtime. All type checking and conversion
+    /// logic is generated at compile time.
+    fn into_function(self) -> Function<'f>;
 }
 
-/// Type alias for boxed functions.
-pub type BoxedFunction<'f, M, E, R, A> = Box<dyn FnImpl<M, E, R, A> + 'f>;
-
-/// Type-erased function implementation trait.
+/// A type-erased function implementation that can be called from CEL expressions.
 ///
-/// Internal trait used for type erasure of generic [`FnImpl`] types.
-/// This allows storing different function types in the same collection.
-pub trait ErasedFnImpl: Send + Sync {
-    /// Calls the function with the given arguments.
-    fn call<'this, 'a>(
-        &'this self,
-        args: Vec<Value>
-    ) -> MaybeFuture<'a, Value, Error>
-    where 'this: 'a, Self: 'a;
+/// This is the main type used to store and invoke registered functions.
+/// It provides a uniform interface for calling functions regardless of
+/// their original signature.
+///
+/// # Design
+///
+/// The `Function` struct uses dynamic dispatch through trait objects to provide
+/// a uniform interface while maintaining type safety. The original function's
+/// type information is preserved through internal trait implementations.
+///
+/// # Memory Safety
+///
+/// Despite using type erasure, the system maintains complete memory safety:
+/// - All conversions are checked at runtime
+/// - Lifetime relationships are preserved where possible
+/// - Reference parameters are handled safely through controlled lifetime management
+///
+/// # Performance
+///
+/// - Function calls involve minimal overhead (one virtual call + conversions)
+/// - Argument validation is performed once per call
+/// - Type conversions use zero-copy where possible
+///
+/// # Examples
+///
+/// ## Basic Usage
+///
+/// ```rust
+/// # use crate::function::*;
+/// fn greet(name: &str) -> String {
+///     format!("Hello, {}!", name)
+/// }
+///
+/// let func = greet.into_function();
+/// let args = vec!["World".into()];
+/// let result = func.call(args);
+/// ```
+///
+/// ## Metadata Inspection
+///
+/// ```rust
+/// # use crate::function::*;
+/// # fn greet(name: &str) -> String { format!("Hello, {}!", name) }
+/// let func = greet.into_function();
+///
+/// // Inspect function signature
+/// println!("Arguments: {:?}", func.arguments());
+/// println!("Return type: {:?}", func.result());
+/// println!("Function type: {:?}", func.function_type());
+/// ```
+#[derive(Debug, Clone)]
+pub struct Function<'f> {
+    inner: Arc<dyn ErasedFn + 'f>,
+}
 
-    /// Returns the function declaration.
-    fn decl(&self) -> FunctionDecl {
-        FunctionDecl::new(self.result(), self.arguments())
+impl<'f> Function<'f> {
+    /// Create a new function implementation from an `ErasedFn`.
+    fn new(inner: impl ErasedFn + 'f) -> Self {
+        Self { inner: Arc::new(inner) }
     }
 
-    /// Returns the function type.
-    fn function_type(&self) -> FunctionType {
+    /// Call the function with the provided arguments.
+    ///
+    /// This method invokes the function with type-safe argument conversion
+    /// and return value handling. It supports both synchronous and asynchronous
+    /// functions through the [`MaybeFuture`] return type.
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - Vector of [`Value`] arguments to pass to the function
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`MaybeFuture`] that represents either an immediate result or a future:
+    /// 
+    /// - **Without `async` feature**: [`MaybeFuture`] is `Result<Value, Error>` - returns immediately
+    /// - **With `async` feature**: [`MaybeFuture`] can be either:
+    ///   - `MaybeFuture::Result(Result<Value, Error>)` for synchronous functions
+    ///   - `MaybeFuture::Future(BoxFuture<Result<Value, Error>>)` for async functions
+    ///
+    /// # Type Safety
+    ///
+    /// The method performs runtime type checking to ensure:
+    /// - Correct number of arguments is provided
+    /// - Each argument can be converted to the expected parameter type
+    /// - Return value conversion succeeds
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`Error`] if:
+    /// - The number of arguments doesn't match the function signature
+    /// - Argument types cannot be converted to the expected types
+    /// - The function itself returns an error
+    /// - Return value conversion fails
+    ///
+    /// # Examples
+    ///
+    /// ## Synchronous function call
+    ///
+    /// ```rust
+    /// # use crate::function::*;
+    /// # use crate::values::Value;
+    /// fn add(a: i64, b: i64) -> i64 { a + b }
+    /// let func = add.into_function();
+    ///
+    /// let args = vec![Value::Int(10), Value::Int(20)];
+    /// let maybe_result = func.call(args);
+    /// 
+    /// // In sync mode, extract the result directly
+    /// # #[cfg(not(feature = "async"))]
+    /// let result = maybe_result.unwrap();
+    /// 
+    /// // In async mode, check if it's an immediate result
+    /// # #[cfg(feature = "async")]
+    /// let result = maybe_result.unwrap_result();
+    /// 
+    /// assert_eq!(result, Value::Int(30));
+    /// ```
+    ///
+    /// ## Async function call (when `async` feature is enabled)
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "async")]
+    /// # async fn example() {
+    /// # use crate::function::*;
+    /// # use crate::values::Value;
+    /// async fn async_multiply(a: i64, b: i64) -> i64 { a * b }
+    /// let func = async_multiply.into_function();
+    ///
+    /// let args = vec![Value::Int(6), Value::Int(7)];
+    /// let maybe_result = func.call(args);
+    /// 
+    /// // For async functions, extract and await the future
+    /// let result = maybe_result.unwrap_future().await.unwrap();
+    /// assert_eq!(result, Value::Int(42));
+    /// # }
+    /// ```
+    pub fn call<'this, 'future>(
+        &'this self,
+        args: Vec<Value>
+    ) -> MaybeFuture<'future, Value, Error>
+    where 'this: 'future, Self: 'future {
+        self.inner.call(args)
+    }
+
+    /// Get the expected argument types for this function.
+    ///
+    /// Returns the function signature information that can be used for:
+    /// - Compile-time type checking
+    /// - Runtime argument validation
+    /// - Documentation generation
+    /// - IDE support and auto-completion
+    ///
+    /// # Returns
+    ///
+    /// A vector of [`ValueType`] representing the expected argument types
+    /// in the order they should be provided to [`call`](Self::call).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use crate::function::*;
+    /// # use crate::types::ValueType;
+    /// fn process(name: &str, count: i64, active: bool) -> String {
+    ///     format!("{}: {} ({})", name, count, active)
+    /// }
+    /// let func = process.into_function();
+    ///
+    /// let arg_types = func.arguments();
+    /// assert_eq!(arg_types, vec![
+    ///     ValueType::String,
+    ///     ValueType::Int,
+    ///     ValueType::Bool
+    /// ]);
+    /// ```
+    pub fn arguments(&self) -> Vec<ValueType> {
+        self.inner.arguments()
+    }
+
+    /// Get the return type of this function.
+    ///
+    /// Returns type information that can be used for:
+    /// - Compile-time type checking of expressions
+    /// - Runtime result validation
+    /// - Type inference in complex expressions
+    ///
+    /// # Returns
+    ///
+    /// The [`ValueType`] that this function returns when called successfully.
+    /// For functions returning `Result<T, E>`, this returns the success type `T`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use crate::function::*;
+    /// # use crate::types::ValueType;
+    /// fn calculate(x: f64, y: f64) -> f64 { x * y + 1.0 }
+    /// let func = calculate.into_function();
+    ///
+    /// assert_eq!(func.result(), ValueType::Double);
+    /// ```
+    ///
+    /// ```rust
+    /// # use crate::function::*;
+    /// # use crate::types::ValueType;
+    /// # use std::convert::Infallible;
+    /// fn get_message() -> Result<String, Infallible> { 
+    ///     Ok("Hello".to_string()) 
+    /// }
+    /// let func = get_message.into_function();
+    ///
+    /// // Returns the success type, not Result<String, Infallible>
+    /// assert_eq!(func.result(), ValueType::String);
+    /// ```
+    pub fn result(&self) -> ValueType {
+        self.inner.result()
+    }
+
+    /// Get complete function type information.
+    ///
+    /// Returns a [`FunctionType`] that combines argument and return type information.
+    /// This is useful for:
+    /// - Function signature matching
+    /// - Overload resolution
+    /// - Type checking in complex expressions
+    ///
+    /// # Returns
+    ///
+    /// A [`FunctionType`] containing complete function signature information.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use crate::function::*;
+    /// # use crate::types::{ValueType, FunctionType};
+    /// fn multiply(a: i64, b: i64) -> i64 { a * b }
+    /// let func = multiply.into_function();
+    ///
+    /// let func_type = func.function_type();
+    /// assert_eq!(func_type.arguments(), &[ValueType::Int, ValueType::Int]);
+    /// assert_eq!(func_type.result(), &ValueType::Int);
+    /// ```
+    pub fn function_type(&self) -> FunctionType {
         FunctionType::new(self.result(), self.arguments())
     }
 
-    /// Returns the argument types of the function.
-    fn arguments(&self) -> Vec<Type>;
-
-    /// Returns the result type of the function.
-    fn result(&self) -> Type;
-
-    /// Returns the argument kinds of the function.
-    fn argument_kinds(&self) -> Vec<Kind> {
-        self.arguments()
-            .into_iter()
-            .map(|t| t.kind())
-            .collect()
-    }
-
-    /// Returns the result kind of the function.
-    fn result_kind(&self) -> Kind {
-        self.result().kind()
+    /// Get the number of arguments this function expects.
+    ///
+    /// This is a convenience method equivalent to `self.arguments().len()`.
+    /// Useful for quick arity checking without allocating the full argument
+    /// type vector.
+    ///
+    /// # Returns
+    ///
+    /// The number of parameters this function expects.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use crate::function::*;
+    /// fn no_args() -> i64 { 42 }
+    /// fn one_arg(x: i64) -> i64 { x }
+    /// fn three_args(a: i64, b: i64, c: i64) -> i64 { a + b + c }
+    ///
+    /// assert_eq!(no_args.into_function().arguments_len(), 0);
+    /// assert_eq!(one_arg.into_function().arguments_len(), 1);
+    /// assert_eq!(three_args.into_function().arguments_len(), 3);
+    /// ```
+    pub fn arguments_len(&self) -> usize {
+        self.inner.arguments_len()
     }
 }
 
-impl<'a> std::fmt::Debug for dyn ErasedFnImpl + 'a {
+// =============================================================================
+// Implementation details
+// =============================================================================
+
+/// Internal trait for type-erased function implementations.
+///
+/// This trait provides a uniform interface for calling functions regardless
+/// of their original signature. It is not exposed publicly as users should
+/// interact with [`Function`] instead.
+trait ErasedFn: Send + Sync {
+    /// Call the function with the provided arguments.
+    fn call<'this, 'future>(
+        &'this self,
+        args: Vec<Value>
+    ) -> MaybeFuture<'future, Value, Error>
+    where 'this: 'future, Self: 'future;
+
+    /// Get the expected argument types.
+    fn arguments(&self) -> Vec<ValueType>;
+
+    /// Get the return type.
+    fn result(&self) -> ValueType;
+
+    /// Get the number of expected arguments.
+    fn arguments_len(&self) -> usize;
+}
+
+macro_rules! impl_arguments {
+    ($(
+        $($ty:ident),+
+    )?) => {
+        impl<$($($ty: FromValue + TypedValue),+)?> Arguments for ($($($ty,)+)?) {}
+        impl<$($($ty: FromValue + TypedValue),+)?> private::Sealed for ($($($ty,)+)?) {}
+    }
+}
+
+impl_arguments!();
+impl_arguments!(A1);
+impl_arguments!(A1, A2);
+impl_arguments!(A1, A2, A3);
+impl_arguments!(A1, A2, A3, A4);
+impl_arguments!(A1, A2, A3, A4, A5);
+impl_arguments!(A1, A2, A3, A4, A5, A6);
+impl_arguments!(A1, A2, A3, A4, A5, A6, A7);
+impl_arguments!(A1, A2, A3, A4, A5, A6, A7, A8);
+impl_arguments!(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+impl_arguments!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+
+
+/// Internal trait for safely converting `FromValue::Output` to function parameter types.
+///
+/// This trait contains unsafe code for lifetime erasure and should only be used
+/// within the controlled context of function dispatch. It is not exposed publicly
+/// to ensure memory safety.
+trait Argument: FromValue + TypedValue {
+    /// Convert a CEL value to the function parameter type.
+    ///
+    /// This method safely converts a [`Value`] reference to the target type
+    /// by first using [`FromValue::from_value`] and then performing controlled
+    /// lifetime erasure via [`Self::from_output`].
+    fn make_argument<'a>(value: &'a Value) -> Result<Self, FromValueError> {
+        let output = <Self as FromValue>::from_value(value)?;
+        Ok(unsafe { Self::from_output(output) })
+    }
+
+    /// Convert `FromValue::Output<'a>` to `Self` by erasing lifetime information.
+    /// 
+    /// # Safety
+    /// 
+    /// This method performs an unsafe lifetime erasure operation that is only safe
+    /// under specific controlled conditions:
+    /// 
+    /// 1. **Memory Layout Guarantee**: The method assumes that `Self` and 
+    ///    `Self::Output<'a>` have identical memory layouts. This is verified by
+    ///    a debug assertion checking `size_of` equality.
+    /// 
+    /// 2. **Lifetime Erasure Safety**: The lifetime parameter 'a is erased through
+    ///    unsafe pointer casting. This is safe because:
+    ///    - The input `output` is consumed (moved) into this function
+    ///    - The returned `Self` will be immediately consumed by the function call
+    ///    - No references escape the function call scope
+    /// 
+    /// 3. **Controlled Usage Context**: This method is only called within the
+    ///    function dispatch mechanism where:
+    ///    - The source `&[Value]` array remains valid for the entire function call
+    ///    - The converted arguments are immediately passed to the target function
+    ///    - The function result is immediately converted via `IntoResult`
+    /// 
+    /// 4. **Type System Cooperation**: For reference types like `&str`:
+    ///    - `Self::Output<'a>` is `&'a str` (borrowed from Value)
+    ///    - `Self` is `&str` (with erased lifetime)
+    ///    - The underlying string data in Value remains valid throughout the call
+    /// 
+    /// The safety of this operation relies on the fact that the lifetime erasure
+    /// is temporary and scoped - the converted values never outlive the original
+    /// Value array that owns the underlying data.
+    /// 
+    /// # Implementation Details
+    /// 
+    /// The conversion process:
+    /// 1. Cast the reference to `output` as a pointer to `Self`
+    /// 2. Forget the original `output` to prevent double-drop
+    /// 3. Read the value from the pointer, effectively transferring ownership
+    /// 
+    /// This is essentially a controlled `transmute` operation that preserves
+    /// the bit representation while changing the type signature.
+    unsafe fn from_output<'a>(output: <Self as FromValue>::Output<'a>) -> Self {
+        debug_assert!(std::mem::size_of::<<Self as FromValue>::Output<'a>>() == std::mem::size_of::<Self>());
+
+        let ptr: *const Self = (&output as *const <Self as FromValue>::Output<'a>).cast();
+        std::mem::forget(output);
+        std::ptr::read(ptr)
+    }
+}
+
+// Blanket implementation for all types that implement FromValue and TypedValue
+impl<T: FromValue + TypedValue> Argument for T {}
+
+/// Internal wrapper for synchronous functions that implements [`ErasedFn`].
+///
+/// This struct wraps a function along with phantom data for its signature,
+/// allowing type-erased storage and invocation.
+struct FnWrapper<F, R, Args> {
+    func: F,
+    _phantom: std::marker::PhantomData<(R, Args)>,
+}
+
+impl<F, R, Args> FnWrapper<F, R, Args> {
+    /// Create a new function wrapper.
+    fn new(func: F) -> Self {
+        Self {
+            func,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+// =============================================================================
+// Helper macros and implementations
+// =============================================================================
+
+/// Compile-time macro to count the number of function arguments.
+macro_rules! count_args {
+    () => { 0 };
+    ($head:ident $(, $tail:ident)*) => { 1 + count_args!($($tail),*) };
+}
+use count_args;
+
+/// Macro to generate [`ErasedFn`] implementations for synchronous functions
+/// with different arities (0 to 10 parameters).
+macro_rules! impl_fn_wrapper {
+    ($($ty:ident),*) => {
+        paste::paste! {
+            impl<F, R, $($ty,)*> ErasedFn for FnWrapper<F, R, ($($ty,)*)>
+            where
+                F: Fn($($ty,)*) -> R + Send + Sync,
+                R: IntoResult + Send + Sync,
+                $($ty: FromValue + TypedValue + Send + Sync,)*
+            {
+                fn call<'this, 'future>(
+                    &'this self,
+                    args: Vec<Value>
+                ) -> MaybeFuture<'future, Value, Error>
+                where 'this: 'future, Self: 'future {
+                    let f = || {
+                        // Compile-time constant: number of expected arguments
+                        const EXPECTED_LEN: usize = count_args!($($ty),*);
+                        
+                        if args.len() != EXPECTED_LEN {
+                            return Err(Error::invalid_argument(
+                                format!("expected {} arguments, got {}", EXPECTED_LEN, args.len())
+                            ));
+                        }
+                        
+                        #[allow(unused_mut, unused_variables)]
+                        let mut iter = args.iter();
+                        $(
+                            let [< $ty:lower >] = $ty::make_argument(
+                                iter.next().expect("argument count already validated")
+                            ).map_err(|e| Error::invalid_argument(format!("argument error: {}", e)))?;
+                        )*
+                        
+                        let result = (self.func)($([< $ty:lower >],)*);
+                        result.into_result()
+                    };
+                    f().into()
+                }
+
+                fn arguments(&self) -> Vec<ValueType> {
+                    vec![$($ty::value_type()),*]
+                }
+
+                fn result(&self) -> ValueType {
+                    R::value_type()
+                }
+
+                fn arguments_len(&self) -> usize {
+                    count_args!($($ty),*)
+                }
+            }
+            
+            // Implementation of IntoFunction for synchronous functions
+            impl<'f, F, R, $($ty,)*> IntoFunction<'f, (), ($($ty,)*)> for F
+            where
+                F: Fn($($ty,)*) -> R + Send + Sync + 'f,
+                R: IntoResult + Send + Sync + 'f,
+                ($($ty,)*): Arguments,
+                $($ty: FromValue + TypedValue + Send + Sync + 'f,)*
+            {
+                fn into_function(self) -> Function<'f> {
+                    Function::new(FnWrapper::<F, R, ($($ty,)*)>::new(self))
+                }
+            }
+            
+            // Sealed implementation for synchronous functions
+            impl<'f, F, R, $($ty,)*> private::Sealed<(), ($($ty,)*)> for F
+            where
+                F: Fn($($ty,)*) -> R + Send + Sync + 'f,
+                R: IntoResult + Send + Sync + 'f,
+                ($($ty,)*): Arguments,
+                $($ty: FromValue + TypedValue + Send + Sync + 'f,)*
+            {}
+        }
+    };
+}
+
+// Generate implementations for functions with 0-10 parameters
+impl_fn_wrapper!();
+impl_fn_wrapper!(A1);
+impl_fn_wrapper!(A1, A2);
+impl_fn_wrapper!(A1, A2, A3);
+impl_fn_wrapper!(A1, A2, A3, A4);
+impl_fn_wrapper!(A1, A2, A3, A4, A5);
+impl_fn_wrapper!(A1, A2, A3, A4, A5, A6);
+impl_fn_wrapper!(A1, A2, A3, A4, A5, A6, A7);
+impl_fn_wrapper!(A1, A2, A3, A4, A5, A6, A7, A8);
+impl_fn_wrapper!(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+impl_fn_wrapper!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+
+// =============================================================================
+// Async function support (optional feature)
+// =============================================================================
+
+/// Internal wrapper for asynchronous functions that implements [`ErasedFn`].
+///
+/// This struct is similar to [`FnWrapper`] but designed for async functions
+/// that return futures. It's only available when the `async` feature is enabled.
+#[cfg(feature = "async")]
+struct FnWrapperAsync<F, R, Args> {
+    func: F,
+    _phantom: std::marker::PhantomData<(R, Args)>,
+}
+
+#[cfg(feature = "async")]
+impl<F, R, Args> FnWrapperAsync<F, R, Args> {
+    /// Create a new async function wrapper.
+    fn new(func: F) -> Self {
+        Self {
+            func,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+mod async_impls {
+    use super::*;
+
+    /// Macro to generate [`ErasedFn`] implementations for asynchronous functions
+    /// with different arities (0 to 10 parameters).
+    macro_rules! impl_fn_wrapper_async {
+        ($($ty:ident),*) => {
+            paste::paste! {
+                impl<F, Fut, R, $($ty,)*> ErasedFn for FnWrapperAsync<F, R, ($($ty,)*)>
+                where
+                    F: Fn($($ty,)*) -> Fut + Send + Sync,
+                    Fut: std::future::Future<Output = R> + Send,
+                    R: IntoResult + Send + Sync,
+                    $($ty: FromValue + TypedValue + Send + Sync,)*
+                {
+                    fn call<'this, 'future>(
+                        &'this self,
+                        args: Vec<Value>
+                    ) -> MaybeFuture<'future, Value, Error>
+                    where 'this: 'future, Self: 'future {
+                        let f = || async move {
+                            // Compile-time constant: number of expected arguments
+                            const EXPECTED_LEN: usize = count_args!($($ty),*);
+                            
+                            if args.len() != EXPECTED_LEN {
+                                return Err(Error::invalid_argument(
+                                    format!("expected {} arguments, got {}", EXPECTED_LEN, args.len())
+                                ));
+                            }
+                            
+                            #[allow(unused_mut, unused_variables)]
+                            let mut iter = args.iter();
+                            $(
+                                let [< $ty:lower >] = $ty::make_argument(
+                                    iter.next().expect("argument count already validated")
+                                ).map_err(|e| Error::invalid_argument(format!("argument error: {}", e)))?;
+                            )*
+                            
+                            let future = (self.func)($([< $ty:lower >],)*);
+                            let result = future.await;
+                            result.into_result()
+                        };
+                        Box::pin(f()).into()
+                    }
+
+                    fn arguments(&self) -> Vec<ValueType> {
+                        vec![$($ty::value_type()),*]
+                    }
+
+                    fn result(&self) -> ValueType {
+                        R::value_type()
+                    }
+
+                    fn arguments_len(&self) -> usize {
+                        count_args!($($ty),*)
+                    }
+                }
+                
+                // Implementation of IntoFunction for asynchronous functions
+                impl<'f, F, Fut, R, $($ty,)*> IntoFunction<'f, Async, ($($ty,)*)> for F
+                where
+                    F: Fn($($ty,)*) -> Fut + Send + Sync + 'f,
+                    Fut: std::future::Future<Output = R> + Send + 'f,
+                    R: IntoResult + Send + Sync + 'f,
+                    $($ty: FromValue + TypedValue + Send + Sync + 'f,)*
+                {
+                    fn into_function(self) -> Function<'f> {
+                        Function::new(FnWrapperAsync::<F, R, ($($ty,)*)>::new(self))
+                    }
+                }
+                
+                // Sealed implementation for asynchronous functions
+                impl<'f, F, Fut, R, $($ty,)*> private::Sealed<Async, ($($ty,)*)> for F
+                where
+                    F: Fn($($ty,)*) -> Fut + Send + Sync + 'f,
+                    Fut: std::future::Future<Output = R> + Send + 'f,
+                    R: IntoResult + Send + Sync + 'f,
+                    $($ty: FromValue + TypedValue + Send + Sync + 'f,)*
+                {}
+            }
+        };
+    }
+
+    
+    impl_fn_wrapper_async!();
+    impl_fn_wrapper_async!(A1);
+    impl_fn_wrapper_async!(A1, A2);
+    impl_fn_wrapper_async!(A1, A2, A3);
+    impl_fn_wrapper_async!(A1, A2, A3, A4);
+    impl_fn_wrapper_async!(A1, A2, A3, A4, A5);
+    impl_fn_wrapper_async!(A1, A2, A3, A4, A5, A6);
+    impl_fn_wrapper_async!(A1, A2, A3, A4, A5, A6, A7);
+    impl_fn_wrapper_async!(A1, A2, A3, A4, A5, A6, A7, A8);
+    impl_fn_wrapper_async!(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+    impl_fn_wrapper_async!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+}
+
+// =============================================================================
+// Additional implementations
+// =============================================================================
+
+/// Debug implementation for type-erased functions.
+impl std::fmt::Debug for dyn ErasedFn + '_ {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("<function>")
     }
 }
 
-/// Type alias for function implementations.
-///
-/// Represents a thread-safe type-erased function, wrapped with `Arc` to support shared ownership.
-pub type FunctionImpl<'f> = Arc<dyn ErasedFnImpl + 'f>;
-
-impl<'f, M, E, R, A> ErasedFnImpl for dyn FnImpl<M, E, R, A> + 'f {
-    fn call<'this, 'a>(
-        &'this self,
-        args: Vec<Value>
-    ) -> MaybeFuture<'a, Value, Error>
-    where 'this: 'a, Self: 'a {
-        FnImpl::call(self, args)
-    }
-
-    fn arguments(&self) -> Vec<Type> {
-        FnImpl::arguments(self)
-    }
-
-    fn result(&self) -> Type {
-        FnImpl::result(self)
-    }
-}
-
-impl<T: ?Sized + ErasedFnImpl> ErasedFnImpl for Box<T> {
-    fn call<'this, 'a>(
-        &'this self,
-        args: Vec<Value>
-    ) -> MaybeFuture<'a, Value, Error>
-    where 'this: 'a, Self: 'a {
-        T::call(&**self, args)
-    }
-
-    fn arguments(&self) -> Vec<Type> {
-        T::arguments(&**self)
-    }
-
-    fn result(&self) -> Type {
-        T::result(&**self)
-    }
-}
-
-const _: () = {
-    macro_rules! impl_fn_impl {
-        ($($ty:ident),*) => {
-            paste::paste! {
-                #[allow(unused_variables, unused_mut)]
-                impl<'f, F, E, R, $($ty,)*> FnImpl<(), E, R, ($($ty,)*)> for F
-                where
-                    F: (Fn($($ty,)*) -> Result<R, E>) + Send + Sync + 'f,
-                    E: Into<Error> + Send + Sync + 'static,
-                    R: IntoValue + TypedValue + 'f,
-                    $(
-                        for<'a> $ty: FromValue + TypedValue + 'a,
-                    )*
-                {
-                    fn call<'this, 'a>(
-                        &'this self,
-                        args: Vec<Value>
-                    ) -> MaybeFuture<'a, Value, Error>
-                    where 'this: 'a, Self: 'a {
-                        let f = || {
-                            let len = args.len();
-                            let mut iter = args.into_iter();
-                            $(
-                                let [< $ty:lower >] = $ty::from_value(
-                                    iter.next().ok_or(
-                                        Error::invalid_argument(format!("expected {} arguments", len))
-                                    )?
-                                ).map_err(
-                                    |v| Error::invalid_argument(format!("expected {}, got {}", v.value_type(), v))
-                                )?;
-                            )*
-                            let result = self($([< $ty:lower >],)*)
-                                .map_err(|e| e.into())?;
-                            Ok(result.into_value())
-                        };
-                        f().into()
-                    }
-
-                    fn arguments(&self) -> Vec<Type> {
-                        vec![$($ty::value_type(),)*]
-                    }
-
-                    fn result(&self) -> Type {
-                        R::value_type()
-                    }
-                }
-                impl<'f, F, E, R, $($ty,)*> private::Sealed<(), E, R, ($($ty,)*)> for F
-                where
-                    F: (Fn($($ty,)*) -> Result<R, E>) + Send + Sync + 'f,
-                    E: Into<Error> + Send + Sync + 'static,
-                    R: IntoValue + TypedValue + 'f,
-                    $(
-                        $ty: FromValue + TypedValue,
-                    )*
-                {}
-            }
-        }
-    }
-
-    impl_fn_impl!();
-    impl_fn_impl!(A1);
-    impl_fn_impl!(A1, A2);
-    impl_fn_impl!(A1, A2, A3);
-    impl_fn_impl!(A1, A2, A3, A4);
-    impl_fn_impl!(A1, A2, A3, A4, A5);
-    impl_fn_impl!(A1, A2, A3, A4, A5, A6);
-    impl_fn_impl!(A1, A2, A3, A4, A5, A6, A7);
-    impl_fn_impl!(A1, A2, A3, A4, A5, A6, A7, A8);
-    impl_fn_impl!(A1, A2, A3, A4, A5, A6, A7, A8, A9);
-    impl_fn_impl!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
-};
-
-#[cfg(feature = "async")]
-const _: () = {
-    macro_rules! impl_fn_impl_async {
-        ($($ty:ident),*) => {
-            paste::paste! {
-                #[allow(unused_variables, unused_mut)]
-                impl<'f, F, Fut, E, R, $($ty,)*> FnImpl<Async, E, R, ($($ty,)*)> for F
-                where
-                    F: (Fn($($ty,)*) -> Fut) + Send + Sync + 'f,
-                    Fut: futures::Future<Output = Result<R, E>> + Send + 'f,
-                    E: Into<Error> + Send + Sync + 'static,
-                    R: IntoValue + TypedValue + 'f,
-                    $(
-                        for<'a> $ty: FromValue + TypedValue + 'a,
-                    )*
-                {
-                    fn call<'this, 'a>(
-                        &'this self,
-                        args: Vec<Value>
-                    ) -> MaybeFuture<'a, Value, Error>
-                    where 'this: 'a, Self: 'a {
-                        let f = || async move {
-                            let len = args.len();
-                            let mut iter = args.into_iter();
-                            $(
-                                let [< $ty:lower >] = $ty::from_value(
-                                    iter.next().ok_or(
-                                        Error::invalid_argument(format!("expected {} arguments", len))
-                                    )?
-                                ).map_err(
-                                    |v| Error::invalid_argument(format!("expected {}, got {}", v.value_type(), v))
-                                )?;
-                            )*
-                            let result = self($([< $ty:lower >],)*).await
-                                .map_err(|e| e.into())?;
-                            Ok(result.into_value())
-                        };
-                        Box::pin(f()).into()
-                    }
-
-                    fn arguments(&self) -> Vec<Type> {
-                        <($($ty,)*) as TypedArguments>::arguments_type()
-                    }
-
-                    fn result(&self) -> Type {
-                        R::value_type()
-                    }
-                }
-                impl<'f, F, Fut, E, R, $($ty,)*> private::Sealed<Async, E, R, ($($ty,)*)> for F
-                where
-                    F: (Fn($($ty,)*) -> Fut) + Send + Sync + 'f,
-                    Fut: futures::Future<Output = Result<R, E>> + Send + 'f,
-                    E: Into<Error> + Send + Sync + 'static,
-                    R: IntoValue + TypedValue + 'f,
-                    $(
-                        $ty: FromValue + TypedValue,
-                    )*
-                {}
-            }
-        }
-    }
-
-    impl_fn_impl_async!();
-    impl_fn_impl_async!(A1);
-    impl_fn_impl_async!(A1, A2);
-    impl_fn_impl_async!(A1, A2, A3);
-    impl_fn_impl_async!(A1, A2, A3, A4);
-    impl_fn_impl_async!(A1, A2, A3, A4, A5);
-    impl_fn_impl_async!(A1, A2, A3, A4, A5, A6);
-    impl_fn_impl_async!(A1, A2, A3, A4, A5, A6, A7);
-    impl_fn_impl_async!(A1, A2, A3, A4, A5, A6, A7, A8);
-    impl_fn_impl_async!(A1, A2, A3, A4, A5, A6, A7, A8, A9);
-    impl_fn_impl_async!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
-};
-
+/// Private module for sealed traits to prevent external implementations.
 mod private {
-    pub trait Sealed<M, E, R, A> {}
+    #[derive(Debug)]
+    pub enum Placeholder {}
+
+    pub trait Sealed<T = Placeholder, U = Placeholder> {}
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_basic_function_registration() {
+        // Test basic function registration and metadata extraction
+        fn add(a: i64, b: i64) -> i64 { a + b }
+        let func = add.into_function();
+        
+        assert_eq!(func.arguments(), vec![ValueType::Int, ValueType::Int]);
+        assert_eq!(func.result(), ValueType::Int);
+        
+        // Test closure registration
+        let multiplier = 3;
+        let multiply = move |x: i64| -> i64 { x * multiplier };
+        let func2 = multiply.into_function();
+        
+        assert_eq!(func2.arguments(), vec![ValueType::Int]);
+        assert_eq!(func2.result(), ValueType::Int);
+    }
+
+    #[test]
+    fn test_reference_return_functions() {
+        // Test functions that return borrowed data
+        fn return_arg<'a>(a: &'a str) -> &'a str { a }
+        let func = return_arg.into_function();
+        
+        assert_eq!(func.arguments(), vec![ValueType::String]);
+        assert_eq!(func.result(), ValueType::String);
+        
+        // Test function invocation
+        let result = func.call(vec!["hello".into()]);
+        let result = result.expect_result("test_reference_return_functions");
+        assert_eq!(result.unwrap(), "hello".into());
+    }
+
+    #[test]
+    fn test_closure_with_captured_data() {
+        // Test closures that capture environment variables
+        let prefix = String::from("Hello, ");
+        let with_prefix = move |name: &str| -> String { 
+            format!("{}{}", prefix, name) 
+        };
+        
+        let func = with_prefix.into_function();
+        
+        assert_eq!(func.arguments(), vec![ValueType::String]);
+        assert_eq!(func.result(), ValueType::String);
+        
+        // Test function invocation
+        let result = func.call(vec!["world".into()]);
+        let result = result.expect_result("test_closure_with_captured_data");
+        assert_eq!(result.unwrap(), "Hello, world".into());
+    }
+
+    #[test]
+    fn test_zero_parameter_function() {
+        // Test functions with no parameters
+        fn get_answer() -> i64 { 42 }
+        let func = get_answer.into_function();
+        
+        assert_eq!(func.arguments(), vec![]);
+        assert_eq!(func.result(), ValueType::Int);
+        
+        // Test function invocation
+        let result = func.call(vec![]);
+        let result = result.expect_result("test_zero_parameter_function");
+        assert_eq!(result.unwrap(), 42i64.into());
+    }
+
+    #[test]
+    fn test_multiple_parameter_function() {
+        // Test functions with multiple parameters
+        fn add_three(a: i64, b: i64, c: i64) -> i64 { a + b + c }
+        let func = add_three.into_function();
+        
+        assert_eq!(func.arguments(), vec![ValueType::Int, ValueType::Int, ValueType::Int]);
+        assert_eq!(func.result(), ValueType::Int);
+        
+        // Test function invocation
+        let result = func.call(vec![1i64.into(), 2i64.into(), 3i64.into()]);
+        let result = result.expect_result("test_multiple_parameter_function");
+        assert_eq!(result.unwrap(), 6i64.into());
+    }
+
+    #[test]
+    fn test_result_error_handling() {
+        // Test functions that return Result for error handling
+        fn divide(a: i64, b: i64) -> Result<i64, std::io::Error> {
+            if b == 0 {
+                Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "division by zero"))
+            } else {
+                Ok(a / b)
+            }
+        }
+        
+        let func = divide.into_function();
+        
+        assert_eq!(func.arguments(), vec![ValueType::Int, ValueType::Int]);
+        assert_eq!(func.result(), ValueType::Int);
+        
+        // Test successful case
+        let result = func.call(vec![10i64.into(), 2i64.into()]);
+        let result = result.expect_result("test_result_error_handling_success");
+        assert_eq!(result.unwrap(), 5i64.into());
+        
+        // Test error case
+        let result = func.call(vec![10i64.into(), 0i64.into()]);
+        let result = result.expect_result("test_result_error_handling_error");
+        assert!(result.is_err());
+    }
+} 

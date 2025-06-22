@@ -1,8 +1,7 @@
 use super::*;
 use ouroboros::self_referencing;
-use crate::{ffi, Program, ProgramInner, FunctionType, Type};
-use crate::variable::{ConstantOrDecl, VariableEntry};
-use crate::function::{FunctionTypeOverload, FunctionRegistry};
+use crate::{ffi, Constant, Program, ProgramInner, ValueType};
+use crate::function::FunctionRegistry;
 use crate::variable::VariableRegistry;
 
 #[self_referencing]
@@ -60,9 +59,9 @@ impl<'f> EnvInner<'f> {
                 builder.pin_mut()
                     .add_library(ffi::extensions::sets::compiler_library())?;
 
-                for (name, decl) in variable_registry.entries() {
-                    let ffi_variable_decl = match decl {
-                        ConstantOrDecl::Constant(constant) => {
+                for (name, decl_or_constant) in variable_registry.entries() {
+                    let ffi_variable_decl = match decl_or_constant.constant() {
+                        Some(constant) => {
                             let ffi_constant = match constant {
                                 Constant::Null => ffi::Constant::new_null(),
                                 Constant::Bool(value) => ffi::Constant::new_bool(*value),
@@ -76,10 +75,11 @@ impl<'f> EnvInner<'f> {
                             };
                             ffi::VariableDecl::new_constant(name, &ffi_constant)
                         }
-                        ConstantOrDecl::Decl(d) => {
+                        None => {
+                            let value_type = decl_or_constant.decl();
                             ffi::VariableDecl::new(
                                 name,
-                                &ffi::type_from_rust(&d.value_type(), ffi_ctx.arena(), ffi_ctx.descriptor_pool())
+                                &ffi::type_from_rust(value_type, ffi_ctx.arena(), ffi_ctx.descriptor_pool())
                             )
                         }
                     };
@@ -92,14 +92,13 @@ impl<'f> EnvInner<'f> {
                         let member = kind_overload.member();
 
                         for type_overload in kind_overload.entries() {
+                            let id = type_overload.decl().id(name, member);
                             let ffi_result = ffi::type_from_rust(
-                                &type_overload.result(),
+                                type_overload.decl().result(),
                                 ffi_ctx.arena(),
                                 ffi_ctx.descriptor_pool()
                             );
-                            let id = FunctionType::new(type_overload.result(), type_overload.arguments())
-                                .id(name, member);
-                            let ffi_arguments = type_overload.arguments()
+                            let ffi_arguments = type_overload.decl().arguments()
                                 .iter()
                                 .map(|ty| ffi::type_from_rust(ty, ffi_ctx.arena(), ffi_ctx.descriptor_pool()))
                                 .collect::<Vec<_>>();
@@ -162,22 +161,16 @@ impl<'f> EnvInner<'f> {
                 }
 
                 for (_, decl) in variable_registry.entries() {
-                    match decl {
-                        ConstantOrDecl::Decl(decl) => {
-                            let ty = decl.value_type();
-                            match ty {
-                                Type::Opaque(opaque) => {
-                                    let ffi_opaque_type = ffi::opaque_type_from_rust(
-                                        &opaque,
-                                        ffi_ctx.arena(),
-                                        ffi_ctx.descriptor_pool()
-                                    );
-                                    builder.pin_mut()
-                                        .type_registry()
-                                        .register_type(&ffi_opaque_type);
-                                }
-                                _ => {}
-                            }
+                    match decl.decl() {
+                        ValueType::Opaque(opaque) => {
+                            let ffi_opaque_type = ffi::opaque_type_from_rust(
+                                &opaque,
+                                ffi_ctx.arena(),
+                                ffi_ctx.descriptor_pool()
+                            );
+                            builder.pin_mut()
+                                .type_registry()
+                                .register_type(&ffi_opaque_type);
                         }
                         _ => {}
                     }

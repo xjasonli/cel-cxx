@@ -5,23 +5,44 @@ use crate::symbol::*;
 pub fn expand_derive_opaque(input: syn::DeriveInput) -> syn::Result<TokenStream> {
     let ast = Ast::from_ast(&input)?;
     let tokens = [
-        impl_typed_opaque(&ast),
-        impl_try_from_value(&ast),
-        impl_into_value(&ast),
-        impl_cel_trait(&ast),
+        impl_typed(&ast),
+        impl_into(&ast),
+        impl_from(&ast),
     ].into_iter().flatten();
     Ok(tokens.collect())
 }
 
-fn impl_typed_opaque(input: &Ast) -> TokenStream {
+fn add_generic_bounds(generic_params: &[syn::Ident], generics: &syn::Generics, bounds: Vec<syn::TypeParamBound>) -> syn::Generics {
+    let mut generics = generics.clone();
+    if bounds.is_empty() {
+        return generics;
+    }
+    let bounds = bounds.into_iter()
+        .collect::<syn::punctuated::Punctuated<syn::TypeParamBound, syn::Token![+]>>();
+
+    for type_param in generic_params {
+        if generics.where_clause.is_none() {
+            generics.where_clause = Some(syn::parse_quote!(where));
+        }
+        generics.where_clause.as_mut().unwrap().predicates.push(syn::parse_quote!(#type_param: #bounds));
+    }
+    generics
+}
+
+fn impl_typed(input: &Ast) -> TokenStream {
     let name = &input.ident;
     let cel = input.cel_path();
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let generics = add_generic_bounds(
+        &input.generic_params,
+        &input.generics,
+        vec![syn::parse_quote!(#cel::values::TypedValue)],
+    );
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let generic_params = &input.generic_params;
     let ty = input.opaque_type();
 
     let tokens = quote! {
-        impl #impl_generics #cel::values::TypedOpaqueValue for #name #ty_generics #where_clause {
+        impl #impl_generics #cel::values::TypedOpaque for #name #ty_generics #where_clause {
             fn opaque_type() -> #cel::types::OpaqueType {
                 #cel::types::OpaqueType::new(
                     #ty,
@@ -31,80 +52,108 @@ fn impl_typed_opaque(input: &Ast) -> TokenStream {
                 )
             }
         }
-    };
-    tokens
-}
-
-fn impl_try_from_value(input: &Ast) -> TokenStream {
-    let name = &input.ident;
-    let cel = input.cel_path();
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    let tokens = quote! {
-        impl #impl_generics TryFrom<#cel::values::Value> for #name #ty_generics #where_clause {
-            type Error = #cel::values::Value;
-            fn try_from(value: #cel::values::Value) -> Result<
-                    #name #ty_generics,
-                    <#name #ty_generics as TryFrom<#cel::values::Value>>::Error
-                >
-            {
-                match value {
-                    #cel::values::Value::Opaque(opaque) => {
-                        Ok(
-                            opaque.downcast::<#name #ty_generics>()
-                                .map_err(#cel::values::Value::Opaque)?
-                                .into_inner()
-                        )
-                    }
-                    _ => Err(value),
-                }
-            }
-        }
-    };
-    tokens
-}
-
-fn impl_into_value(input: &Ast) -> TokenStream {
-    let name = &input.ident;
-    let cel = input.cel_path();
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    let tokens = quote! {
-        impl #impl_generics Into<#cel::values::Value> for #name #ty_generics #where_clause {
-            fn into(self) -> #cel::values::Value {
-                #cel::values::Value::Opaque(#cel::values::Opaque::new(self))
-            }
-        }
-    };
-    tokens
-}
-
-fn impl_cel_trait(input: &Ast) -> TokenStream {
-    let name = &input.ident;
-    let cel = input.cel_path();
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    let tokens = quote! {
         impl #impl_generics #cel::values::TypedValue for #name #ty_generics #where_clause {
-            fn value_type() -> #cel::types::Type { #cel::types::Type::Opaque(<#name #ty_generics as #cel::values::TypedOpaqueValue>::opaque_type()) }
+            fn value_type() -> #cel::types::ValueType {
+                #cel::types::ValueType::Opaque(<Self as #cel::values::TypedOpaque>::opaque_type())
+            }
         }
+    };
+    tokens
+}
+
+fn impl_into(input: &Ast) -> TokenStream {
+    let name = &input.ident;
+    let cel = input.cel_path();
+    let generics = add_generic_bounds(
+        &input.generic_params,
+        &input.generics,
+        vec![syn::parse_quote!(#cel::values::IntoValue)],
+    );
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let tokens = quote! {
         impl #impl_generics #cel::values::IntoValue for #name #ty_generics #where_clause {
             fn into_value(self) -> #cel::values::Value {
-                #cel::values::Value::Opaque(#cel::values::Opaque::new(self))
+                #cel::values::Value::Opaque(Box::new(self))
             }
         }
+        impl #impl_generics ::std::convert::From<#name #ty_generics> for #cel::values::Value {
+            fn from(value: #name #ty_generics) -> Self {
+                <#name #ty_generics as #cel::values::IntoValue>::into_value(value)
+            }
+        }
+    };
+    tokens
+}
+
+fn add_generic_lifetime(generics: &syn::Generics, lifetime: syn::Lifetime) -> syn::Generics {
+    let mut generics = generics.clone();
+    generics.params.push(syn::parse_quote!(#lifetime));
+    generics
+}
+
+fn impl_from(input: &Ast) -> TokenStream {
+    let name = &input.ident;
+    let cel = input.cel_path();
+    let generics = add_generic_bounds(
+        &input.generic_params,
+        &input.generics,
+        vec![syn::parse_quote!(#cel::values::FromValue), syn::parse_quote!(#cel::values::TypedValue)],
+    );
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let generics2 = add_generic_lifetime(&generics, syn::parse_quote!('opaque));
+    let (impl_generics2, _, _) = generics2.split_for_impl();
+
+    let tokens = quote! {
         impl #impl_generics #cel::values::FromValue for #name #ty_generics #where_clause {
-            fn from_value(value: #cel::values::Value) -> Result<Self, #cel::values::Value> {
+            type Output<'a> = #name #ty_generics;
+
+            fn from_value<'a>(value: &'a #cel::values::Value) -> ::std::result::Result<Self::Output<'a>, #cel::values::FromValueError> {
                 match value {
-                    #cel::values::Value::Opaque(opaque) => {
-                        Ok(opaque.downcast::<#name #ty_generics>()
-                            .map_err(#cel::values::Value::Opaque)?
-                            .into_inner())
+                    #cel::values::Value::Opaque(v) => {
+                        v.downcast_ref::<#name #ty_generics>()
+                            .ok_or(#cel::values::FromValueError::new_typed::<#name #ty_generics>(value.clone()))
+                            .map(|v| v.clone())
                     }
-                    _ => Err(value),
+                    _ => Err(#cel::values::FromValueError::new_typed::<#name #ty_generics>(value.clone())),
                 }
             }
         }
+        
+        impl #impl_generics ::std::convert::TryFrom<#cel::values::Value> for #name #ty_generics #where_clause {
+            type Error = #cel::values::FromValueError;
+            fn try_from(value: #cel::values::Value) -> ::std::result::Result<Self, Self::Error> {
+                <Self as #cel::values::FromValue>::from_value(&value)
+            }
+        }
+        impl #impl_generics ::std::convert::TryFrom<&#cel::values::Value> for #name #ty_generics #where_clause {
+            type Error = #cel::values::FromValueError;
+            fn try_from(value: &#cel::values::Value) -> ::std::result::Result<Self, Self::Error> {
+                <Self as #cel::values::FromValue>::from_value(value)
+            }
+        }
+
+        impl #impl_generics #cel::values::FromValue for &#name #ty_generics #where_clause {
+            type Output<'a> = &'a #name #ty_generics;
+
+            fn from_value<'a>(value: &'a #cel::values::Value) -> ::std::result::Result<Self::Output<'a>, #cel::values::FromValueError> {
+                match value {
+                    #cel::values::Value::Opaque(v) => {
+                        v.downcast_ref::<#name #ty_generics>()
+                            .ok_or(#cel::values::FromValueError::new_typed::<#name #ty_generics>(value.clone()))
+                    }
+                    _ => Err(#cel::values::FromValueError::new_typed::<#name #ty_generics>(value.clone())),
+                }
+            }
+        }
+        impl #impl_generics2 ::std::convert::TryFrom<&'opaque #cel::values::Value> for &'opaque #name #ty_generics #where_clause {
+            type Error = #cel::values::FromValueError;
+            fn try_from(value: &'opaque #cel::values::Value) -> ::std::result::Result<Self, Self::Error> {
+                <Self as #cel::values::FromValue>::from_value(value)
+            }
+        }
+
     };
     tokens
 }

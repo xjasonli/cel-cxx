@@ -1,3 +1,107 @@
+//! CEL type system implementation.
+//!
+//! This module provides the complete type system for CEL (Common Expression Language).
+//! It defines all the types that can be used in CEL expressions, from primitive types
+//! like integers and strings to complex types like lists, maps, and Protocol Buffer messages.
+//!
+//! # Type Hierarchy
+//!
+//! The CEL type system is built around the [`ValueType`] enum, which represents all
+//! possible types in CEL:
+//!
+//! ## Primitive Types
+//! - **`null`**: Represents the absence of a value
+//! - **`bool`**: Boolean values (`true`/`false`)
+//! - **`int`**: 64-bit signed integers
+//! - **`uint`**: 64-bit unsigned integers  
+//! - **`double`**: Double-precision floating point numbers
+//! - **`string`**: UTF-8 encoded text
+//! - **`bytes`**: Byte arrays
+//!
+//! ## Time Types
+//! - **`duration`**: Time spans (from Protocol Buffers)
+//! - **`timestamp`**: Points in time (from Protocol Buffers)
+//!
+//! ## Collection Types
+//! - **`list<T>`**: Ordered sequences of values
+//! - **`map<K, V>`**: Key-value mappings
+//!
+//! ## Protocol Buffer Types
+//! - **`struct`**: Protocol Buffer messages
+//! - **Wrapper types**: `BoolValue`, `StringValue`, etc.
+//! - **`any`**: Can hold any Protocol Buffer message
+//! - **`enum`**: Protocol Buffer enumerations
+//!
+//! ## Advanced Types
+//! - **`type`**: Represents types themselves as values
+//! - **`function`**: Function signatures
+//! - **`optional<T>`**: Nullable values
+//! - **Opaque types**: Custom user-defined types
+//! - **Type parameters**: For generic type definitions
+//!
+//! # Examples
+//!
+//! ## Working with primitive types
+//!
+//! ```rust,no_run
+//! use cel_cxx::types::*;
+//! use cel_cxx::Kind;
+//!
+//! // Create primitive types
+//! let int_type = ValueType::Int;
+//! let string_type = ValueType::String;
+//! let bool_type = ValueType::Bool;
+//!
+//! // Check type kinds
+//! assert_eq!(int_type.kind(), Kind::Int);
+//! assert_eq!(string_type.kind(), Kind::String);
+//! assert_eq!(bool_type.kind(), Kind::Bool);
+//! ```
+//!
+//! ## Working with collection types
+//!
+//! ```rust,no_run
+//! use cel_cxx::types::*;
+//!
+//! // List of strings: list<string>
+//! let string_list = ValueType::List(ListType::new(ValueType::String));
+//!
+//! // Map from string to int: map<string, int>
+//! let string_to_int_map = ValueType::Map(MapType::new(
+//!     MapKeyType::String,
+//!     ValueType::Int
+//! ));
+//!
+//! // Nested types: list<map<string, int>>
+//! let nested_type = ValueType::List(ListType::new(string_to_int_map));
+//! ```
+//!
+//! ## Working with optional types
+//!
+//! ```rust,no_run
+//! use cel_cxx::types::*;
+//!
+//! // Optional string: optional<string>
+//! let optional_string = ValueType::Optional(OptionalType::new(ValueType::String));
+//!
+//! // Optional list: optional<list<int>>
+//! let optional_list = ValueType::Optional(OptionalType::new(
+//!     ValueType::List(ListType::new(ValueType::Int))
+//! ));
+//! ```
+//!
+//! ## Working with function types
+//!
+//! ```rust,no_run
+//! use cel_cxx::types::*;
+//!
+//! // Function type: (string, int) -> bool
+//! let func_type = ValueType::Function(FunctionType::new(
+//!     ValueType::Bool,
+//!     vec![ValueType::String, ValueType::Int]
+//! ));
+//! ```
+
 use std::fmt::Debug;
 
 mod display;
@@ -41,7 +145,7 @@ pub use convert::InvalidMapKeyType;
 /// assert_eq!(map_type.kind(), Kind::Map);
 /// ```
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub enum Type {
+pub enum ValueType {
     /// Null type - represents the absence of a value.
     /// 
     /// This corresponds to CEL's `null` literal.
@@ -183,7 +287,7 @@ pub enum Type {
     Enum(EnumType),
 }
 
-impl Type {
+impl ValueType {
     /// Returns the kind of this type.
     /// 
     /// The kind represents the basic category of the type, which is useful
@@ -202,40 +306,40 @@ impl Type {
     /// ```
     pub fn kind(&self) -> Kind {
         match self {
-            Type::Null => Kind::Null,
+            ValueType::Null => Kind::Null,
 
-            Type::Bool => Kind::Bool,
-            Type::Int => Kind::Int,
-            Type::Uint => Kind::Uint,
-            Type::Double => Kind::Double,
-            Type::String => Kind::String,
-            Type::Bytes => Kind::Bytes,
+            ValueType::Bool => Kind::Bool,
+            ValueType::Int => Kind::Int,
+            ValueType::Uint => Kind::Uint,
+            ValueType::Double => Kind::Double,
+            ValueType::String => Kind::String,
+            ValueType::Bytes => Kind::Bytes,
 
-            Type::Struct(_) => Kind::Struct,
-            Type::Duration => Kind::Duration,
-            Type::Timestamp => Kind::Timestamp,
+            ValueType::Struct(_) => Kind::Struct,
+            ValueType::Duration => Kind::Duration,
+            ValueType::Timestamp => Kind::Timestamp,
 
-            Type::List(_) => Kind::List,
-            Type::Map(_) => Kind::Map,
+            ValueType::List(_) => Kind::List,
+            ValueType::Map(_) => Kind::Map,
 
-            Type::Unknown => Kind::Unknown,
-            Type::Type(_) => Kind::Type,
-            Type::Error => Kind::Error,
-            Type::Any => Kind::Any,
+            ValueType::Unknown => Kind::Unknown,
+            ValueType::Type(_) => Kind::Type,
+            ValueType::Error => Kind::Error,
+            ValueType::Any => Kind::Any,
 
-            Type::Dyn => Kind::Dyn,
-            Type::Opaque(_) | Type::Optional(_) => Kind::Opaque,
+            ValueType::Dyn => Kind::Dyn,
+            ValueType::Opaque(_) | ValueType::Optional(_) => Kind::Opaque,
 
-            Type::BoolWrapper => Kind::BoolWrapper,
-            Type::IntWrapper => Kind::IntWrapper,
-            Type::UintWrapper => Kind::UintWrapper,
-            Type::DoubleWrapper => Kind::DoubleWrapper,
-            Type::StringWrapper => Kind::StringWrapper,
-            Type::BytesWrapper => Kind::BytesWrapper,
+            ValueType::BoolWrapper => Kind::BoolWrapper,
+            ValueType::IntWrapper => Kind::IntWrapper,
+            ValueType::UintWrapper => Kind::UintWrapper,
+            ValueType::DoubleWrapper => Kind::DoubleWrapper,
+            ValueType::StringWrapper => Kind::StringWrapper,
+            ValueType::BytesWrapper => Kind::BytesWrapper,
 
-            Type::TypeParam(_) => Kind::TypeParam,
-            Type::Function(_) => Kind::Function,
-            Type::Enum(_) => Kind::Enum,
+            ValueType::TypeParam(_) => Kind::TypeParam,
+            ValueType::Function(_) => Kind::Function,
+            ValueType::Enum(_) => Kind::Enum,
         }
     }
 }
@@ -300,7 +404,7 @@ impl StructType {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ListType {
     /// The type of elements in this list.
-    pub element: Box<Type>,
+    pub element: Box<ValueType>,
 }
 
 impl ListType {
@@ -318,7 +422,7 @@ impl ListType {
     /// let list_type = ListType::new(Type::String);
     /// assert_eq!(list_type.element(), &Type::String);
     /// ```
-    pub fn new(element: Type) -> Self {
+    pub fn new(element: ValueType) -> Self {
         Self { element: Box::new(element) }
     }
 
@@ -332,7 +436,7 @@ impl ListType {
     /// let list_type = ListType::new(Type::Int);
     /// assert_eq!(list_type.element(), &Type::Int);
     /// ```
-    pub fn element(&self) -> &Type {
+    pub fn element(&self) -> &ValueType {
         &self.element
     }
 }
@@ -361,7 +465,7 @@ pub struct MapType {
     /// The type of keys in this map.
     pub key: MapKeyType,
     /// The type of values in this map.
-    pub value: Box<Type>,
+    pub value: Box<ValueType>,
 }
 
 impl MapType {
@@ -381,7 +485,7 @@ impl MapType {
     /// assert_eq!(map_type.key(), &MapKeyType::String);
     /// assert_eq!(map_type.value(), &Type::Int);
     /// ```
-    pub fn new(key: MapKeyType, value: Type) -> Self {
+    pub fn new(key: MapKeyType, value: ValueType) -> Self {
         Self { key, value: Box::new(value) }
     }
 
@@ -409,7 +513,7 @@ impl MapType {
     /// let map_type = MapType::new(MapKeyType::String, Type::Double);
     /// assert_eq!(map_type.value(), &Type::Double);
     /// ```
-    pub fn value(&self) -> &Type {
+    pub fn value(&self) -> &ValueType {
         &self.value
     }
 }
@@ -433,7 +537,7 @@ impl MapType {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct TypeType {
     /// Optional type parameter for parameterized types.
-    pub parameter: Option<Box<Type>>,
+    pub parameter: Option<Box<ValueType>>,
 }
 
 impl TypeType {
@@ -454,7 +558,7 @@ impl TypeType {
     /// // Specific type
     /// let specific = TypeType::new(Some(Type::String));
     /// ```
-    pub fn new(parameter: Option<Type>) -> Self {
+    pub fn new(parameter: Option<ValueType>) -> Self {
         Self { parameter: parameter.map(Box::new) }
     }
 
@@ -468,7 +572,7 @@ impl TypeType {
     /// let type_type = TypeType::new(Some(Type::Int));
     /// assert_eq!(type_type.parameter(), Some(&Type::Int));
     /// ```
-    pub fn parameter(&self) -> Option<&Type> {
+    pub fn parameter(&self) -> Option<&ValueType> {
         self.parameter.as_ref().map(|p| &**p)
     }
 }
@@ -494,7 +598,7 @@ pub struct OpaqueType {
     /// The name of the opaque type.
     pub name: String,
     /// Type parameters for generic opaque types.
-    pub parameters: Vec<Type>,
+    pub parameters: Vec<ValueType>,
 }
 
 impl OpaqueType {
@@ -516,7 +620,7 @@ impl OpaqueType {
     /// // Generic opaque type
     /// let generic = OpaqueType::new("Container", vec![Type::String]);
     /// ```
-    pub fn new<S: Into<String>>(name: S, parameters: Vec<Type>) -> Self {
+    pub fn new<S: Into<String>>(name: S, parameters: Vec<ValueType>) -> Self {
         Self { name: name.into(), parameters }
     }
 
@@ -544,7 +648,7 @@ impl OpaqueType {
     /// let opaque_type = OpaqueType::new("Container", vec![Type::Int, Type::String]);
     /// assert_eq!(opaque_type.parameters().len(), 2);
     /// ```
-    pub fn parameters(&self) -> &[Type] {
+    pub fn parameters(&self) -> &[ValueType] {
         &self.parameters
     }
 }
@@ -570,7 +674,7 @@ impl OpaqueType {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct OptionalType {
     /// The type that may or may not be present.
-    pub parameter: Box<Type>,
+    pub parameter: Box<ValueType>,
 }
 
 impl OptionalType {
@@ -588,7 +692,7 @@ impl OptionalType {
     /// let optional_int = OptionalType::new(Type::Int);
     /// assert_eq!(optional_int.parameter(), &Type::Int);
     /// ```
-    pub fn new(parameter: Type) -> Self {
+    pub fn new(parameter: ValueType) -> Self {
         Self { parameter: Box::new(parameter) }
     }
 
@@ -602,7 +706,7 @@ impl OptionalType {
     /// let optional_string = OptionalType::new(Type::String);
     /// assert_eq!(optional_string.parameter(), &Type::String);
     /// ```
-    pub fn parameter(&self) -> &Type {
+    pub fn parameter(&self) -> &ValueType {
         &self.parameter
     }
 }
@@ -683,9 +787,9 @@ impl TypeParamType {
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct FunctionType {
     /// The return type of the function.
-    pub result: Box<Type>,
+    pub result: Box<ValueType>,
     /// The parameter types of the function.
-    pub arguments: Vec<Type>,
+    pub arguments: Vec<ValueType>,
 }
 
 impl FunctionType {
@@ -707,7 +811,7 @@ impl FunctionType {
     ///     vec![Type::Int, Type::Int]
     /// );
     /// ```
-    pub fn new(result: Type, arguments: Vec<Type>) -> Self {
+    pub fn new(result: ValueType, arguments: Vec<ValueType>) -> Self {
         Self {
             result: Box::new(result),
             arguments,
@@ -724,7 +828,7 @@ impl FunctionType {
     /// let func_type = FunctionType::new(Type::Bool, vec![Type::String]);
     /// assert_eq!(func_type.result(), &Type::Bool);
     /// ```
-    pub fn result(&self) -> &Type {
+    pub fn result(&self) -> &ValueType {
         &self.result
     }
 
@@ -738,7 +842,7 @@ impl FunctionType {
     /// let func_type = FunctionType::new(Type::Int, vec![Type::String, Type::Bool]);
     /// assert_eq!(func_type.arguments().len(), 2);
     /// ```
-    pub fn arguments(&self) -> &[Type] {
+    pub fn arguments(&self) -> &[ValueType] {
         &self.arguments
     }
 

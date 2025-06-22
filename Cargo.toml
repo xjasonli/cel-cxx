@@ -51,6 +51,7 @@ sha2 = "0.10"
 regex = "1"
 reqwest = "0.12"
 downloader = { version = "0.2", default-features = false, features = ["rustls-tls", "verify"] }
+arc-slice = { version = "0.1", features = ["default-layout-any-buffer"] }
 
 
 [package]
@@ -68,18 +69,29 @@ homepage.workspace = true
 readme.workspace = true
 keywords.workspace = true
 
+[package.metadata.docs.rs]
+# Enable features when building documentation (but skip docs-only)
+features = ["derive", "async", "tokio", "async-std", "docs-only"]
+# Use the nightly compiler for documentation to access unstable features
+rustdoc-args = ["--cfg", "docsrs"]
+# Ensure documentation builds successfully
+targets = ["x86_64-unknown-linux-gnu"]
+
 [features]
 default = ["derive"]
 derive = ["dep:cel-cxx-macros"]
 async = ["dep:async-scoped", "dep:futures", "dep:pin-project-lite"]
 tokio = ["async", "dep:tokio", "async-scoped/use-tokio"]
 async-std = ["async", "dep:async-std", "async-scoped/use-async-std"]
+# Feature for docs.rs to skip C++ compilation
+docs-only = ["cel-cxx-ffi/docs-only"]
 
 [dependencies]
 cel-cxx-ffi = { workspace = true }
 cel-cxx-macros = { workspace = true, optional = true }
 cxx = { workspace = true }
 paste = { workspace = true }
+thiserror = { workspace = true }
 itertools = { workspace = true }
 chrono = { workspace = true }
 dyn-clone = { workspace = true }
@@ -91,6 +103,7 @@ async-scoped = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
 prost = { workspace = true }
 prost-reflect = { workspace = true }
+arc-slice = { workspace = true }
 
 [dev-dependencies]
 cel-cxx = { workspace = true, features = ["async", "tokio", "async-std"] }
@@ -100,8 +113,12 @@ anyhow = { workspace = true }
 futures = { workspace = true }
 
 [[example]]
-name = "helloworld"
-path = "examples/helloworld.rs"
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "comprehensive"
+path = "examples/comprehensive.rs"
 
 [[example]]
 name = "tokio"
