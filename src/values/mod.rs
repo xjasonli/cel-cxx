@@ -76,6 +76,7 @@
 //! let rust_bool: bool = bool_val.try_into()?;
 //! let rust_int: i64 = int_val.try_into()?;
 //! let rust_string: String = string_val.try_into()?;
+//! # Ok::<(), cel_cxx::Error>(())
 //! ```
 //!
 //! ## Working with Collections
@@ -93,8 +94,8 @@
 //!
 //! // Create a map
 //! let mut map = HashMap::new();
-//! map.insert(MapKey::String("name".to_string()), Value::String("Alice".to_string()));
-//! map.insert(MapKey::String("age".to_string()), Value::Int(30));
+//! map.insert(MapKey::String("name".to_string().into()), Value::String("Alice".to_string().into()));
+//! map.insert(MapKey::String("age".to_string().into()), Value::Int(30));
 //! let map_val = Value::Map(map);
 //! ```
 //!
@@ -103,7 +104,7 @@
 //! ```rust
 //! use cel_cxx::{Value, FromValue};
 //!
-//! let string_val = Value::String("hello world".to_string());
+//! let string_val = Value::String("hello world".to_string().into());
 //!
 //! // Convert to borrowed string slice (zero-copy)
 //! let borrowed_str = <&str>::from_value(&string_val)?;
@@ -111,6 +112,7 @@
 //!
 //! // The original value owns the data
 //! drop(string_val); // borrowed_str is no longer valid after this
+//! # Ok::<(), cel_cxx::Error>(())
 //! ```
 //!
 //! ## Custom Type Integration
@@ -118,10 +120,16 @@
 //! For custom opaque types, use the derive macro instead of manual implementation:
 //!
 //! ```rust
-//! use cel_cxx::Opaque;
+//! use cel_cxx::{Opaque, IntoValue, FromValue};
 //!
 //! #[derive(Opaque, Debug, Clone, PartialEq)]
 //! struct UserId(u64);
+//! 
+//! impl std::fmt::Display for UserId {
+//!     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//!         write!(f, "User({})", self.0)
+//!     }
+//! }
 //!
 //! // All necessary traits (TypedValue, IntoValue, FromValue) are automatically implemented
 //!
@@ -129,6 +137,7 @@
 //! let user_id = UserId(12345);
 //! let value = user_id.into_value();
 //! let converted_back = UserId::from_value(&value)?;
+//! # Ok::<(), cel_cxx::Error>(())
 //! ```
 //!
 //! # Error Handling
@@ -143,13 +152,13 @@
 //! ```rust
 //! use cel_cxx::{Value, FromValue, FromValueError};
 //!
-//! let string_val = Value::String("not a number".to_string());
+//! let string_val = Value::String("not a number".to_string().into());
 //! let result = i64::from_value(&string_val);
 //!
 //! match result {
 //!     Ok(num) => println!("Converted: {}", num),
-//!     Err(FromValueError { value, to_type, .. }) => {
-//!         println!("Cannot convert {:?} to {}", value, to_type);
+//!     Err(e) => {
+//!         println!("{}", e);
 //!     }
 //! }
 //! ```
@@ -236,8 +245,8 @@ pub type OptionalValue = Optional<Value>;
 /// let int_val = Value::Int(-42);
 /// let uint_val = Value::Uint(42u64);
 /// let double_val = Value::Double(3.14);
-/// let string_val = Value::String("hello".to_string());
-/// let bytes_val = Value::Bytes(vec![1, 2, 3]);
+/// let string_val = Value::String("hello".to_string().into());
+/// let bytes_val = Value::Bytes(vec![1, 2, 3].into());
 ///
 /// // Time types
 /// let duration = Value::Duration(chrono::Duration::seconds(30));
@@ -310,7 +319,7 @@ impl Value {
     /// ```rust,no_run
     /// use cel_cxx::{Value, Kind};
     ///
-    /// let val = Value::String("hello".to_string());
+    /// let val = Value::String("hello".to_string().into());
     /// assert_eq!(val.kind(), Kind::String);
     ///
     /// let val = Value::List(vec![]);
@@ -351,18 +360,18 @@ impl Value {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use cel_cxx::{Value, Type, ListType};
+    /// use cel_cxx::{Value, ValueType, ListType};
     ///
-    /// let val = Value::String("hello".to_string());
-    /// assert_eq!(val.value_type(), Type::String);
+    /// let val = Value::String("hello".to_string().into());
+    /// assert_eq!(val.value_type(), ValueType::String);
     ///
     /// // Homogeneous list
     /// let list = Value::List(vec![Value::Int(1), Value::Int(2)]);
-    /// assert_eq!(list.value_type(), Type::List(ListType::new(Type::Int)));
+    /// assert_eq!(list.value_type(), ValueType::List(ListType::new(ValueType::Int)));
     ///
     /// // Heterogeneous list
-    /// let mixed_list = Value::List(vec![Value::Int(1), Value::String("hello".to_string())]);
-    /// assert_eq!(mixed_list.value_type(), Type::List(ListType::new(Type::Dyn)));
+    /// let mixed_list = Value::List(vec![Value::Int(1), Value::String("hello".to_string().into())]);
+    /// assert_eq!(mixed_list.value_type(), ValueType::List(ListType::new(ValueType::Dyn)));
     /// ```
     pub fn value_type(&self) -> ValueType {
         match &self {
@@ -486,9 +495,9 @@ impl TryFrom<Value> for MapKey {
 /// let mut map = HashMap::new();
 ///
 /// // Different types of keys
-/// map.insert(MapKey::String("name".to_string()), Value::String("Alice".to_string()));
-/// map.insert(MapKey::Int(42), Value::String("answer".to_string()));
-/// map.insert(MapKey::Bool(true), Value::String("yes".to_string()));
+/// map.insert(MapKey::String("name".to_string().into()), Value::String("Alice".to_string().into()));
+/// map.insert(MapKey::Int(42), Value::String("answer".to_string().into()));
+/// map.insert(MapKey::Bool(true), Value::String("yes".to_string().into()));
 ///
 /// let map_value = Value::Map(map);
 /// ```
@@ -549,8 +558,8 @@ impl MapKey {
     /// use cel_cxx::{Value, MapKey};
     ///
     /// // Successful conversion
-    /// let key = MapKey::from_value(Value::String("key".to_string())).unwrap();
-    /// assert_eq!(key, MapKey::String("key".to_string()));
+    /// let key = MapKey::from_value(Value::String("key".to_string().into())).unwrap();
+    /// assert_eq!(key, MapKey::String("key".to_string().into()));
     ///
     /// // Failed conversion
     /// let result = MapKey::from_value(Value::List(vec![]));
@@ -575,9 +584,9 @@ impl MapKey {
     /// ```rust,no_run
     /// use cel_cxx::{MapKey, Value};
     ///
-    /// let key = MapKey::String("hello".to_string());
+    /// let key = MapKey::String("hello".to_string().into());
     /// let value = key.into_value();
-    /// assert_eq!(value, Value::String("hello".to_string()));
+    /// assert_eq!(value, Value::String("hello".to_string().into()));
     /// ```
     pub fn into_value(self) -> Value {
         match self {
@@ -614,7 +623,7 @@ impl MapKey {
 /// let null_const = Constant::Null;
 /// let bool_const = Constant::Bool(true);
 /// let int_const = Constant::Int(42);
-/// let string_const = Constant::String("hello".to_string());
+/// let string_const = Constant::String("hello".to_string().into());
 /// ```
 #[derive(Debug, Clone, Default, PartialEq)]
 pub enum Constant {

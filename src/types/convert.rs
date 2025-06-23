@@ -1,4 +1,5 @@
 use super::*;
+use crate::Error;
 
 impl From<StructType> for ValueType {
     fn from(value: StructType) -> Self {
@@ -63,19 +64,19 @@ impl From<EnumType> for ValueType {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use cel_cxx::{Type, MapKeyType, InvalidMapKeyType};
+/// use cel_cxx::{ValueType, ListType, MapKeyType, InvalidMapKeyType};
 ///
 /// // Valid map key type
-/// let string_type = Type::String;
+/// let string_type = ValueType::String;
 /// let map_key_type = MapKeyType::try_from(string_type).unwrap();
 /// assert_eq!(map_key_type, MapKeyType::String);
 ///
 /// // Invalid map key type
-/// let list_type = Type::List(ListType::new(Type::Int));
+/// let list_type = ValueType::List(ListType::new(ValueType::Int));
 /// let result = MapKeyType::try_from(list_type);
 /// assert!(result.is_err());
 /// ```
-#[derive(Debug, Clone)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub struct InvalidMapKeyType(pub ValueType);
 
 impl InvalidMapKeyType {
@@ -99,7 +100,11 @@ impl std::fmt::Display for InvalidMapKeyType {
     }
 }
 
-impl std::error::Error for InvalidMapKeyType {}
+impl From<InvalidMapKeyType> for Error {
+    fn from(error: InvalidMapKeyType) -> Self {
+        Error::invalid_argument(format!("invalid key type: {}", error.0))
+    }
+}
 
 impl From<MapKeyType> for ValueType {
     fn from(key: MapKeyType) -> Self {

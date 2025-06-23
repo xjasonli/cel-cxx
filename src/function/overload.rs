@@ -71,9 +71,9 @@ impl<T: FunctionTypeOverload> FunctionOverloads<T> {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use cel_cxx::function::FunctionOverloads;
+    /// use cel_cxx::function::{FunctionOverloads, FunctionDeclOrImpl};
     ///
-    /// let overloads = FunctionOverloads::new();
+    /// let overloads = FunctionOverloads::<FunctionDeclOrImpl<'_>>::new();
     /// for overload in overloads.entries() {
     ///     // Process each overload
     /// }
@@ -276,10 +276,10 @@ impl FunctionTypeOverload for Function<'_> {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use cel_cxx::{Kind, function::FunctionKindOverload};
+/// use cel_cxx::{Kind, function::{FunctionKindOverload, Function}};
 ///
 /// // Create overload for member function taking (string, int)
-/// let overload = FunctionKindOverload::new(
+/// let overload = FunctionKindOverload::<Function<'_>>::new(
 ///     true, 
 ///     vec![Kind::String, Kind::Int]
 /// );
@@ -485,11 +485,11 @@ impl<'f> FunctionKindOverload<Function<'f>> {
 ///
 /// ```rust,no_run
 /// use cel_cxx::function::{FunctionDeclOrImpl, IntoFunction};
-/// use cel_cxx::types::FunctionType;
+/// use cel_cxx::types::{ValueType, FunctionType};
 ///
 /// // Create from declaration only
-/// let func_type = FunctionType::new(/* ... */);
-/// let decl_only = FunctionDeclOrImpl::new_decl(func_type);
+/// let func_type = FunctionType::new(ValueType::Int, vec![ValueType::Int]);
+/// let decl_only = FunctionDeclOrImpl::new(func_type);
 ///
 /// // Create from implementation (includes both decl and impl)
 /// let func = (|a: i32, b: i32| -> i32 { a + b }).into_function();

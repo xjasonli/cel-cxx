@@ -70,11 +70,7 @@ readme.workspace = true
 keywords.workspace = true
 
 [package.metadata.docs.rs]
-# Enable docs-only feature for documentation builds to skip C++ compilation
-features = ["derive", "async", "tokio", "async-std", "docs-only"]
-# Use the nightly compiler for documentation to access unstable features
-rustdoc-args = ["--cfg", "docsrs"]
-# Ensure documentation builds successfully without C++ dependencies
+features = ["derive", "async", "tokio", "async-std"]
 targets = ["x86_64-unknown-linux-gnu"]
 
 [features]
@@ -83,8 +79,6 @@ derive = ["dep:cel-cxx-macros"]
 async = ["dep:async-scoped", "dep:futures", "dep:pin-project-lite"]
 tokio = ["async", "dep:tokio", "async-scoped/use-tokio"]
 async-std = ["async", "dep:async-std", "async-scoped/use-async-std"]
-# Feature for docs.rs to skip C++ compilation
-docs-only = ["cel-cxx-ffi/docs-only"]
 
 [dependencies]
 cel-cxx-ffi = { workspace = true }

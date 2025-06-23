@@ -107,6 +107,7 @@ use std::fmt::Debug;
 mod display;
 mod convert;
 use crate::Kind;
+use crate::values::TypedValue;
 
 pub use convert::InvalidMapKeyType;
 
@@ -124,9 +125,9 @@ pub use convert::InvalidMapKeyType;
 /// use cel_cxx::*;
 /// 
 /// // Create different types
-/// let int_type = Type::Int;
-/// let string_type = Type::String;
-/// let list_type = Type::List(ListType::new(Type::String));
+/// let int_type = ValueType::Int;
+/// let string_type = ValueType::String;
+/// let list_type = ValueType::List(ListType::new(ValueType::String));
 /// 
 /// // Check the kind of a type
 /// assert_eq!(int_type.kind(), Kind::Int);
@@ -137,9 +138,9 @@ pub use convert::InvalidMapKeyType;
 /// ```rust,no_run
 /// use cel_cxx::*;
 /// 
-/// let map_type = Type::Map(MapType::new(
+/// let map_type = ValueType::Map(MapType::new(
 ///     MapKeyType::String,
-///     Type::Int
+///     ValueType::Int
 /// ));
 /// 
 /// assert_eq!(map_type.kind(), Kind::Map);
@@ -298,10 +299,10 @@ impl ValueType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// assert_eq!(Type::Int.kind(), Kind::Int);
-    /// assert_eq!(Type::String.kind(), Kind::String);
+    /// assert_eq!(ValueType::Int.kind(), Kind::Int);
+    /// assert_eq!(ValueType::String.kind(), Kind::String);
     /// 
-    /// let list_type = Type::List(ListType::new(Type::Int));
+    /// let list_type = ValueType::List(ListType::new(ValueType::Int));
     /// assert_eq!(list_type.kind(), Kind::List);
     /// ```
     pub fn kind(&self) -> Kind {
@@ -342,6 +343,109 @@ impl ValueType {
             ValueType::Enum(_) => Kind::Enum,
         }
     }
+
+    /// Checks if this type matches the type of a specific [`TypedValue`] implementation.
+    /// 
+    /// This method provides a type-safe way to check if a [`ValueType`] corresponds
+    /// to a particular Rust type that implements [`TypedValue`]. It's particularly
+    /// useful for runtime type checking and validation.
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `T` - A type that implements [`TypedValue`], representing the Rust type to check against
+    /// 
+    /// # Returns
+    /// 
+    /// Returns `true` if this [`ValueType`] matches the CEL type representation of `T`,
+    /// `false` otherwise.
+    /// 
+    /// # Examples
+    /// 
+    /// ## Basic Type Checking
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// // Check primitive types
+    /// assert!(ValueType::Int.is::<i64>());
+    /// assert!(ValueType::String.is::<String>());
+    /// assert!(ValueType::Bool.is::<bool>());
+    /// 
+    /// // Check against wrong types
+    /// assert!(!ValueType::Int.is::<String>());
+    /// assert!(!ValueType::String.is::<bool>());
+    /// ```
+    /// 
+    /// ## Collection Type Checking
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// use std::collections::HashMap;
+    /// 
+    /// let list_type = ValueType::List(ListType::new(ValueType::Int));
+    /// let map_type = ValueType::Map(MapType::new(MapKeyType::String, ValueType::Int));
+    /// 
+    /// // Check collection types
+    /// assert!(list_type.is::<Vec<i64>>());
+    /// assert!(map_type.is::<HashMap<String, i64>>());
+    /// 
+    /// // Check against incompatible collection types
+    /// assert!(!list_type.is::<Vec<String>>());
+    /// assert!(!map_type.is::<HashMap<i64, String>>());
+    /// ```
+    /// 
+    /// ## Optional Type Checking
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let optional_string = ValueType::Optional(OptionalType::new(ValueType::String));
+    /// 
+    /// // Check optional types
+    /// assert!(optional_string.is::<Option<String>>());
+    /// assert!(!optional_string.is::<Option<i64>>());
+    /// assert!(!optional_string.is::<String>()); // Not optional
+    /// ```
+    /// 
+    /// ## Custom Opaque Type Checking
+    /// 
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// #[derive(Opaque, Debug, Clone, PartialEq)]
+    /// #[cel_cxx(type = "my.CustomType")]
+    /// struct CustomType {
+    ///     value: i32,
+    /// }
+    /// impl std::fmt::Display for CustomType {
+    ///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    ///         write!(f, "CustomType({})", self.value)
+    ///     }
+    /// }
+    /// 
+    /// let opaque_type = <CustomType as TypedValue>::value_type();
+    /// 
+    /// // Check custom opaque type
+    /// assert!(opaque_type.is::<CustomType>());
+    /// assert!(!opaque_type.is::<i32>());
+    /// ```
+    /// 
+    /// # Use Cases
+    /// 
+    /// This method is commonly used in:
+    /// - **Function implementations**: Validating argument types before processing
+    /// - **Type guards**: Ensuring type safety in generic contexts  
+    /// - **Error handling**: Providing detailed type mismatch error messages
+    /// - **Debugging**: Runtime inspection of type compatibility
+    /// 
+    /// # See Also
+    /// 
+    /// - [`TypedValue::value_type()`]: Get the [`ValueType`] representation of a Rust type
+    /// - [`ValueType::kind()`]: Get the basic kind category of a type
+    /// - [`Value::is()`]: Check if a [`Value`] instance matches a specific Rust type
+    pub fn is<T: TypedValue>(&self) -> bool {
+        T::value_type() == *self
+    }
 }
 
 /// Struct type for Protocol Buffer messages.
@@ -355,7 +459,7 @@ impl ValueType {
 /// use cel_cxx::*;
 /// 
 /// let struct_type = StructType::new("google.protobuf.Duration");
-/// let type_instance = Type::Struct(struct_type);
+/// let type_instance = ValueType::Struct(struct_type);
 /// ```
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct StructType {
@@ -393,13 +497,13 @@ impl StructType {
 /// use cel_cxx::*;
 /// 
 /// // List of integers: list<int>
-/// let int_list = ListType::new(Type::Int);
+/// let int_list = ListType::new(ValueType::Int);
 /// 
 /// // List of strings: list<string>
-/// let string_list = ListType::new(Type::String);
+/// let string_list = ListType::new(ValueType::String);
 /// 
 /// // Nested list: list<list<int>>
-/// let nested_list = ListType::new(Type::List(int_list));
+/// let nested_list = ListType::new(ValueType::List(int_list));
 /// ```
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ListType {
@@ -419,8 +523,8 @@ impl ListType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let list_type = ListType::new(Type::String);
-    /// assert_eq!(list_type.element(), &Type::String);
+    /// let list_type = ListType::new(ValueType::String);
+    /// assert_eq!(list_type.element(), &ValueType::String);
     /// ```
     pub fn new(element: ValueType) -> Self {
         Self { element: Box::new(element) }
@@ -433,8 +537,8 @@ impl ListType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let list_type = ListType::new(Type::Int);
-    /// assert_eq!(list_type.element(), &Type::Int);
+    /// let list_type = ListType::new(ValueType::Int);
+    /// assert_eq!(list_type.element(), &ValueType::Int);
     /// ```
     pub fn element(&self) -> &ValueType {
         &self.element
@@ -452,12 +556,12 @@ impl ListType {
 /// use cel_cxx::*;
 /// 
 /// // Map from string to int: map<string, int>
-/// let string_to_int = MapType::new(MapKeyType::String, Type::Int);
+/// let string_to_int = MapType::new(MapKeyType::String, ValueType::Int);
 /// 
 /// // Map from int to list of strings: map<int, list<string>>
 /// let complex_map = MapType::new(
 ///     MapKeyType::Int,
-///     Type::List(ListType::new(Type::String))
+///     ValueType::List(ListType::new(ValueType::String))
 /// );
 /// ```
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -481,9 +585,9 @@ impl MapType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let map_type = MapType::new(MapKeyType::String, Type::Int);
+    /// let map_type = MapType::new(MapKeyType::String, ValueType::Int);
     /// assert_eq!(map_type.key(), &MapKeyType::String);
-    /// assert_eq!(map_type.value(), &Type::Int);
+    /// assert_eq!(map_type.value(), &ValueType::Int);
     /// ```
     pub fn new(key: MapKeyType, value: ValueType) -> Self {
         Self { key, value: Box::new(value) }
@@ -496,7 +600,7 @@ impl MapType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let map_type = MapType::new(MapKeyType::Int, Type::String);
+    /// let map_type = MapType::new(MapKeyType::Int, ValueType::String);
     /// assert_eq!(map_type.key(), &MapKeyType::Int);
     /// ```
     pub fn key(&self) -> &MapKeyType {
@@ -510,8 +614,8 @@ impl MapType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let map_type = MapType::new(MapKeyType::String, Type::Double);
-    /// assert_eq!(map_type.value(), &Type::Double);
+    /// let map_type = MapType::new(MapKeyType::String, ValueType::Double);
+    /// assert_eq!(map_type.value(), &ValueType::Double);
     /// ```
     pub fn value(&self) -> &ValueType {
         &self.value
@@ -532,7 +636,7 @@ impl MapType {
 /// let generic_type = TypeType::new(None);
 /// 
 /// // Parameterized type: type<string>
-/// let parameterized_type = TypeType::new(Some(Type::String));
+/// let parameterized_type = TypeType::new(Some(ValueType::String));
 /// ```
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct TypeType {
@@ -556,7 +660,7 @@ impl TypeType {
     /// let generic = TypeType::new(None);
     /// 
     /// // Specific type
-    /// let specific = TypeType::new(Some(Type::String));
+    /// let specific = TypeType::new(Some(ValueType::String));
     /// ```
     pub fn new(parameter: Option<ValueType>) -> Self {
         Self { parameter: parameter.map(Box::new) }
@@ -569,8 +673,8 @@ impl TypeType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let type_type = TypeType::new(Some(Type::Int));
-    /// assert_eq!(type_type.parameter(), Some(&Type::Int));
+    /// let type_type = TypeType::new(Some(ValueType::Int));
+    /// assert_eq!(type_type.parameter(), Some(&ValueType::Int));
     /// ```
     pub fn parameter(&self) -> Option<&ValueType> {
         self.parameter.as_ref().map(|p| &**p)
@@ -591,7 +695,7 @@ impl TypeType {
 /// let simple = OpaqueType::new("MyType", vec![]);
 /// 
 /// // Generic opaque type: MyGeneric<string, int>
-/// let generic = OpaqueType::new("MyGeneric", vec![Type::String, Type::Int]);
+/// let generic = OpaqueType::new("MyGeneric", vec![ValueType::String, ValueType::Int]);
 /// ```
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct OpaqueType {
@@ -618,7 +722,7 @@ impl OpaqueType {
     /// let simple = OpaqueType::new("MyType", vec![]);
     /// 
     /// // Generic opaque type
-    /// let generic = OpaqueType::new("Container", vec![Type::String]);
+    /// let generic = OpaqueType::new("Container", vec![ValueType::String]);
     /// ```
     pub fn new<S: Into<String>>(name: S, parameters: Vec<ValueType>) -> Self {
         Self { name: name.into(), parameters }
@@ -645,7 +749,7 @@ impl OpaqueType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let opaque_type = OpaqueType::new("Container", vec![Type::Int, Type::String]);
+    /// let opaque_type = OpaqueType::new("Container", vec![ValueType::Int, ValueType::String]);
     /// assert_eq!(opaque_type.parameters().len(), 2);
     /// ```
     pub fn parameters(&self) -> &[ValueType] {
@@ -664,11 +768,11 @@ impl OpaqueType {
 /// use cel_cxx::*;
 /// 
 /// // Optional string: optional<string>
-/// let optional_string = OptionalType::new(Type::String);
+/// let optional_string = OptionalType::new(ValueType::String);
 /// 
 /// // Optional list: optional<list<int>>
 /// let optional_list = OptionalType::new(
-///     Type::List(ListType::new(Type::Int))
+///     ValueType::List(ListType::new(ValueType::Int))
 /// );
 /// ```
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -689,8 +793,8 @@ impl OptionalType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let optional_int = OptionalType::new(Type::Int);
-    /// assert_eq!(optional_int.parameter(), &Type::Int);
+    /// let optional_int = OptionalType::new(ValueType::Int);
+    /// assert_eq!(optional_int.parameter(), &ValueType::Int);
     /// ```
     pub fn new(parameter: ValueType) -> Self {
         Self { parameter: Box::new(parameter) }
@@ -703,8 +807,8 @@ impl OptionalType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let optional_string = OptionalType::new(Type::String);
-    /// assert_eq!(optional_string.parameter(), &Type::String);
+    /// let optional_string = OptionalType::new(ValueType::String);
+    /// assert_eq!(optional_string.parameter(), &ValueType::String);
     /// ```
     pub fn parameter(&self) -> &ValueType {
         &self.parameter
@@ -777,12 +881,12 @@ impl TypeParamType {
 /// 
 /// // Function type: (string, int) -> bool
 /// let func_type = FunctionType::new(
-///     Type::Bool,
-///     vec![Type::String, Type::Int]
+///     ValueType::Bool,
+///     vec![ValueType::String, ValueType::Int]
 /// );
 /// 
 /// // No-argument function: () -> string
-/// let no_arg_func = FunctionType::new(Type::String, vec![]);
+/// let no_arg_func = FunctionType::new(ValueType::String, vec![]);
 /// ```
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct FunctionType {
@@ -807,8 +911,8 @@ impl FunctionType {
     /// 
     /// // Function that takes two ints and returns a string
     /// let func_type = FunctionType::new(
-    ///     Type::String,
-    ///     vec![Type::Int, Type::Int]
+    ///     ValueType::String,
+    ///     vec![ValueType::Int, ValueType::Int]
     /// );
     /// ```
     pub fn new(result: ValueType, arguments: Vec<ValueType>) -> Self {
@@ -825,8 +929,8 @@ impl FunctionType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let func_type = FunctionType::new(Type::Bool, vec![Type::String]);
-    /// assert_eq!(func_type.result(), &Type::Bool);
+    /// let func_type = FunctionType::new(ValueType::Bool, vec![ValueType::String]);
+    /// assert_eq!(func_type.result(), &ValueType::Bool);
     /// ```
     pub fn result(&self) -> &ValueType {
         &self.result
@@ -839,7 +943,7 @@ impl FunctionType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let func_type = FunctionType::new(Type::Int, vec![Type::String, Type::Bool]);
+    /// let func_type = FunctionType::new(ValueType::Int, vec![ValueType::String, ValueType::Bool]);
     /// assert_eq!(func_type.arguments().len(), 2);
     /// ```
     pub fn arguments(&self) -> &[ValueType] {
@@ -861,9 +965,9 @@ impl FunctionType {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let func_type = FunctionType::new(Type::Int, vec![Type::String]);
+    /// let func_type = FunctionType::new(ValueType::Int, vec![ValueType::String]);
     /// let id = func_type.id("myFunc", false);
-    /// // Results in something like "myFunc(String)"
+    /// // Results in something like "myFunc(string)"
     /// ```
     pub fn id(&self, name: &str, member: bool) -> String {
         use itertools::Itertools;
@@ -938,10 +1042,10 @@ impl EnumType {
 /// use cel_cxx::*;
 /// 
 /// // String keys are common
-/// let string_key_map = MapType::new(MapKeyType::String, Type::Int);
+/// let string_key_map = MapType::new(MapKeyType::String, ValueType::Int);
 /// 
 /// // Integer keys are also supported
-/// let int_key_map = MapType::new(MapKeyType::Int, Type::String);
+/// let int_key_map = MapType::new(MapKeyType::Int, ValueType::String);
 /// 
 /// // Check the kind of a key type
 /// assert_eq!(MapKeyType::String.kind(), Kind::String);

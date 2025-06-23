@@ -15,7 +15,7 @@ use crate::Error;
 /// # Examples
 ///
 /// ```rust,no_run
-/// use cel_cxx::{Type, VariableRegistry};
+/// use cel_cxx::{ValueType, VariableRegistry};
 ///
 /// let mut registry = VariableRegistry::new();
 ///
@@ -24,7 +24,7 @@ use crate::Error;
 /// registry.define_constant("APP_NAME", "MyApp")?;
 ///
 /// // Declare variables
-/// registry.declare_variable("user_input", Type::String)?;
+/// registry.declare::<String>("user_input")?;
 ///
 /// assert_eq!(registry.len(), 3);
 /// # Ok::<(), cel_cxx::Error>(())
@@ -110,15 +110,15 @@ impl VariableRegistry {
     ///
     /// let mut registry = VariableRegistry::new();
     /// registry
-    ///     .declare_variable::<String>("user_name")?
-    ///     .declare_variable::<i64>("user_id")?
-    ///     .declare_variable::<bool>("is_admin")?;
+    ///     .declare::<String>("user_name")?
+    ///     .declare::<i64>("user_id")?
+    ///     .declare::<bool>("is_admin")?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// [`Activation`]: crate::Activation
     /// [`TypedValue`]: crate::TypedValue
-    pub fn declare_variable<T>(&mut self, name: impl Into<String>) -> Result<&mut Self, Error>
+    pub fn declare<T>(&mut self, name: impl Into<String>) -> Result<&mut Self, Error>
     where
         T: TypedValue,
     {

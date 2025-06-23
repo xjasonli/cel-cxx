@@ -279,7 +279,7 @@ fn download_bazel<P: AsRef<Path>>(dir: P, version: &str) -> Result<PathBuf, anyh
     guard.complete()
 }
 
-pub struct DownloadGuard {
+struct DownloadGuard {
     tmp: Option<PathBuf>,
     dst: Option<PathBuf>,
 }

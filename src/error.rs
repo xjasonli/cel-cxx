@@ -20,13 +20,14 @@
 /// ```rust,no_run
 /// use cel_cxx::*;
 /// 
-/// match Env::builder().compile("invalid expression!!") {
+/// match Env::builder().build()?.compile("invalid expression!!") {
 ///     Ok(program) => println!("Compiled successfully"),
 ///     Err(e) => {
 ///         eprintln!("Error: {}", e);
 ///         eprintln!("Error code: {:?}", e.code());
 ///     }
 /// }
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Error {

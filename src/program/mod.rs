@@ -38,8 +38,8 @@
 //!
 //! // Create environment and compile expression
 //! let env = Env::builder()
-//!     .declare_variable::<String>("user_name")
-//!     .declare_variable::<i64>("user_age")
+//!     .declare_variable::<String>("user_name")?
+//!     .declare_variable::<i64>("user_age")?
 //!     .build()?;
 //!
 //! let program = env.compile("'Hello ' + user_name + ', you are ' + string(user_age)")?;
@@ -108,7 +108,7 @@
 //! use cel_cxx::*;
 //!
 //! let env = Env::builder()
-//!     .declare_variable::<i64>("value")
+//!     .declare_variable::<i64>("value")?
 //!     .build()?;
 //!
 //! // Compile once
@@ -157,17 +157,16 @@ use crate::marker::Async;
 /// use cel_cxx::*;
 /// 
 /// let env = Env::builder()
-///     .declare_variable::<String>("name")
-///     .build()
-///     .unwrap();
+///     .declare_variable::<String>("name")?
+///     .build()?;
 ///     
-/// let program = env.compile("'Hello, ' + name").unwrap();
+/// let program = env.compile("'Hello, ' + name")?;
 /// 
 /// let activation = Activation::new()
-///     .bind_variable("name", "World")
-///     .unwrap();
+///     .bind_variable("name", "World")?;
 ///     
-/// let result = program.evaluate(activation).unwrap();
+/// let result = program.evaluate(activation)?;
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 /// 
 /// ## Type Information
@@ -175,11 +174,12 @@ use crate::marker::Async;
 /// ```rust,no_run
 /// use cel_cxx::*;
 /// 
-/// let env = Env::builder().build().unwrap();
-/// let program = env.compile("42").unwrap();
+/// let env = Env::builder().build()?;
+/// let program = env.compile("42")?;
 /// 
 /// // Check the return type
 /// println!("Return type: {:?}", program.return_type());
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 pub struct Program<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
     pub(crate) inner: Arc<ProgramInner<'f>>,
@@ -211,11 +211,12 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Program<'f, Fm, Rm> {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let env = Env::builder().build().unwrap();
-    /// let program = env.compile("42").unwrap();
+    /// let env = Env::builder().build()?;
+    /// let program = env.compile("42")?;
     /// 
     /// println!("Return type: {:?}", program.return_type());
     /// // Output: Return type: Int
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn return_type(&self) -> &ValueType {
         self.inner.return_type()
@@ -247,18 +248,17 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Program<'f, Fm, Rm> {
     /// use cel_cxx::*;
     /// 
     /// let env = Env::builder()
-    ///     .declare_variable::<i64>("x")
-    ///     .build()
-    ///     .unwrap();
+    ///     .declare_variable::<i64>("x")?
+    ///     .build()?;
     ///     
-    /// let program = env.compile("x * 2").unwrap();
+    /// let program = env.compile("x * 2")?;
     /// 
     /// let activation = Activation::new()
-    ///     .bind_variable("x", 21i64)
-    ///     .unwrap();
+    ///     .bind_variable("x", 21i64)?;
     ///     
-    /// let result = program.evaluate(activation).unwrap();
+    /// let result = program.evaluate(activation)?;
     /// // result == Value::Int(42)
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     /// 
     /// ## With Empty Activation
@@ -266,11 +266,12 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Program<'f, Fm, Rm> {
     /// ```rust,no_run
     /// use cel_cxx::*;
     /// 
-    /// let env = Env::builder().build().unwrap();
-    /// let program = env.compile("1 + 2 * 3").unwrap();
+    /// let env = Env::builder().build()?;
+    /// let program = env.compile("1 + 2 * 3")?;
     /// 
-    /// let result = program.evaluate(()).unwrap();
+    /// let result = program.evaluate(())?;
     /// // result == Value::Int(7)
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn evaluate<'a, A, Afm>(
         &self, activation: A
@@ -313,14 +314,15 @@ const _: () = {
         /// 
         /// ```rust,no_run
         /// # #[cfg(feature = "tokio")]
-        /// # fn example() {
+        /// # fn example() -> Result<(), cel_cxx::Error> {
         /// use cel_cxx::*;
         /// use cel_cxx::r#async::Tokio;
         /// 
-        /// let env = Env::builder().build().unwrap();
-        /// let program = env.compile("42").unwrap();
+        /// let env = Env::builder().build()?;
+        /// let program = env.compile("42")?;
         /// 
         /// let async_program = program.use_runtime::<Tokio>();
+        /// # Ok::<(), cel_cxx::Error>(())
         /// # }
         /// ```
         pub fn use_runtime<Rt: Runtime>(self) -> Program<'f, Fm, Rt> {
@@ -339,13 +341,14 @@ const _: () = {
         /// 
         /// ```rust,no_run
         /// # #[cfg(feature = "tokio")]
-        /// # fn example() {
+        /// # fn example() -> Result<(), cel_cxx::Error> {
         /// use cel_cxx::*;
         /// 
-        /// let env = Env::builder().build().unwrap();
-        /// let program = env.compile("42").unwrap();
+        /// let env = Env::builder().build()?;
+        /// let program = env.compile("42")?;
         /// 
         /// let tokio_program = program.use_tokio();
+        /// # Ok::<(), cel_cxx::Error>(())
         /// # }
         /// ```
         #[cfg(feature = "tokio")]
@@ -362,13 +365,14 @@ const _: () = {
         /// 
         /// ```rust,no_run
         /// # #[cfg(feature = "async-std")]
-        /// # fn example() {
+        /// # fn example() -> Result<(), cel_cxx::Error> {
         /// use cel_cxx::*;
         /// 
-        /// let env = Env::builder().build().unwrap();
-        /// let program = env.compile("42").unwrap();
+        /// let env = Env::builder().build()?;
+        /// let program = env.compile("42")?;
         /// 
         /// let async_std_program = program.use_async_std();
+        /// # Ok::<(), cel_cxx::Error>(())
         /// # }
         /// ```
         #[cfg(feature = "async-std")]

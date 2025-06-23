@@ -7,15 +7,17 @@ set -e
 
 echo "🚀 Generating documentation with docs-only feature..."
 
-# Set environment variable to simulate docs.rs
-export DOCS_RS=1
+if ! type cargo-docs-rs > /dev/null 2>&1; then
+    echo "🚨 cargo-docs-rs is not installed. Installing it..."
+    cargo install cargo-docs-rs
+fi
 
 # Generate documentation with all features except the ones requiring C++ compilation
-cargo doc \
-    --features "derive,async,tokio,async-std,docs-only" \
-    --no-deps \
-    --document-private-items \
-    --open
+echo "🔍 Running cargo docs-rs with nightly toolchain..."
+cargo +nightly docs-rs -p cel-build-utils
+cargo +nightly docs-rs -p cel-cxx-macros
+cargo +nightly docs-rs -p cel-cxx-ffi
+cargo +nightly docs-rs -p cel-cxx
 
 echo "✅ Documentation generated successfully!"
-echo "📖 Documentation available at: target/doc/cel_cxx/index.html" 
+echo "📖 Documentation available at: target/x86_64-unknown-linux-gnu/doc/cel_cxx/index.html" 

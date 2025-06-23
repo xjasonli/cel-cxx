@@ -243,6 +243,7 @@
 //!
 //! ```rust,no_run
 //! use cel_cxx::*;
+//! use std::collections::VecDeque;
 //!
 //! // Automatic conversions work seamlessly
 //! let env = Env::builder()
@@ -277,27 +278,6 @@
 //! - **Memory efficient**: Minimal allocations through smart reference handling
 //! - **Async overhead**: Only when async features are explicitly used
 //! - **Type safety**: Compile-time prevention of common integration errors
-//! 
-//! ## 🔍 Error Handling
-//!
-//! Comprehensive error handling with detailed error information:
-//!
-//! ```rust,no_run
-//! use cel_cxx::*;
-//!
-//! // Compilation errors
-//! match Env::builder().build()?.compile("invalid syntax!") {
-//!     Ok(program) => println!("Compiled successfully"),
-//!     Err(e) => eprintln!("Compilation error: {}", e),
-//! }
-//! 
-//! // Runtime errors
-//! match program.evaluate(&activation) {
-//!     Ok(result) => println!("Result: {}", result),
-//!     Err(e) => eprintln!("Runtime error: {}", e),
-//! }
-//! # Ok::<(), cel_cxx::Error>(())
-//! ```
 //! 
 //! ## 📚 Examples
 //! 
@@ -497,27 +477,27 @@ pub use values::*;
 /// use cel_cxx::MaybeFuture;
 ///
 /// // This signature works regardless of async feature
-/// fn your_function() -> MaybeFuture<'_, YourType, YourError> {
-///     // Implementation varies by feature
-///     # unimplemented!()
-/// }
+/// //fn your_function() -> MaybeFuture<'_, YourType, YourError> {
+/// //    // Implementation varies by feature
+/// //    # unimplemented!()
+/// //}
 /// ```
 ///
 /// ## For Library Users
 ///
 /// When consuming [`MaybeFuture`] values:
 /// ```rust,no_run
-/// # use cel_cxx::MaybeFuture;
-/// # fn example_usage(maybe_future: MaybeFuture<'_, i32>) {
+/// # use cel_cxx::{Error, MaybeFuture};
 /// // Sync mode (no async feature)
 /// #[cfg(not(feature = "async"))]
-/// {
+/// fn example_usage<'a>(maybe_future: MaybeFuture<'a, i32, Error>) -> Result<(), Error> {
 ///     let result = maybe_future?; // It's just Result<T, E>
+///     Ok(())
 /// }
 ///
 /// // Async mode (with async feature) 
 /// #[cfg(feature = "async")]
-/// {
+/// async fn example_usage<'a>(maybe_future: MaybeFuture<'a, i32, Error>) -> Result<(), Error> {
 ///     match maybe_future {
 ///         MaybeFuture::Result(result) => {
 ///             let value = result?; // Immediate result
@@ -526,9 +506,8 @@ pub use values::*;
 ///             let result = future.await?; // Await the future
 ///         }
 ///     }
+///     Ok(())
 /// }
-/// # Ok::<(), Error>(())
-/// # }
 /// ```
 ///
 /// # Examples
@@ -538,10 +517,10 @@ pub use values::*;
 /// ```rust
 /// # #[cfg(not(feature = "async"))]
 /// # {
-/// use cel_cxx::MaybeFuture;
+/// use cel_cxx::{Error, MaybeFuture};
 ///
 /// // MaybeFuture is just Result<T, E> in sync mode
-/// let result: MaybeFuture<'_, i32> = Ok(42);
+/// let result: MaybeFuture<'_, i32, Error> = Ok(42);
 /// assert_eq!(result.unwrap(), 42);
 /// # }
 /// ```

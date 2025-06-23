@@ -90,25 +90,25 @@ mod ffi {
         fn IsUnknown(self: &Type) -> bool;
 
         #[rust_name = "get_enum"]
-        fn GetEnum(self: &Type) -> EnumType;
+        fn GetEnum<'a>(self: &Type<'a>) -> EnumType<'a>;
         #[rust_name = "get_function"]
-        fn GetFunction(self: &Type) -> FunctionType;
+        fn GetFunction<'a>(self: &Type<'a>) -> FunctionType<'a>;
         #[rust_name = "get_list"]
-        fn GetList(self: &Type) -> ListType;
+        fn GetList<'a>(self: &Type<'a>) -> ListType<'a>;
         #[rust_name = "get_map"]
-        fn GetMap(self: &Type) -> MapType;
+        fn GetMap<'a>(self: &Type<'a>) -> MapType<'a>;
         #[rust_name = "get_message"]
-        fn GetMessage(self: &Type) -> MessageType;
+        fn GetMessage<'a>(self: &Type<'a>) -> MessageType<'a>;
         #[rust_name = "get_opaque"]
-        fn GetOpaque(self: &Type) -> OpaqueType;
+        fn GetOpaque<'a>(self: &Type<'a>) -> OpaqueType<'a>;
         #[rust_name = "get_optional"]
-        fn GetOptional(self: &Type) -> OptionalType;
+        fn GetOptional<'a>(self: &Type<'a>) -> OptionalType<'a>;
         #[rust_name = "get_struct"]
-        fn GetStruct(self: &Type) -> StructType;
+        fn GetStruct<'a>(self: &Type<'a>) -> StructType<'a>;
         #[rust_name = "get_type_param"]
-        fn GetTypeParam(self: &Type) -> TypeParamType;
+        fn GetTypeParam<'a>(self: &Type<'a>) -> TypeParamType<'a>;
         #[rust_name = "get_type"]
-        fn GetType(self: &Type) -> TypeType;
+        fn GetType<'a>(self: &Type<'a>) -> TypeType<'a>;
 
 
         type EnumType<'a> = super::EnumType<'a>;
@@ -121,7 +121,7 @@ mod ffi {
 
         type ListType<'a> = super::ListType<'a>;
         #[rust_name = "element"]
-        fn GetElement(self: &ListType) -> Type;
+        fn GetElement<'a>(self: &ListType<'a>) -> Type<'a>;
         type MapType<'a> = super::MapType<'a>;
         #[rust_name = "key"]
         fn GetKey<'a>(self: &MapType<'a>) -> Type<'a>;

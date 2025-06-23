@@ -14,17 +14,10 @@ readme.workspace = true
 keywords.workspace = true
 
 [package.metadata.docs.rs]
-# Enable docs-only feature for documentation builds
-features = ["docs-only"]
-# Use the nightly compiler for documentation to access unstable features
-rustdoc-args = ["--cfg", "docsrs"]
-# Ensure documentation builds successfully
 targets = ["x86_64-unknown-linux-gnu"]
 
 [features]
 default = []
-# Feature for docs.rs to skip C++ compilation
-docs-only = []
 
 [dependencies]
 cxx = { workspace = true }
@@ -36,4 +29,3 @@ cel-build-utils = { workspace = true }
 cxx-build = { workspace = true }
 glob = { workspace = true }
 anyhow = { workspace = true }
-

@@ -23,7 +23,7 @@ mod ffi {
         #[rust_name = "is_ok"]
         fn ok(self: &Status) -> bool;
         fn code(self: &Status) -> StatusCode;
-        fn message(self: &Status) -> string_view;
+        fn message<'a>(self: &'a Status) -> string_view<'a>;
 
         fn OkStatus() -> Status;
         fn IsAborted(status: &Status) -> bool;

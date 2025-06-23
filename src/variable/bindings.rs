@@ -33,7 +33,7 @@ use crate::Error;
 ///
 /// // Bind dynamic value providers
 /// bindings.bind_provider("current_time", || {
-///     Ok(std::time::SystemTime::now())
+///     std::time::SystemTime::now()
 /// })?;
 ///
 /// assert_eq!(bindings.len(), 3);

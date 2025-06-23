@@ -48,7 +48,7 @@
 //! use futures::future::BoxFuture;
 //!
 //! // Can return either immediate results or futures
-//! fn mixed_operation(use_async: bool) -> MaybeFuture<'_, i32, &'static str> {
+//! fn mixed_operation(use_async: bool) -> MaybeFuture<'static, i32, &'static str> {
 //!     if use_async {
 //!         MaybeFuture::Future(Box::pin(async { Ok(42) }))
 //!     } else {
@@ -420,105 +420,5 @@ mod imp {
         fn from(f: Pin<Box<Fut>>) -> Self {
             MaybeFuture::Future(f)
         }
-    }
-}
-
-// When generating documentation, we want to show both definitions to make the
-// feature-dependent behavior clear to users
-#[cfg(doc)]
-pub mod doc_examples {
-    //! Documentation examples showing both sync and async variants of MaybeFuture.
-    //!
-    //! This module exists only for documentation purposes to demonstrate how
-    //! [`MaybeFuture`](crate::MaybeFuture) behaves differently depending on feature flags.
-
-    /// **This is the synchronous version of `MaybeFuture` (when `async` feature is disabled).**
-    ///
-    /// When the `async` feature is not enabled, `MaybeFuture` is simply a type alias
-    /// for `Result<T, E>`, meaning all operations return immediately without any
-    /// async overhead.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `'a` - Lifetime parameter (unused in sync mode but kept for API compatibility)
-    /// * `T` - The success type
-    /// * `E` - The error type (defaults to [`crate::Error`])
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # #[cfg(not(feature = "async"))]
-    /// # {
-    /// use cel_cxx::MaybeFuture;
-    ///
-    /// // In sync mode, MaybeFuture is just Result<T, E>
-    /// let result: MaybeFuture<'_, i32> = Ok(42);
-    /// assert_eq!(result.unwrap(), 42);
-    /// # }
-    /// ```
-    #[cfg_attr(docsrs, doc(cfg(not(feature = "async"))))]
-    pub type MaybeFutureSyncVersion<'a, T, E = crate::Error> = Result<T, E>;
-
-    #[cfg(feature = "async")]
-    use futures::future::BoxFuture;
-
-    #[cfg(feature = "async")]
-    /// **This is the asynchronous version of `MaybeFuture` (when `async` feature is enabled).**
-    ///
-    /// When the `async` feature is enabled, `MaybeFuture` is an enum that can hold
-    /// either an immediate `Result<T, E>` or a boxed future that will eventually
-    /// resolve to a `Result<T, E>`. This allows the same API to handle both
-    /// synchronous and asynchronous operations seamlessly.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `'a` - The lifetime of the future
-    /// * `T` - The success type
-    /// * `E` - The error type
-    ///
-    /// # Variants
-    ///
-    /// * `Result(Result<T, E>)` - An immediate result
-    /// * `Future(BoxFuture<'a, Result<T, E>>)` - A future that will resolve to a result
-    ///
-    /// # Examples
-    ///
-    /// ## Working with immediate results
-    ///
-    /// ```rust,no_run
-    /// # #[cfg(feature = "async")]
-    /// # {
-    /// use cel_cxx::MaybeFuture;
-    ///
-    /// let immediate: MaybeFuture<'_, i32, &str> = MaybeFuture::Result(Ok(42));
-    /// assert!(immediate.is_result());
-    /// assert_eq!(immediate.into_result().unwrap().unwrap(), 42);
-    /// # }
-    /// ```
-    ///
-    /// ## Working with futures
-    ///
-    /// ```rust,no_run
-    /// # #[cfg(feature = "async")]
-    /// # async fn example() {
-    /// use cel_cxx::MaybeFuture;
-    /// use futures::future::BoxFuture;
-    ///
-    /// let future_result: BoxFuture<'_, Result<i32, &str>> = 
-    ///     Box::pin(async { Ok(42) });
-    /// let maybe_future: MaybeFuture<'_, i32, &str> = 
-    ///     MaybeFuture::Future(future_result);
-    ///
-    /// assert!(maybe_future.is_future());
-    /// let result = maybe_future.into_future().unwrap().await.unwrap();
-    /// assert_eq!(result, 42);
-    /// # }
-    /// ```
-    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-    pub enum MaybeFutureAsyncVersion<'a, T, E> {
-        /// An immediate result value.
-        Result(Result<T, E>),
-        /// A future that will resolve to a result value.
-        Future(BoxFuture<'a, Result<T, E>>),
     }
 }

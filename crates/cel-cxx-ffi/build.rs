@@ -3,10 +3,9 @@ use anyhow::Result;
 use cel_build_utils::{Artifacts, Build};
 
 fn main() -> Result<()> {
-    // Skip C++ compilation when building docs
-    if is_docs_build() {
+    if skip_building() {
+        // Skip C++ compilation when building docs
         println!("cargo:warning=Skipping C++ compilation for documentation build");
-        create_dummy_artifacts()?;
         return Ok(());
     }
 
@@ -17,60 +16,12 @@ fn main() -> Result<()> {
 }
 
 /// Check if we're building for documentation
-fn is_docs_build() -> bool {
-    // Check for docs-only feature
-    if cfg!(feature = "docs-only") {
-        return true;
-    }
-    
+fn skip_building() -> bool {
     // Check for docs.rs environment
     if std::env::var("DOCS_RS").is_ok() {
         return true;
     }
-    
-    // Check for rustdoc
-    if std::env::var("RUSTDOC_RUNNING").is_ok() {
-        return true;
-    }
-    
-    // Check if we're in a cargo doc build
-    if let Ok(profile) = std::env::var("PROFILE") {
-        if profile == "release" {
-            if let Ok(_) = std::env::var("CARGO_CFG_DOC") {
-                return true;
-            }
-        }
-    }
-    
     false
-}
-
-/// Create dummy artifacts for documentation builds
-fn create_dummy_artifacts() -> Result<()> {
-    // For documentation builds, we don't need to create any artifacts
-    // Just add rerun-if-changed for source files so cargo knows about them
-    let hh_pattern = format!("include/**/*.h");
-    if let Ok(paths) = glob::glob(&hh_pattern) {
-        for path in paths.flatten() {
-            println!("cargo:rerun-if-changed={}", path.display());
-        }
-    }
-
-    let cc_pattern = format!("src/**/*.cc");
-    if let Ok(paths) = glob::glob(&cc_pattern) {
-        for path in paths.flatten() {
-            println!("cargo:rerun-if-changed={}", path.display());
-        }
-    }
-
-    let rs_pattern = format!("src/**/*.rs");
-    if let Ok(paths) = glob::glob(&rs_pattern) {
-        for path in paths.flatten() {
-            println!("cargo:rerun-if-changed={}", path.display());
-        }
-    }
-    
-    Ok(())
 }
 
 fn build_cpp() -> Result<Artifacts> {

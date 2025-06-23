@@ -58,7 +58,7 @@ mod ffi {
         type Value<'a>;
         fn kind(self: &Value) -> ValueKind;
         #[rust_name = "runtime_type"]
-        fn GetRuntimeType(self: &Value) -> Type;
+        fn GetRuntimeType<'a>(self: &Value<'a>) -> Type<'a>;
         #[rust_name = "is_bool"]
         fn IsBool(self: &Value) -> bool;
         #[rust_name = "is_true"]
@@ -133,7 +133,7 @@ mod ffi {
 
         type MessageValue<'a>;
         #[rust_name = "runtime_type"]
-        fn GetRuntimeType(self: &MessageValue) -> MessageType;
+        fn GetRuntimeType<'a>(self: &MessageValue<'a>) -> MessageType<'a>;
 
         type NullValue;
         type OpaqueValue<'a>;
@@ -720,7 +720,7 @@ impl<'a> AnyFfiOpaqueValue<'a> {
         }
     }
 
-    pub fn clone(&self) -> Box<AnyFfiOpaqueValue> {
+    pub fn clone(&self) -> Box<AnyFfiOpaqueValue<'a>> {
         Box::new(Clone::clone(self))
     }
 
@@ -732,7 +732,7 @@ impl<'a> AnyFfiOpaqueValue<'a> {
         self.opaque_type
     }
 
-    pub fn equal(&self, other: &AnyFfiOpaqueValue) -> bool {
+    pub fn equal<'b>(&self, other: &AnyFfiOpaqueValue<'b>) -> bool {
         self == other
     }
 

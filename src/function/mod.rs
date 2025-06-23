@@ -62,7 +62,7 @@
 //! ## Basic function registration
 //!
 //! ```rust,no_run
-//! use cel_cxx::function::*;
+//! use cel_cxx::{function::IntoFunction, Error};
 //!
 //! // Simple function
 //! fn add(a: i64, b: i64) -> i64 {
@@ -71,9 +71,9 @@
 //! let func = add.into_function();
 //!
 //! // Function with error handling
-//! fn divide(a: i64, b: i64) -> Result<i64, &'static str> {
+//! fn divide(a: i64, b: i64) -> Result<i64, Error> {
 //!     if b == 0 {
-//!         Err("division by zero")
+//!         Err(Error::invalid_argument("division by zero"))
 //!     } else {
 //!         Ok(a / b)
 //!     }
@@ -89,7 +89,7 @@
 //! use cel_cxx::function::*;
 //! // Function returning borrowed data
 //! fn get_first(items: Vec<&str>) -> &str {
-//!     items.first().unwrap_or("")
+//!     items.first().map_or("", |s| *s)
 //! }
 //! let func = get_first.into_function();
 //!
@@ -289,7 +289,7 @@ pub trait Arguments: Sized + private::Sealed {}
 /// ## Simple Functions
 ///
 /// ```rust
-/// # use crate::function::IntoFunction;
+/// # use cel_cxx::function::IntoFunction;
 /// # use std::convert::Infallible;
 /// fn add(a: i64, b: i64) -> i64 { a + b }
 /// fn divide(a: i64, b: i64) -> Result<f64, Infallible> { 
@@ -303,7 +303,7 @@ pub trait Arguments: Sized + private::Sealed {}
 /// ## Closures with Captured Variables
 ///
 /// ```rust
-/// # use crate::function::IntoFunction;
+/// # use cel_cxx::function::IntoFunction;
 /// let factor = 2.5;
 /// let scale = move |x: f64| -> f64 { x * factor };
 /// let scale_func = scale.into_function();
@@ -312,7 +312,7 @@ pub trait Arguments: Sized + private::Sealed {}
 /// ## Functions with Reference Parameters
 ///
 /// ```rust
-/// # use crate::function::IntoFunction;
+/// # use cel_cxx::function::IntoFunction;
 /// fn process_text(text: &str, uppercase: bool) -> String {
 ///     if uppercase { text.to_uppercase() } else { text.to_lowercase() }
 /// }
@@ -369,7 +369,7 @@ pub trait IntoFunction<'f, Fm: FnMarker, Args = ()>: private::Sealed<Fm, Args> {
 /// ## Basic Usage
 ///
 /// ```rust
-/// # use crate::function::*;
+/// # use cel_cxx::function::*;
 /// fn greet(name: &str) -> String {
 ///     format!("Hello, {}!", name)
 /// }
@@ -382,7 +382,7 @@ pub trait IntoFunction<'f, Fm: FnMarker, Args = ()>: private::Sealed<Fm, Args> {
 /// ## Metadata Inspection
 ///
 /// ```rust
-/// # use crate::function::*;
+/// # use cel_cxx::function::*;
 /// # fn greet(name: &str) -> String { format!("Hello, {}!", name) }
 /// let func = greet.into_function();
 ///
@@ -441,8 +441,8 @@ impl<'f> Function<'f> {
     /// ## Synchronous function call
     ///
     /// ```rust
-    /// # use crate::function::*;
-    /// # use crate::values::Value;
+    /// # use cel_cxx::function::*;
+    /// # use cel_cxx::values::Value;
     /// fn add(a: i64, b: i64) -> i64 { a + b }
     /// let func = add.into_function();
     ///
@@ -455,9 +455,10 @@ impl<'f> Function<'f> {
     /// 
     /// // In async mode, check if it's an immediate result
     /// # #[cfg(feature = "async")]
-    /// let result = maybe_result.unwrap_result();
+    /// let result = maybe_result.expect_result("shoud be result")?;
     /// 
     /// assert_eq!(result, Value::Int(30));
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// ## Async function call (when `async` feature is enabled)
@@ -465,8 +466,8 @@ impl<'f> Function<'f> {
     /// ```rust
     /// # #[cfg(feature = "async")]
     /// # async fn example() {
-    /// # use crate::function::*;
-    /// # use crate::values::Value;
+    /// # use cel_cxx::function::*;
+    /// # use cel_cxx::values::Value;
     /// async fn async_multiply(a: i64, b: i64) -> i64 { a * b }
     /// let func = async_multiply.into_function();
     ///
@@ -502,8 +503,8 @@ impl<'f> Function<'f> {
     /// # Examples
     ///
     /// ```rust
-    /// # use crate::function::*;
-    /// # use crate::types::ValueType;
+    /// # use cel_cxx::function::*;
+    /// # use cel_cxx::types::ValueType;
     /// fn process(name: &str, count: i64, active: bool) -> String {
     ///     format!("{}: {} ({})", name, count, active)
     /// }
@@ -535,8 +536,8 @@ impl<'f> Function<'f> {
     /// # Examples
     ///
     /// ```rust
-    /// # use crate::function::*;
-    /// # use crate::types::ValueType;
+    /// # use cel_cxx::function::*;
+    /// # use cel_cxx::types::ValueType;
     /// fn calculate(x: f64, y: f64) -> f64 { x * y + 1.0 }
     /// let func = calculate.into_function();
     ///
@@ -544,8 +545,8 @@ impl<'f> Function<'f> {
     /// ```
     ///
     /// ```rust
-    /// # use crate::function::*;
-    /// # use crate::types::ValueType;
+    /// # use cel_cxx::function::*;
+    /// # use cel_cxx::types::ValueType;
     /// # use std::convert::Infallible;
     /// fn get_message() -> Result<String, Infallible> { 
     ///     Ok("Hello".to_string()) 
@@ -574,8 +575,8 @@ impl<'f> Function<'f> {
     /// # Examples
     ///
     /// ```rust
-    /// # use crate::function::*;
-    /// # use crate::types::{ValueType, FunctionType};
+    /// # use cel_cxx::function::*;
+    /// # use cel_cxx::types::{ValueType, FunctionType};
     /// fn multiply(a: i64, b: i64) -> i64 { a * b }
     /// let func = multiply.into_function();
     ///
@@ -600,7 +601,7 @@ impl<'f> Function<'f> {
     /// # Examples
     ///
     /// ```rust
-    /// # use crate::function::*;
+    /// # use cel_cxx::function::*;
     /// fn no_args() -> i64 { 42 }
     /// fn one_arg(x: i64) -> i64 { x }
     /// fn three_args(a: i64, b: i64, c: i64) -> i64 { a + b + c }

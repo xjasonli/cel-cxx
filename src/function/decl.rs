@@ -17,8 +17,8 @@
 //! ## Basic function declaration
 //!
 //! ```rust
-//! use crate::function::FunctionDecl;
-//! use crate::types::ValueType;
+//! use cel_cxx::function::FunctionDecl;
+//! use cel_cxx::types::ValueType;
 //!
 //! // Extract type information from function signatures
 //! type AddFn = fn(i64, i64) -> i64;
@@ -32,8 +32,8 @@
 //! ## Complex function types
 //!
 //! ```rust
-//! # use crate::function::FunctionDecl;
-//! # use crate::types::ValueType;
+//! # use cel_cxx::function::FunctionDecl;
+//! # use cel_cxx::types::ValueType;
 //! // String processing function
 //! type FormatFn = fn(String, i64) -> String;
 //! let arg_types = FormatFn::arguments();
@@ -46,8 +46,8 @@
 //! ## Zero-parameter functions
 //!
 //! ```rust
-//! # use crate::function::FunctionDecl;
-//! # use crate::types::ValueType;
+//! # use cel_cxx::function::FunctionDecl;
+//! # use cel_cxx::types::ValueType;
 //! // Constant function
 //! type PiFn = fn() -> f64;
 //! let arg_types = PiFn::arguments();
@@ -92,8 +92,8 @@ use crate::types::*;
 /// # Examples
 ///
 /// ```rust
-/// # use crate::function::FunctionDecl;
-/// # use crate::types::ValueType;
+/// # use cel_cxx::function::FunctionDecl;
+/// # use cel_cxx::types::ValueType;
 /// // Simple arithmetic function
 /// type MathFn = fn(i64, i64) -> i64;
 /// assert_eq!(MathFn::arguments(), vec![ValueType::Int, ValueType::Int]);
@@ -114,7 +114,7 @@ pub trait FunctionDecl: private::Sealed {
     /// # Examples
     ///
     /// ```rust
-    /// # use crate::function::FunctionDecl;
+    /// # use cel_cxx::function::FunctionDecl;
     /// type NoArgsFn = fn() -> i64;
     /// type TwoArgsFn = fn(i64, String) -> bool;
     /// type ThreeArgsFn = fn(i64, String, bool) -> f64;

@@ -32,11 +32,11 @@ use crate::marker::Async;
 /// use cel_cxx::*;
 /// 
 /// let env = Env::builder()
-///     .declare_variable::<String>("name")
-///     .build()
-///     .unwrap();
+///     .declare_variable::<String>("name")?
+///     .build()?;
 ///     
-/// let program = env.compile("'Hello, ' + name").unwrap();
+/// let program = env.compile("'Hello, ' + name")?;
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 /// 
 /// ## With Custom Functions
@@ -45,12 +45,11 @@ use crate::marker::Async;
 /// use cel_cxx::*;
 /// 
 /// let env = Env::builder()
-///     .register_global_function("add", |x: i64, y: i64| -> i64 { x + y })
-///     .unwrap()
-///     .build()
-///     .unwrap();
+///     .register_global_function("add", |x: i64, y: i64| -> i64 { x + y })?
+///     .build()?;
 ///     
-/// let program = env.compile("add(10, 20)").unwrap();
+/// let program = env.compile("add(10, 20)")?;
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 pub struct Env<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
     pub(crate) inner: Arc<EnvInner<'f>>,
@@ -140,12 +139,10 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
 /// use cel_cxx::*;
 /// 
 /// let env = Env::builder()
-///     .register_global_function("double", |x: i64| -> i64 { x * 2 })
-///     .unwrap()
-///     .declare_variable::<String>("message")
-///     .unwrap()
-///     .build()
-///     .unwrap();
+///     .register_global_function("double", |x: i64| -> i64 { x * 2 })?
+///     .declare_variable::<String>("message")?
+///     .build()?;
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 pub struct EnvBuilder<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
     function_registry: FunctionRegistry<'f>,
@@ -256,6 +253,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// let builder = Env::builder()
     ///     .register_function("add", false, |a: i64, b: i64| a + b)?
     ///     .register_function("greet", false, |name: &str| format!("Hello, {}!", name))?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// ## Member Functions
@@ -270,22 +268,23 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// // Usage in expressions:
     /// // text.contains("hello")
     /// // text.length()
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// ## Functions with Error Handling
     ///
     /// ```rust
     /// use cel_cxx::*;
-    /// use std::convert::Infallible;
     ///
     /// let builder = Env::builder()
-    ///     .register_function("divide", false, |a: f64, b: f64| -> Result<f64, Infallible> {
+    ///     .register_function("divide", false, |a: f64, b: f64| -> Result<f64, Error> {
     ///         if b == 0.0 {
-    ///             Err(Infallible)  // This won't actually be reached, just for example
+    ///             Err(Error::invalid_argument("division by zero"))
     ///         } else {
     ///             Ok(a / b)
     ///         }
     ///     })?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// ## Closures with Captured Data
@@ -299,6 +298,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// let builder = Env::builder()
     ///     .register_function("scale", false, move |x: i64| x * multiplier)?
     ///     .register_function("check_limit", false, move |value: f64| value < threshold)?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register_function<F, Ffm, Args>(
         mut self, name: impl Into<String>, member: bool, f: F
@@ -353,6 +353,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// // "hello".upper()           -> "HELLO"
     /// // "hello world".contains("world") -> true
     /// // "abc".repeat(3)           -> "abcabcabc"
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// ## Numeric Methods
@@ -367,20 +368,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// // Usage in expressions:
     /// // (-5.5).abs()     -> 5.5
     /// // (2.0).pow(3.0)   -> 8.0
-    /// ```
-    ///
-    /// ## Collection Methods
-    ///
-    /// ```rust
-    /// use cel_cxx::*;
-    ///
-    /// let builder = Env::builder()
-    ///     .register_member_function("len", |list: &Vec<i64>| list.len() as i64)?
-    ///     .register_member_function("contains", |list: &Vec<i64>, item: &i64| list.contains(item))?;
-    ///
-    /// // Usage in expressions (assuming list variable):
-    /// // my_list.len()         -> list length
-    /// // my_list.contains(42)  -> true/false
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register_member_function<F, Ffm, Args>(
         mut self, name: impl Into<String>, f: F
@@ -443,6 +431,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// // add(10, 20)          -> 30
     /// // multiply(2.5, 4.0)   -> 10.0
     /// // max(15, 8)           -> 15
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// ## String Processing Functions
@@ -459,6 +448,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// // Usage in expressions:
     /// // concat("Hello, ", "World!")     -> "Hello, World!"
     /// // trim_prefix("prefixed_text", "prefixed_")  -> "text"
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// ## Business Logic Functions
@@ -477,6 +467,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// // Usage in expressions:
     /// // calculate_discount(100.0, 0.15)     -> 85.0
     /// // is_valid_email("user@domain.com")   -> true
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     ///
     /// ## Functions with Complex Logic
@@ -487,12 +478,13 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///
     /// // Function that processes collections
     /// let builder = Env::builder()
-    ///     .register_global_function("sum_positive", |numbers: &Vec<i64>| {
-    ///         numbers.iter().filter(|&&x| x > 0).sum::<i64>()
+    ///     .register_global_function("sum_positive", |numbers: Vec<i64>| {
+    ///         numbers.iter().filter(|&x| *x > 0).sum::<i64>()
     ///     })?;
     ///
     /// // Usage in expressions:
     /// // sum_positive([1, -2, 3, -4, 5])  -> 9
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register_global_function<F, Ffm, Args>(
         mut self, name: impl Into<String>, f: F
@@ -607,6 +599,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// let builder = Env::builder()
     ///     .define_constant("PI", 3.14159)
     ///     .unwrap();
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn define_constant<T>(
         mut self, name: impl Into<String>, value: T
@@ -643,16 +636,16 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// use cel_cxx::*;
     /// 
     /// let builder = Env::builder()
-    ///     .declare_variable::<String>("user_name")
-    ///     .unwrap()
-    ///     .declare_variable::<i64>("age")
-    ///     .unwrap();
+    ///     .declare_variable::<String>("user_name")?
+    ///     .declare_variable::<i64>("age")?;
+    ///
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn declare_variable<T>(mut self, name: impl Into<String>) -> Result<Self, Error>
     where
         T: TypedValue,
     {
-        self.variable_registry.declare_variable::<T>(name)?;
+        self.variable_registry.declare::<T>(name)?;
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
@@ -677,10 +670,9 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// use cel_cxx::*;
     /// 
     /// let env = Env::builder()
-    ///     .declare_variable::<String>("name")
-    ///     .unwrap()
-    ///     .build()
-    ///     .unwrap();
+    ///     .declare_variable::<String>("name")?
+    ///     .build()?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     /// 
     /// # Errors
@@ -723,11 +715,12 @@ const _: () = {
         /// # {
         /// use cel_cxx::*;
         /// 
-        /// let sync_env = Env::builder().build().unwrap();
-        /// let async_env = sync_env.force_async::<Tokio>();
+        /// let sync_env = Env::builder().build()?;
+        /// let async_env = sync_env.force_async();
         /// # }
+        /// # Ok::<(), cel_cxx::Error>(())
         /// ```
-        pub fn force_async<Rt: Runtime>(self) -> Env<'f, Async, Rt> {
+        pub fn force_async(self) -> Env<'f, Async, Rm> {
             Env {
                 inner: self.inner,
                 _fn_marker: std::marker::PhantomData,
@@ -780,10 +773,10 @@ const _: () = {
         /// use cel_cxx::*;
         /// 
         /// let env = Env::builder()
-        ///     .build()
-        ///     .unwrap()
+        ///     .build()?
         ///     .use_runtime::<Tokio>();
         /// # }
+        /// # Ok::<(), cel_cxx::Error>(())
         /// ```
         pub fn use_runtime<Rt: Runtime>(self) -> Env<'f, Fm, Rt> {
             let inner = self.inner.clone();
@@ -807,10 +800,10 @@ const _: () = {
         /// use cel_cxx::*;
         /// 
         /// let env = Env::builder()
-        ///     .build()
-        ///     .unwrap()
+        ///     .build()?
         ///     .use_tokio();
         /// # }
+        /// # Ok::<(), cel_cxx::Error>(())
         /// ```
         #[cfg(feature = "tokio")]
         #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
@@ -831,10 +824,10 @@ const _: () = {
         /// use cel_cxx::*;
         /// 
         /// let env = Env::builder()
-        ///     .build()
-        ///     .unwrap()
+        ///     .build()?
         ///     .use_async_std();
         /// # }
+        /// # Ok::<(), cel_cxx::Error>(())
         /// ```
         #[cfg(feature = "async-std")]
         #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]

@@ -169,13 +169,14 @@ mod async_marker {
     /// 
     /// ```rust,no_run
     /// # #[cfg(feature = "async")]
-    /// # fn example() {
+    /// # fn example() -> Result<(), cel_cxx::Error> {
     /// use cel_cxx::{Env, marker::Async};
     /// 
     /// // Create an async-capable environment
-    /// let env = Env::<Async>::builder()
-    ///     .build()
-    ///     .unwrap();
+    /// let env = Env::builder()
+    ///     .force_async()
+    ///     .build()?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// # }
     /// ```
     #[allow(missing_debug_implementations)]

@@ -27,8 +27,8 @@
 //!
 //! // Create registry and declare variables
 //! let mut registry = VariableRegistry::new();
-//! registry.declare("user_id", i64::value_type())?;
-//! registry.declare("user_name", String::value_type())?;
+//! registry.declare::<i64>("user_id")?;
+//! registry.declare::<String>("user_name")?;
 //!
 //! // Create bindings with actual values
 //! let mut bindings = VariableBindings::new();
@@ -44,14 +44,20 @@
 //! ```rust,no_run
 //! use cel_cxx::{VariableRegistry, VariableBindings, Opaque};
 //!
-//! #[derive(Opaque)]
+//! #[derive(Opaque, Debug, Clone, PartialEq)]
 //! struct User {
 //!     id: i64,
 //!     name: String,
 //! }
+//! 
+//! impl std::fmt::Display for User {
+//!     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//!         write!(f, "User({})", self.name)
+//!     }
+//! }
 //!
 //! let mut registry = VariableRegistry::new();
-//! registry.declare("current_user", User::value_type())?;
+//! registry.declare::<User>("current_user")?;
 //!
 //! let mut bindings = VariableBindings::new();
 //! let user = User { id: 123, name: "Bob".to_string() };
@@ -65,10 +71,10 @@
 //! use cel_cxx::{VariableRegistry, VariableBindings, Optional};
 //!
 //! let mut registry = VariableRegistry::new();
-//! registry.declare("optional_value", Optional::<String>::value_type())?;
+//! registry.declare::<Optional<String>>("optional_value")?;
 //!
 //! let mut bindings = VariableBindings::new();
-//! bindings.bind("optional_value", Optional::some("Hello".to_string()))?;
+//! bindings.bind("optional_value", Optional::new("Hello"))?;
 //! # Ok::<(), cel_cxx::Error>(())
 //! ```
 

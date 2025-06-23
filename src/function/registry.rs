@@ -118,7 +118,7 @@ impl<'f> FunctionRegistry<'f> {
     /// // Functions returning Result are automatically handled
     /// registry.register("divide", false, |a: i64, b: i64| -> Result<i64, Error> {
     ///     if b == 0 {
-    ///         Err(Error::argument("Division by zero"))
+    ///         Err(Error::invalid_argument("Division by zero"))
     ///     } else {
     ///         Ok(a / b)
     ///     }
@@ -271,6 +271,7 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// // Declare member function signature
     /// registry.declare_member::<fn(String) -> i64>("hash")?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn declare_member<D>(
         &mut self, name: impl Into<String>

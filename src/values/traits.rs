@@ -162,12 +162,13 @@ impl<T: IntoValue + Clone + ?Sized> IntoValue for &mut T {
 /// use cel_cxx::{FromValue, Value};
 /// 
 /// let cel_string = Value::String("hello".to_string().into());
-/// let rust_string = String::from_value(&cel_string).unwrap();
+/// let rust_string = String::from_value(&cel_string)?;
 /// assert_eq!(rust_string, "hello");
 ///
 /// let cel_int = Value::Int(42);
-/// let rust_int = i64::from_value(&cel_int).unwrap();
+/// let rust_int = i64::from_value(&cel_int)?;
 /// assert_eq!(rust_int, 42);
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 ///
 /// ## Zero-Copy String Conversion
@@ -178,8 +179,9 @@ impl<T: IntoValue + Clone + ?Sized> IntoValue for &mut T {
 /// let cel_string = Value::String("hello world".to_string().into());
 /// 
 /// // Convert to borrowed string slice (zero-copy)
-/// let borrowed_str = <&str>::from_value(&cel_string).unwrap();
+/// let borrowed_str = <&str>::from_value(&cel_string)?;
 /// assert_eq!(borrowed_str, "hello world");
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 pub trait FromValue: Sized {
     /// The output type for the `from_value` method.
@@ -244,7 +246,7 @@ pub trait FromValue: Sized {
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub struct FromValueError {
     value: Value,
     to_type: String,
@@ -299,6 +301,12 @@ impl FromValueError {
 impl std::fmt::Display for FromValueError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "cannot convert value {} to type {}", self.value, self.to_type)
+    }
+}
+
+impl From<FromValueError> for Error {
+    fn from(error: FromValueError) -> Self {
+        Error::invalid_argument(format!("cannot convert value {} to type {}", error.value, error.to_type))
     }
 }
 
@@ -448,7 +456,7 @@ where
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub struct FromMapKeyError {
     key: MapKey,
     to_type: MapKeyType,
@@ -515,6 +523,12 @@ impl From<FromMapKeyError> for FromValueError {
     }
 }
 
+impl From<FromMapKeyError> for Error {
+    fn from(error: FromMapKeyError) -> Self {
+        Error::invalid_argument(format!("cannot convert map key {} to type {}", error.key, error.to_type))
+    }
+}
+
 /// Trait for types that can be converted into compile-time CEL constants.
 ///
 /// This trait extends [`IntoValue`] and [`TypedValue`] to provide conversion
@@ -567,25 +581,7 @@ impl From<FromMapKeyError> for FromValueError {
 /// // "PI * radius * radius"
 /// // "APP_NAME + ' v1.0'"  
 /// // "retries < MAX_RETRIES"
-/// ```
-///
-/// ## Custom Type Constants
-///
-/// ```rust,no_run
-/// use cel_cxx::Opaque;
-///
-/// #[derive(Opaque, Debug, Clone, PartialEq)]
-/// struct Version { major: u32, minor: u32 }
-///
-/// impl std::fmt::Display for Version {
-///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-///         write!(f, "{}.{}", self.major, self.minor)
-///     }
-/// }
-///
-/// // IntoConstant is automatically implemented by the derive macro
-/// let version = Version { major: 1, minor: 0 };
-/// let version_const = version.into_constant();
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 pub trait IntoConstant: IntoValue + TypedValue {
     /// Convert this value into a compile-time CEL constant.

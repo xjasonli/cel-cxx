@@ -32,7 +32,7 @@ use super::*;
 /// ## Basic Opaque Type
 ///
 /// ```rust,no_run
-/// use cel_cxx::{Opaque, Value};
+/// use cel_cxx::{Opaque, Value, IntoValue};
 ///
 /// #[derive(Opaque, Debug, Clone, PartialEq)]
 /// struct UserId(u64);
@@ -72,21 +72,22 @@ use super::*;
 ///         self.balance
 ///     }
 ///     
-///     fn withdraw(&mut self, amount: f64) -> Result<f64, &'static str> {
-///         if amount <= self.balance {
-///             self.balance -= amount;
-///             Ok(self.balance)
-///         } else {
-///             Err("Insufficient funds")
-///         }
+///     fn can_withdraw(&self, amount: f64) -> bool {
+///         amount <= self.balance
+///     }
+///     
+///     fn account_number(&self) -> &str {
+///         &self.account_number
 ///     }
 /// }
 ///
 /// // Register methods for the opaque type
 /// let env = Env::builder()
 ///     .register_member_function("balance", BankAccount::balance)?
-///     .register_member_function("withdraw", BankAccount::withdraw)?
+///     .register_member_function("can_withdraw", BankAccount::can_withdraw)?
+///     .register_member_function("account_number", BankAccount::account_number)?
 ///     .build()?;
+/// # Ok::<(), cel_cxx::Error>(())
 /// ```
 ///
 /// # Type Erasure and Downcasting
@@ -94,7 +95,7 @@ use super::*;
 /// Opaque values support safe downcasting:
 ///
 /// ```rust,no_run
-/// use cel_cxx::{Value, Opaque};
+/// use cel_cxx::{Value, Opaque, IntoValue};
 ///
 /// #[derive(Opaque, Debug, Clone, PartialEq)]
 /// struct UserId(u64);
@@ -170,23 +171,6 @@ dyn_clone::clone_trait_object!(Opaque);
 /// }
 ///
 /// // All necessary traits are automatically implemented by the derive macro
-/// ```
-///
-/// ## Usage in Collections
-///
-/// ```rust,no_run
-/// use cel_cxx::*;
-/// use std::collections::HashSet;
-///
-/// // Can be used in collections that require equality
-/// let mut products = HashSet::new();
-/// products.insert(ProductId("ABC123".to_string()));
-/// products.insert(ProductId("DEF456".to_string()));
-///
-/// // Example function that works with the collection
-/// fn contains_product(products: &HashSet<ProductId>, id: &ProductId) -> bool {
-///     products.contains(id)
-/// }
 /// ```
 pub trait TypedOpaque
     : Opaque
