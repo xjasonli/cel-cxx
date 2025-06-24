@@ -1,9 +1,8 @@
-//! Activation context for CEL expression evaluation.
+//! Activation context for expression evaluation.
 //!
-//! This module provides the [`Activation`] type and related traits for managing
-//! variable and function bindings during CEL expression evaluation. Activations
-//! serve as the runtime context that provides values for variables and functions
-//! declared in the CEL environment.
+//! This module provides the [`Activation`] type, which serves as the runtime context
+//! for CEL expression evaluation. Activations contain variable bindings and function
+//! implementations that are used during expression evaluation.
 //!
 //! # Key Concepts
 //!
@@ -193,6 +192,7 @@ pub struct Activation<'f, Fm: FnMarker = ()> {
 /// let activation = AsyncActivation::new_async();
 /// ```
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 pub type AsyncActivation<'f> = Activation<'f, Async>;
 
 
@@ -230,6 +230,7 @@ impl<'f> Activation<'f, ()> {
     /// let activation = Activation::new().force_async();
     /// ```
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     pub fn force_async(self) -> Activation<'f, Async> {
         Activation {
             variables: self.variables,
@@ -240,6 +241,7 @@ impl<'f> Activation<'f, ()> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<'f> Activation<'f, Async> {
     /// Creates a new empty activation with async support.
     /// 

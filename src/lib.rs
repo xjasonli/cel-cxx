@@ -386,206 +386,23 @@ mod ffi;
 pub mod error;
 pub use error::*;
 
-/// Function registration and implementation utilities.
-///
-/// The function system provides a flexible way to register and call functions in CEL expressions.
-/// Functions can be either compile-time declarations (type signatures only) or runtime
-/// implementations (callable code).
-///
-/// # Key Components
-///
-/// - [`FunctionRegistry`](function::FunctionRegistry): Compile-time function registry for declaring function signatures and registering implementations
-/// - [`FunctionBindings`](function::FunctionBindings): Runtime function bindings for calling functions during evaluation
-/// - [`FunctionOverloads`](function::FunctionOverloads): Function overload management supporting multiple implementations with different signatures
-/// - **Declarations**: Use [`FunctionDecl`](function::FunctionDecl) trait for compile-time type checking
-/// - **Implementations**: Use [`IntoFunction`](function::IntoFunction) trait for runtime function calls
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use cel_cxx::*;
-///
-/// // Register a function implementation
-/// let mut env = Env::builder()
-///     .register_global_function("greet", |name: String| -> String {
-///         format!("Hello, {}!", name)
-///     })?
-///     .build()?;
-/// # Ok::<(), cel_cxx::Error>(())
-/// ```
 pub mod function;
 pub use function::*;
 
-/// Variable declaration and binding utilities.
-///
-/// The variable system supports both compile-time variable declarations and runtime
-/// variable bindings. Variables can be constants, runtime values, or dynamic providers
-/// that compute values on demand.
-///
-/// # Key Components
-///
-/// - [`VariableRegistry`](variable::VariableRegistry): Compile-time variable registry for declaring variable types and defining constants
-/// - [`VariableBindings`](variable::VariableBindings): Runtime variable bindings for providing variable values during evaluation
-/// - **Dynamic providers**: Functions that compute variable values at runtime
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use cel_cxx::*;
-///
-/// // Declare variables and create bindings
-/// let mut env = Env::builder()
-///     .declare_variable::<String>("user")?
-///     .declare_variable::<i64>("age")?
-///     .build()?;
-///
-/// let mut activation = Activation::new()
-///     .bind_variable("user", "Alice".to_string())?
-///     .bind_variable("age", 30i64)?;
-/// # Ok::<(), cel_cxx::Error>(())
-/// ```
 pub mod variable;
 pub use variable::*;
 
-/// Activation context for expression evaluation.
 pub mod activation;
 pub use activation::*;
 
-/// CEL type system kinds and type classification.
 pub mod kind;
 pub use kind::*;
 
-/// CEL type system types and type definitions.
 pub mod types;
 pub use types::*;
 
-/// CEL value types and value operations.
-///
-/// This module provides the core value types used in CEL expressions, including
-/// primitives, collections, and custom opaque types. All values implement
-/// conversion traits for seamless integration with Rust types.
-///
-/// # Key Components
-///
-/// - [`Value`]: The main CEL value enum supporting all CEL types
-/// - [`IntoValue`]: Trait for converting Rust types to CEL values
-/// - [`FromValue`]: Trait for converting CEL values to Rust types
-/// - [`Opaque`](values::Opaque): Opaque value type for storing externally-defined custom types
-/// - [`OpaqueValue`]: Trait for implementing custom opaque value types
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use cel_cxx::*;
-///
-/// // Convert Rust values to CEL values
-/// let string_val = Value::from("hello");
-/// let int_val = Value::from(42i64);
-/// let list_val = Value::from(vec![1i64, 2i64, 3i64]);
-///
-/// // Convert back to Rust types
-/// let rust_string: String = string_val.try_into()?;
-/// let rust_int: i64 = int_val.try_into()?;
-/// # Ok::<(), cel_cxx::Error>(())
-/// ```
 pub mod values;
 pub use values::*;
 
-/// Conditional future types for async/sync compatibility.
-///
-/// This module provides the [`MaybeFuture`] type, which has **different definitions**
-/// depending on whether the `async` feature is enabled. This allows the same API to work
-/// seamlessly in both synchronous and asynchronous contexts.
-///
-/// # ⚠️ Feature-Dependent Type Definition
-///
-/// **Critical**: [`MaybeFuture`] is implemented differently based on feature flags:
-///
-/// | Feature State | Type Definition | Behavior |
-/// |---------------|-----------------|----------|
-/// | **No `async`** | `type MaybeFuture<'a, T, E> = Result<T, E>` | Simple type alias, zero overhead |
-/// | **With `async`** | `enum MaybeFuture<'a, T, E> { Result(..), Future(..) }` | Can hold immediate results or futures |
-///
-/// # Documentation Generation
-///
-/// When building documentation with `--all-features`, both variants are documented:
-/// - The actual definition shown depends on which features are enabled during doc generation
-/// - The [`maybe_future::doc_examples`] module shows both variants for reference
-/// - Each definition is marked with appropriate `#[cfg(...)]` attributes
-///
-/// # Usage Guidelines
-///
-/// ## For Library Authors
-///
-/// When returning [`MaybeFuture`] from your APIs:
-/// ```rust,no_run
-/// use cel_cxx::MaybeFuture;
-///
-/// // This signature works regardless of async feature
-/// //fn your_function() -> MaybeFuture<'_, YourType, YourError> {
-/// //    // Implementation varies by feature
-/// //    # unimplemented!()
-/// //}
-/// ```
-///
-/// ## For Library Users
-///
-/// When consuming [`MaybeFuture`] values:
-/// ```rust,no_run
-/// # use cel_cxx::{Error, MaybeFuture};
-/// // Sync mode (no async feature)
-/// #[cfg(not(feature = "async"))]
-/// fn example_usage<'a>(maybe_future: MaybeFuture<'a, i32, Error>) -> Result<(), Error> {
-///     let result = maybe_future?; // It's just Result<T, E>
-///     Ok(())
-/// }
-///
-/// // Async mode (with async feature) 
-/// #[cfg(feature = "async")]
-/// async fn example_usage<'a>(maybe_future: MaybeFuture<'a, i32, Error>) -> Result<(), Error> {
-///     match maybe_future {
-///         MaybeFuture::Result(result) => {
-///             let value = result?; // Immediate result
-///         }
-///         MaybeFuture::Future(future) => {
-///             let result = future.await?; // Await the future
-///         }
-///     }
-///     Ok(())
-/// }
-/// ```
-///
-/// # Examples
-///
-/// ## Synchronous mode (without `async` feature)
-///
-/// ```rust
-/// # #[cfg(not(feature = "async"))]
-/// # {
-/// use cel_cxx::{Error, MaybeFuture};
-///
-/// // MaybeFuture is just Result<T, E> in sync mode
-/// let result: MaybeFuture<'_, i32, Error> = Ok(42);
-/// assert_eq!(result.unwrap(), 42);
-/// # }
-/// ```
-///
-/// ## Asynchronous mode (with `async` feature)
-///
-/// ```rust
-/// # #[cfg(feature = "async")]
-/// # async fn example() {
-/// use cel_cxx::MaybeFuture;
-///
-/// // Can hold either immediate results or futures
-/// let immediate: MaybeFuture<'_, i32, &str> = MaybeFuture::Result(Ok(42));
-/// let future_result: MaybeFuture<'_, i32, &str> = MaybeFuture::Future(
-///     Box::pin(async { Ok(100) })
-/// );
-///
-/// assert!(immediate.is_result());
-/// assert!(future_result.is_future());
-/// # }
-/// ```
 pub mod maybe_future;
 pub use maybe_future::*;

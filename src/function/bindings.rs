@@ -1,3 +1,16 @@
+//! Function binding utilities for runtime variable capture.
+//!
+//! This module provides utilities for binding functions with captured
+//! environment variables, enabling closures to access external state
+//! during CEL expression evaluation.
+//!
+//! # Use Cases
+//!
+//! - **Configuration binding**: Capture configuration values in closures
+//! - **Database connections**: Bind database handles to query functions
+//! - **External services**: Capture service clients for API calls
+//! - **State management**: Access mutable state from function implementations
+
 use std::collections::HashMap;
 use super::*;
 

@@ -1,3 +1,15 @@
+//! Variable bindings for runtime value storage.
+//!
+//! This module provides the [`VariableBindings`] type for binding actual
+//! values to declared variables during CEL expression evaluation.
+//!
+//! # Features
+//!
+//! - **Value binding**: Associate variable names with runtime values
+//! - **Type checking**: Validate that bound values match declared types
+//! - **Efficient lookup**: Fast variable resolution during evaluation
+//! - **Lifetime management**: Proper handling of borrowed values
+
 use std::collections::HashMap;
 use crate::function::*;
 use crate::ValueType;

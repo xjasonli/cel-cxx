@@ -181,7 +181,6 @@ mod opaque;
 mod display;
 mod traits;
 mod impls;
-//mod impls_old;
 mod optional;
 
 use std::collections::HashMap;

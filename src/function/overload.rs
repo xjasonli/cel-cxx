@@ -1,3 +1,30 @@
+//! Function overload management and resolution.
+//!
+//! This module provides types and utilities for managing function overloads,
+//! allowing multiple function implementations with different signatures to
+//! be registered under the same name.
+//!
+//! # Key Types
+//!
+//! - [`FunctionOverloads`]: Container for multiple overloads of a function
+//! - [`FunctionKindOverload`]: Overloads grouped by argument kinds  
+//! - [`FunctionDeclOrImpl`]: Union type for declarations and implementations
+//!
+//! # Overload Resolution
+//!
+//! The system supports sophisticated overload resolution based on:
+//! - **Argument count**: Number of parameters
+//! - **Argument types**: CEL types of each parameter
+//! - **Member vs global**: Whether the function is called as a method
+//!
+//! This enables natural function calls like:
+//! ```text
+//! // Different overloads of "format"
+//! format("Hello")              // format(string) -> string
+//! format("Hello %s", "World")  // format(string, string) -> string  
+//! format(42)                   // format(int) -> string
+//! ```
+
 use super::*;
 use crate::Kind;
 

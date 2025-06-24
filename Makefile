@@ -8,6 +8,7 @@ test:
 check:
 	CEL_CXX_FFI_SKIP_BUILD=1 cargo check
 
+doc: docs
 docs:
 	scripts/docs.sh
 
@@ -22,3 +23,5 @@ clean:
 	cargo clean
 	rm -f compile_commands.json compile_commands.events.json
 
+
+.PHONY: build test check doc docs compile_commands clean

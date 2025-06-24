@@ -1,3 +1,34 @@
+//! Variable declaration and binding utilities.
+//!
+//! The variable system supports both compile-time variable declarations and runtime
+//! variable bindings. Variables can be constants, runtime values, or dynamic providers
+//! that compute values on demand.
+//!
+//! # Key Components
+//!
+//! - [`VariableRegistry`]: Compile-time variable registry for declaring variable types and defining constants
+//! - [`VariableBindings`]: Runtime variable bindings for providing variable values during evaluation
+//! - **Dynamic providers**: Functions that compute variable values at runtime
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! // Declare variables and create bindings
+//! let mut env = Env::builder()
+//!     .declare_variable::<String>("user")?
+//!     .declare_variable::<i64>("age")?
+//!     .build()?;
+//!
+//! let mut activation = Activation::new()
+//!     .bind_variable("user", "Alice".to_string())?
+//!     .bind_variable("age", 30i64)?;
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+//!
+//! # Detailed Documentation
+//!
 //! Variable management for CEL expressions.
 //!
 //! This module provides functionality for managing variables and their bindings
@@ -78,31 +109,8 @@
 //! # Ok::<(), cel_cxx::Error>(())
 //! ```
 
-/// Variable registry for managing variable declarations.
-///
-/// This module provides the [`VariableRegistry`] type for declaring variables
-/// and their types in CEL environments. The registry tracks variable names
-/// and their expected types for compile-time validation.
-///
-/// # Features
-///
-/// - **Type declarations**: Associate variable names with CEL types
-/// - **Validation**: Ensure variable bindings match declared types
-/// - **Lookup**: Efficient variable type resolution during compilation
-/// - **Iteration**: Enumerate all declared variables
 mod registry;
 pub use registry::*;
 
-/// Variable bindings for runtime value storage.
-///
-/// This module provides the [`VariableBindings`] type for binding actual
-/// values to declared variables during CEL expression evaluation.
-///
-/// # Features
-///
-/// - **Value binding**: Associate variable names with runtime values
-/// - **Type checking**: Validate that bound values match declared types
-/// - **Efficient lookup**: Fast variable resolution during evaluation
-/// - **Lifetime management**: Proper handling of borrowed values
 mod bindings;
 pub use bindings::*;

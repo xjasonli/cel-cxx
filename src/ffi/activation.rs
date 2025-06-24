@@ -45,6 +45,7 @@ impl<'f> FfiFunction for FfiFunctionImpl<'f> {
             let result = overload.call(rust_args);
 
             #[cfg(feature = "async")]
+            #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
             let result = result.expect_result("should not be a future");
 
             let value = result.map(|value| value_from_rust(&value, arena, descriptor_pool, message_factory).into())
@@ -164,6 +165,7 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
                 }
 
                 #[cfg(feature = "async")]
+                #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
                 match res {
                     rust::MaybeFuture::Result(res) => {
                         match res {
@@ -205,6 +207,7 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
 
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 pub(crate) mod async_activation {
     use crate::r#async::{BlockingRunner, abort::Abortable};
     use std::sync::{Arc, Mutex};

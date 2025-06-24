@@ -95,6 +95,7 @@ impl<'f> ProgramInner<'f> {
     }
 
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     pub fn eval_async<'a, Rm, A, Afm>(
         self: Arc<Self>, activation: A
     ) -> futures::future::BoxFuture<'f, Result<Value, Error>>

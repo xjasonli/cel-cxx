@@ -10,6 +10,7 @@ use crate::{Program, Error, TypedValue};
 use crate::ffi;
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 use crate::marker::Async;
 
 /// CEL expression evaluation environment.

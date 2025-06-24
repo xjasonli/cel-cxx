@@ -1,3 +1,16 @@
+//! Variable registry for managing variable declarations.
+//!
+//! This module provides the [`VariableRegistry`] type for declaring variables
+//! and their types in CEL environments. The registry tracks variable names
+//! and their expected types for compile-time validation.
+//!
+//! # Features
+//!
+//! - **Type declarations**: Associate variable names with CEL types
+//! - **Validation**: Ensure variable bindings match declared types
+//! - **Lookup**: Efficient variable type resolution during compilation
+//! - **Iteration**: Enumerate all declared variables
+
 use std::collections::HashMap;
 use crate::ValueType;
 use crate::values::*;

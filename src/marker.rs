@@ -192,6 +192,7 @@ mod async_marker {
     /// 
     /// When synchronous and asynchronous capabilities are combined,
     /// the result supports asynchronous operations.
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     impl FnMarkerAggr<()> for Async {
         type Output = Async;
     }
@@ -200,6 +201,7 @@ mod async_marker {
     /// 
     /// When asynchronous and synchronous capabilities are combined,
     /// the result supports asynchronous operations.
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     impl FnMarkerAggr<Async> for () {
         type Output = Async;
     }
@@ -207,6 +209,7 @@ mod async_marker {
     /// Aggregating async with async yields async.
     /// 
     /// Combining two async contexts remains async.
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     impl FnMarkerAggr<Async> for Async {
         type Output = Async;
     }
@@ -215,6 +218,7 @@ mod async_marker {
     /// 
     /// For asynchronous functions, the result type is wrapped in a BoxFuture.
     /// This allows async functions to return futures that can be awaited.
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     impl<'a, T> FnResult<'a, T> for Async {
         type Output = futures::future::BoxFuture<'a, T>;
     }
@@ -241,10 +245,12 @@ mod private {
 
     /// Async marker type can be a marker.
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     impl Sealed for Async {}
 
     /// Runtime types can be runtime markers.
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     impl<T: Runtime> Sealed for T {}
 }
 

@@ -1,3 +1,33 @@
+//! Function registration and implementation utilities.
+//!
+//! The function system provides a flexible way to register and call functions in CEL expressions.
+//! Functions can be either compile-time declarations (type signatures only) or runtime
+//! implementations (callable code).
+//!
+//! # Key Components
+//!
+//! - [`FunctionRegistry`]: Compile-time function registry for declaring function signatures and registering implementations
+//! - [`FunctionBindings`]: Runtime function bindings for calling functions during evaluation
+//! - [`FunctionOverloads`]: Function overload management supporting multiple implementations with different signatures
+//! - **Declarations**: Use [`FunctionDecl`] trait for compile-time type checking
+//! - **Implementations**: Use [`IntoFunction`] trait for runtime function calls
+//!
+//! # Examples
+//!
+//! ```rust,no_run
+//! use cel_cxx::*;
+//!
+//! // Register a function implementation
+//! let mut env = Env::builder()
+//!     .register_global_function("greet", |name: String| -> String {
+//!         format!("Hello, {}!", name)
+//!     })?
+//!     .build()?;
+//! # Ok::<(), cel_cxx::Error>(())
+//! ```
+//!
+//! # Detailed Documentation
+//!
 //! Zero-annotation function registration for CEL expression evaluation.
 //!
 //! This module provides a type-safe, zero-annotation function registration system
@@ -10,13 +40,13 @@
 //!
 //! ## 1. Function Registration (Runtime Implementation)
 //! - **Purpose**: Register actual callable Rust functions/closures
-//! - **Entry point**: [`IntoFunction`](crate::function::IntoFunction) trait and registration methods
+//! - **Entry point**: [`IntoFunction`] trait and registration methods
 //! - **Usage**: `env.register_function("name", function_impl)`
 //! - **Provides**: Executable code that can be called during expression evaluation
 //!
 //! ## 2. Function Declaration (Compile-Time Signatures)
 //! - **Purpose**: Declare function signatures for type checking without implementation
-//! - **Entry point**: [`FunctionDecl`](crate::function::FunctionDecl) trait and declaration methods  
+//! - **Entry point**: [`FunctionDecl`] trait and declaration methods  
 //! - **Usage**: `env.declare_function::<SignatureType>("name")`
 //! - **Provides**: Type information for compile-time validation and overload resolution
 //!
@@ -38,10 +68,10 @@
 //! The zero-annotation system is built on top of Rust's type system and Generic Associated Types (GATs).
 //! When you register a function, the system automatically:
 //!
-//! 1. **Extracts argument types** from the function signature using [`FunctionDecl`](crate::function::FunctionDecl)
-//! 2. **Infers return types** using the [`IntoResult`](crate::values::IntoResult) trait
+//! 1. **Extracts argument types** from the function signature using [`FunctionDecl`]
+//! 2. **Infers return types** using the [`IntoResult`] trait
 //! 3. **Generates type-safe converters** that handle lifetime erasure safely
-//! 4. **Creates a unified interface** through the [`Function`](crate::function::Function) struct
+//! 4. **Creates a unified interface** through the [`Function`] struct
 //!
 //! ## Type Conversion Process
 //!
@@ -159,67 +189,12 @@ use std::sync::Arc;
 pub mod decl;
 pub use decl::*;
 
-/// Function overload management and resolution.
-///
-/// This module provides types and utilities for managing function overloads,
-/// allowing multiple function implementations with different signatures to
-/// be registered under the same name.
-///
-/// # Key Types
-///
-/// - [`FunctionOverloads`]: Container for multiple overloads of a function
-/// - [`FunctionKindOverload`]: Overloads grouped by argument kinds  
-/// - [`FunctionDeclOrImpl`]: Union type for declarations and implementations
-///
-/// # Overload Resolution
-///
-/// The system supports sophisticated overload resolution based on:
-/// - **Argument count**: Number of parameters
-/// - **Argument types**: CEL types of each parameter
-/// - **Member vs global**: Whether the function is called as a method
-///
-/// This enables natural function calls like:
-/// ```text
-/// // Different overloads of "format"
-/// format("Hello")              // format(string) -> string
-/// format("Hello %s", "World")  // format(string, string) -> string  
-/// format(42)                   // format(int) -> string
-/// ```
 pub mod overload;
 pub use overload::*;
 
-/// Function registry for managing registered functions.
-///
-/// This module provides the [`FunctionRegistry`] type which serves as the
-/// central repository for all functions available in a CEL environment.
-/// It handles function registration, lookup, and overload management.
-///
-/// # Features
-///
-/// - **Function registration**: Add new function implementations
-/// - **Declaration support**: Register type signatures without implementations
-/// - **Overload management**: Handle multiple signatures for the same function name
-/// - **Efficient lookup**: Fast function resolution during expression evaluation
-///
-/// # Thread Safety
-///
-/// The registry is designed to be thread-safe and can be shared across
-/// multiple evaluation contexts.
 mod registry;
 pub use registry::*;
 
-/// Function binding utilities for runtime variable capture.
-///
-/// This module provides utilities for binding functions with captured
-/// environment variables, enabling closures to access external state
-/// during CEL expression evaluation.
-///
-/// # Use Cases
-///
-/// - **Configuration binding**: Capture configuration values in closures
-/// - **Database connections**: Bind database handles to query functions
-/// - **External services**: Capture service clients for API calls
-/// - **State management**: Access mutable state from function implementations
 mod bindings;
 pub use bindings::*;
 
@@ -863,12 +838,14 @@ impl_fn_wrapper!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
 /// This struct is similar to [`FnWrapper`] but designed for async functions
 /// that return futures. It's only available when the `async` feature is enabled.
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 struct FnWrapperAsync<F, R, Args> {
     func: F,
     _phantom: std::marker::PhantomData<(R, Args)>,
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 impl<F, R, Args> FnWrapperAsync<F, R, Args> {
     /// Create a new async function wrapper.
     fn new(func: F) -> Self {
@@ -880,6 +857,7 @@ impl<F, R, Args> FnWrapperAsync<F, R, Args> {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 mod async_impls {
     use super::*;
 

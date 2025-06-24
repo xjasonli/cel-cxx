@@ -135,6 +135,7 @@ use crate::{FnMarker, FnMarkerAggr, RuntimeMarker, FnResult};
 pub(crate) use inner::ProgramInner;
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 use crate::marker::Async;
 
 /// Compiled CEL program ready for evaluation.
@@ -416,6 +417,7 @@ mod test {
     }
 
     #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     const _: () = {
         use futures::future::BoxFuture;
         use crate::Async;

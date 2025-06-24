@@ -1,78 +1,104 @@
 //! Conditional future types for async/sync compatibility.
 //!
-//! This module provides the [`MaybeFuture`] type, which allows functions to return
-//! either immediate results or futures depending on whether the `async` feature is enabled.
-//! This enables the same API to work seamlessly in both synchronous and asynchronous contexts.
+//! This module provides the [`MaybeFuture`] type, which has **different definitions**
+//! depending on whether the `async` feature is enabled. This allows the same API to work
+//! seamlessly in both synchronous and asynchronous contexts.
 //!
-//! # Feature-Dependent Type Definition
+//! # ⚠️ Feature-Dependent Type Definition
 //!
-//! **Important**: [`MaybeFuture`] has completely different definitions depending on feature flags:
+//! **Critical**: [`MaybeFuture`] is implemented differently based on feature flags:
 //!
-//! - **Without `async` feature**: `MaybeFuture<'a, T, E>` is a type alias for `Result<T, E>`
-//! - **With `async` feature**: `MaybeFuture<'a, T, E>` is an enum with `Result` and `Future` variants
-//!
-//! This design allows the same API to work in both sync and async contexts without runtime overhead
-//! in the synchronous case.
+//! | Feature State | Type Definition | Behavior |
+//! |---------------|-----------------|----------|
+//! | **No `async`** | `type MaybeFuture<'a, T, E> = Result<T, E>` | Simple type alias, zero overhead |
+//! | **With `async`** | `enum MaybeFuture<'a, T, E> { Result(..), Future(..) }` | Can hold immediate results or futures |
 //!
 //! # Documentation Generation
 //!
-//! When generating documentation with `cargo doc --all-features`, both definitions are shown
-//! with appropriate feature flags. The [`doc_examples`] module contains reference implementations
-//! of both variants for documentation purposes.
+//! **Important**: When building documentation with `--all-features` (as on docs.rs), only the 
+//! async variant is shown because the `async` feature is enabled. The synchronous variant
+//! (simple type alias) is only visible when building docs without the `async` feature.
 //!
-//! # Usage Patterns
+//! - **On docs.rs**: Shows the enum variant with `Result` and `Future` cases
+//! - **Without async feature**: `MaybeFuture` is just a type alias for `Result<T, E>`
+//! - Each definition is marked with appropriate `#[cfg(...)]` attributes
 //!
-//! ## In Synchronous Code (no `async` feature)
+//! # Usage Guidelines
 //!
-//! ```rust,no_run
-//! # #[cfg(not(feature = "async"))]
-//! # {
+//! ## For Library Authors
+//!
+//! When returning [`MaybeFuture`] from your APIs:
+//! ```ignore
 //! use cel_cxx::MaybeFuture;
 //!
-//! // MaybeFuture is just Result<T, E>
-//! fn sync_operation() -> MaybeFuture<'_, i32> {
-//!     Ok(42)
+//! // This signature works regardless of async feature
+//! fn your_function() -> MaybeFuture<'_, YourType, YourError> {
+//!     // Implementation varies by feature
+//!     # unimplemented!()
+//! }
+//! ```
+//!
+//! ## For Library Users
+//!
+//! When consuming [`MaybeFuture`] values:
+//! ```rust,no_run
+//! # use cel_cxx::{Error, MaybeFuture};
+//! // Sync mode (no async feature)
+//! #[cfg(not(feature = "async"))]
+//! fn example_usage<'a>(maybe_future: MaybeFuture<'a, i32, Error>) -> Result<(), Error> {
+//!     let result = maybe_future?; // It's just Result<T, E>
+//!     Ok(())
 //! }
 //!
-//! let result = sync_operation().unwrap();
-//! assert_eq!(result, 42);
+//! // Async mode (with async feature) 
+//! #[cfg(feature = "async")]
+//! async fn example_usage<'a>(maybe_future: MaybeFuture<'a, i32, Error>) -> Result<(), Error> {
+//!     match maybe_future {
+//!         MaybeFuture::Result(result) => {
+//!             let value = result?; // Immediate result
+//!         }
+//!         MaybeFuture::Future(future) => {
+//!             let result = future.await?; // Await the future
+//!         }
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! # Examples
+//!
+//! ## Synchronous mode (without `async` feature)
+//!
+//! ```rust
+//! # #[cfg(not(feature = "async"))]
+//! # {
+//! use cel_cxx::{Error, MaybeFuture};
+//!
+//! // MaybeFuture is just Result<T, E> in sync mode
+//! let result: MaybeFuture<'_, i32, Error> = Ok(42);
+//! assert_eq!(result.unwrap(), 42);
 //! # }
 //! ```
 //!
-//! ## In Asynchronous Code (with `async` feature)
+//! ## Asynchronous mode (with `async` feature)
 //!
-//! ```rust,no_run
+//! ```rust
 //! # #[cfg(feature = "async")]
 //! # async fn example() {
 //! use cel_cxx::MaybeFuture;
-//! use futures::future::BoxFuture;
 //!
-//! // Can return either immediate results or futures
-//! fn mixed_operation(use_async: bool) -> MaybeFuture<'static, i32, &'static str> {
-//!     if use_async {
-//!         MaybeFuture::Future(Box::pin(async { Ok(42) }))
-//!     } else {
-//!         MaybeFuture::Result(Ok(42))
-//!     }
-//! }
+//! // Can hold either immediate results or futures
+//! let immediate: MaybeFuture<'_, i32, &str> = MaybeFuture::Result(Ok(42));
+//! let future_result: MaybeFuture<'_, i32, &str> = MaybeFuture::Future(
+//!     Box::pin(async { Ok(100) })
+//! );
 //!
-//! let immediate = mixed_operation(false);
 //! assert!(immediate.is_result());
-//! let result = immediate.unwrap_result().unwrap();
-//!
-//! let future = mixed_operation(true);
-//! assert!(future.is_future());
-//! let result = future.unwrap_future().await.unwrap();
+//! assert!(future_result.is_future());
 //! # }
 //! ```
-//!
-//! # API Compatibility
-//!
-//! The design ensures that code using [`MaybeFuture`] can work regardless of feature flags:
-//!
-//! - Methods that work on both variants are available through the common interface
-//! - Feature-specific methods are only available when the corresponding feature is enabled
-//! - The type system prevents incorrect usage at compile time
+
+//! # Type Definitions
 pub use imp::*;
 
 #[cfg(not(feature = "async"))]

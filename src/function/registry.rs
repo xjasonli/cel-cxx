@@ -1,3 +1,21 @@
+//! Function registry for managing registered functions.
+//!
+//! This module provides the [`FunctionRegistry`] type which serves as the
+//! central repository for all functions available in a CEL environment.
+//! It handles function registration, lookup, and overload management.
+//!
+//! # Features
+//!
+//! - **Function registration**: Add new function implementations
+//! - **Declaration support**: Register type signatures without implementations
+//! - **Overload management**: Handle multiple signatures for the same function name
+//! - **Efficient lookup**: Fast function resolution during expression evaluation
+//!
+//! # Thread Safety
+//!
+//! The registry is designed to be thread-safe and can be shared across
+//! multiple evaluation contexts.
+
 use std::collections::HashMap;
 use super::*;
 
@@ -474,6 +492,7 @@ mod test {
 
         
         #[cfg(feature = "async")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
         let registry = registry.register_global("async_f1", async_f1)?;
 
         //let variable = VariableDecl::builder()

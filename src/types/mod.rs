@@ -1,4 +1,7 @@
-//! CEL type system implementation.
+//! CEL type system types and type definitions.
+//!
+//! This module provides the core type system for CEL expressions, including
+//! the [`ValueType`] enum and type conversion utilities.
 //!
 //! This module provides the complete type system for CEL (Common Expression Language).
 //! It defines all the types that can be used in CEL expressions, from primitive types
@@ -442,7 +445,6 @@ impl ValueType {
     /// 
     /// - [`TypedValue::value_type()`]: Get the [`ValueType`] representation of a Rust type
     /// - [`ValueType::kind()`]: Get the basic kind category of a type
-    /// - [`Value::is()`]: Check if a [`Value`] instance matches a specific Rust type
     pub fn is<T: TypedValue>(&self) -> bool {
         T::value_type() == *self
     }

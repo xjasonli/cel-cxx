@@ -38,6 +38,7 @@ where
 
 // Implement RunDispatch for Dispatcher<Async>
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 const _: () = {
     use futures::future::BoxFuture;
     use crate::r#async::*;
