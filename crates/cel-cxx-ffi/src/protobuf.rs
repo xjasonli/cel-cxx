@@ -41,7 +41,9 @@ impl Arena {
 
 impl std::fmt::Debug for Arena {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Arena {{ space_allocated: {}, space_used: {} }}",
+        write!(
+            f,
+            "Arena {{ space_allocated: {}, space_used: {} }}",
             self.space_allocated(),
             self.space_used(),
         )
@@ -68,11 +70,16 @@ impl std::fmt::Debug for DescriptorPool {
         let ptr = self as *const DescriptorPool;
         let is_generated = {
             let generated_ptr = Self::generated()
-                .as_ref().expect("generated_pool is not initialized")
+                .as_ref()
+                .expect("generated_pool is not initialized")
                 as *const ffi::DescriptorPool;
             ptr == generated_ptr
         };
-        write!(f, "DescriptorPool {{ ptr: {:p}, is_generated: {} }}", ptr, is_generated)
+        write!(
+            f,
+            "DescriptorPool {{ ptr: {:p}, is_generated: {} }}",
+            ptr, is_generated
+        )
     }
 }
 
@@ -96,10 +103,15 @@ impl std::fmt::Debug for MessageFactory {
         let ptr = self as *const MessageFactory;
         let is_generated = {
             let generated_ptr = Self::generated()
-                .as_ref().expect("generated_factory is not initialized")
+                .as_ref()
+                .expect("generated_factory is not initialized")
                 as *const ffi::MessageFactory;
             ptr == generated_ptr
         };
-        write!(f, "MessageFactory {{ ptr: {:p}, is_generated: {} }}", ptr, is_generated)
+        write!(
+            f,
+            "MessageFactory {{ ptr: {:p}, is_generated: {} }}",
+            ptr, is_generated
+        )
     }
 }

@@ -2,7 +2,7 @@ use std::ffi::c_int;
 use std::pin::Pin;
 
 use crate::absl::Status;
-use crate::common::{VariableDecl, FunctionDecl, Type, Ast, Source};
+use crate::common::{Ast, FunctionDecl, Source, Type, VariableDecl};
 
 #[cxx::bridge]
 mod ffi {
@@ -44,10 +44,7 @@ mod ffi {
             decl: &FunctionDecl<'a>,
         ) -> Status;
         #[rust_name = "set_expected_type"]
-        fn SetExpectedType<'a>(
-            self: Pin<&mut TypeCheckerBuilder<'a>>,
-            expected_type: &Type<'a>,
-        );
+        fn SetExpectedType<'a>(self: Pin<&mut TypeCheckerBuilder<'a>>, expected_type: &Type<'a>);
         fn options<'a>(self: &TypeCheckerBuilder<'a>) -> &CheckerOptions;
 
         type TypeCheckIssue;
@@ -90,9 +87,7 @@ mod ffi {
             result: &mut UniquePtr<Ast>,
         ) -> Status;
 
-        fn ValidationResult_format_error(
-            validation_result: &ValidationResult,
-        ) -> String;
+        fn ValidationResult_format_error(validation_result: &ValidationResult) -> String;
     }
 
     impl UniquePtr<ValidationResult> {}
@@ -181,7 +176,7 @@ pub use ffi::TypeCheckIssue;
 unsafe impl Send for TypeCheckIssue {}
 unsafe impl Sync for TypeCheckIssue {}
 impl TypeCheckIssue {
-    pub fn to_display_string(self: &Self, source: &Source) -> String {
+    pub fn to_display_string(&self, source: &Source) -> String {
         ffi::TypeCheckIssue_to_display_string(self, source)
     }
 }

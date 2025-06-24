@@ -1,7 +1,7 @@
-use std::pin::Pin;
+use crate::absl::{Duration, SpanElement, Status, StringView, Timestamp};
+use crate::common::{MessageType, OpaqueType, Type, ValueKind};
 use crate::protobuf::{Arena, DescriptorPool, MessageFactory};
-use crate::absl::{Duration, Timestamp, Status, SpanElement, StringView};
-use crate::common::{Type, OpaqueType, ValueKind, MessageType};
+use std::pin::Pin;
 
 #[cxx::bridge]
 mod ffi {
@@ -177,7 +177,7 @@ mod ffi {
     unsafe extern "C++" {
         include!("cel-cxx-ffi/include/absl.h");
         include!("cel-cxx-ffi/include/common/values.h");
-        
+
         // Value
         fn Value_size_of() -> usize;
         fn Value_swap<'a>(lhs: Pin<&mut Value<'a>>, rhs: Pin<&mut Value<'a>>);
@@ -251,7 +251,7 @@ mod ffi {
             value: &Value<'a>,
         ) -> Status;
         fn ListValueBuilder_build<'a>(
-            builder: Pin<&mut ListValueBuilder<'a>>
+            builder: Pin<&mut ListValueBuilder<'a>>,
         ) -> UniquePtr<ListValue<'a>>;
 
         // MapValue
@@ -270,7 +270,7 @@ mod ffi {
             value: &Value<'a>,
         ) -> Status;
         fn MapValueBuilder_build<'a>(
-            builder: Pin<&mut MapValueBuilder<'a>>
+            builder: Pin<&mut MapValueBuilder<'a>>,
         ) -> UniquePtr<MapValue<'a>>;
 
         // MessageValue
@@ -285,7 +285,9 @@ mod ffi {
             descriptor_pool: &'a DescriptorPool,
             ffi: Box<AnyFfiOpaqueValue<'a>>,
         ) -> UniquePtr<OpaqueValue<'a>>;
-        fn OpaqueValue_get_optional<'a>(opaque_value: &OpaqueValue<'a>) -> UniquePtr<OptionalValue<'a>>;
+        fn OpaqueValue_get_optional<'a>(
+            opaque_value: &OpaqueValue<'a>,
+        ) -> UniquePtr<OptionalValue<'a>>;
         fn OpaqueValue_get_ffi<'a>(opaque_value: &OpaqueValue<'a>) -> Box<AnyFfiOpaqueValue<'a>>;
 
         // OptionalValue
@@ -315,7 +317,8 @@ mod ffi {
             descriptor_pool: &DescriptorPool,
             message_factory: &MessageFactory,
             arena: &'b Arena,
-            result: &mut UniquePtr<Value<'b>>) -> Status;
+            result: &mut UniquePtr<Value<'b>>,
+        ) -> Status;
         fn ValueIterator_next2<'a, 'b>(
             value_iterator: Pin<&mut ValueIterator<'a>>,
             descriptor_pool: &DescriptorPool,
@@ -346,7 +349,7 @@ impl<'a> Value<'a> {
     pub fn swap(self: Pin<&mut Self>, other: Pin<&mut Self>) {
         ffi::Value_swap(self, other);
     }
-    
+
     pub fn new_bool(value: &BoolValue) -> cxx::UniquePtr<Self> {
         ffi::Value_new_bool(value)
     }
@@ -524,7 +527,6 @@ impl DurationValue {
     }
 }
 
-
 // ErrorValue
 pub use ffi::ErrorValue;
 unsafe impl<'a> Send for ErrorValue<'a> {}
@@ -550,7 +552,6 @@ impl IntValue {
         ffi::IntValue_new(value)
     }
 }
-
 
 // ListValue
 pub use ffi::ListValue;
@@ -648,8 +649,7 @@ pub use ffi::MessageValue;
 unsafe impl<'a> Send for MessageValue<'a> {}
 unsafe impl<'a> Sync for MessageValue<'a> {}
 
-impl<'a> MessageValue<'a> {
-}
+impl<'a> MessageValue<'a> {}
 
 pub use ffi::NullValue;
 unsafe impl Send for NullValue {}
@@ -669,11 +669,12 @@ impl<'a> OpaqueValue<'a> {
     pub fn new<T: FfiOpaqueValue + 'a>(
         arena: &'a Arena,
         descriptor_pool: &'a DescriptorPool,
-        ffi: T
+        ffi: T,
     ) -> cxx::UniquePtr<Self> {
         ffi::OpaqueValue_new(
-            arena, descriptor_pool,
-            Box::new(AnyFfiOpaqueValue::new(ffi, arena, descriptor_pool))
+            arena,
+            descriptor_pool,
+            Box::new(AnyFfiOpaqueValue::new(ffi, arena, descriptor_pool)),
         )
     }
 
@@ -687,16 +688,13 @@ impl<'a> OpaqueValue<'a> {
     }
 }
 
-pub trait FfiOpaqueValue: 'static
-    + std::fmt::Debug + std::fmt::Display
-    + dyn_clone::DynClone
-    + private::Sealed
-    + Send + Sync
+pub trait FfiOpaqueValue:
+    'static + std::fmt::Debug + std::fmt::Display + dyn_clone::DynClone + private::Sealed + Send + Sync
 {
     fn opaque_type<'a>(
         &self,
         arena: &'a Arena,
-        descriptor_pool: &'a DescriptorPool
+        descriptor_pool: &'a DescriptorPool,
     ) -> OpaqueType<'a>;
 }
 dyn_clone::clone_trait_object!(FfiOpaqueValue);
@@ -711,7 +709,7 @@ impl<'a> AnyFfiOpaqueValue<'a> {
     pub fn new<T: FfiOpaqueValue + 'static>(
         value: T,
         arena: &'a Arena,
-        descriptor_pool: &'a DescriptorPool
+        descriptor_pool: &'a DescriptorPool,
     ) -> Self {
         let opaque_type = value.opaque_type(arena, descriptor_pool);
         Self {
@@ -737,10 +735,7 @@ impl<'a> AnyFfiOpaqueValue<'a> {
     }
 
     pub fn downcast<T: FfiOpaqueValue>(&self) -> Option<Box<T>> {
-        self.ffi.clone()
-            .into_any()
-            .downcast::<T>()
-            .ok()
+        self.ffi.clone().into_any().downcast::<T>().ok()
     }
 }
 
@@ -752,7 +747,7 @@ impl<'a> std::fmt::Display for AnyFfiOpaqueValue<'a> {
 
 impl<'a> PartialEq for AnyFfiOpaqueValue<'a> {
     fn eq(&self, other: &Self) -> bool {
-        &self.ffi == &other.ffi
+        *self.ffi == *other.ffi
     }
 }
 
@@ -785,12 +780,18 @@ mod private {
     }
 
     impl<T: FfiOpaqueValue + PartialEq + Eq> Sealed for T {
-        fn into_any(self: Box<Self>) -> Box<dyn Any> { self }
-        fn as_any(&self) -> &dyn Any { self }
-        fn as_any_mut(&mut self) -> &mut dyn Any { self }
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self
+        }
 
         fn dyn_eq(&self, other: &dyn Any) -> bool {
-            other.downcast_ref::<T>().map_or(false, |other| self == other)
+            other.downcast_ref::<T>() == Some(self)
         }
     }
 }
@@ -826,7 +827,6 @@ impl<'a> StringValue<'a> {
         ffi::StringValue_native_value(self)
     }
 }
-
 
 pub use ffi::TimestampValue;
 unsafe impl Send for TimestampValue {}
@@ -870,13 +870,8 @@ impl<'a> ValueIterator<'a> {
         arena: &'b Arena,
     ) -> Result<cxx::UniquePtr<Value<'b>>, Status> {
         let mut result = cxx::UniquePtr::null();
-        let status = ffi::ValueIterator_next1(
-            self,
-            descriptor_pool,
-            message_factory,
-            arena,
-            &mut result,
-        );
+        let status =
+            ffi::ValueIterator_next1(self, descriptor_pool, message_factory, arena, &mut result);
         if status.is_ok() {
             Ok(result)
         } else {
@@ -894,8 +889,11 @@ impl<'a> ValueIterator<'a> {
         let mut value = cxx::UniquePtr::null();
         let status = ffi::ValueIterator_next2(
             self,
-            descriptor_pool, message_factory, arena,
-            &mut key, &mut value,
+            descriptor_pool,
+            message_factory,
+            arena,
+            &mut key,
+            &mut value,
         );
         if status.is_ok() {
             Ok((key, value))
@@ -904,4 +902,3 @@ impl<'a> ValueIterator<'a> {
         }
     }
 }
-

@@ -242,10 +242,7 @@ impl<T> Optional<T> {
     where
         F: FnOnce() -> Optional<T>,
     {
-        Optional::from_option(
-            self.into_option()
-                .or_else(|| f().into_option())
-        )
+        Optional::from_option(self.into_option().or_else(|| f().into_option()))
     }
 
     /// Returns `Some` if exactly one of `self`, `other` is `Some`, otherwise returns `None`.
@@ -302,10 +299,7 @@ impl<T> Optional<T> {
     where
         F: FnOnce(T) -> Optional<U>,
     {
-        Optional::from_option(
-            self.into_option()
-                .and_then(|t| f(t).into_option())
-        )
+        Optional::from_option(self.into_option().and_then(|t| f(t).into_option()))
     }
 
     /// Takes the value out of the optional, leaving an empty optional in its place.
@@ -371,10 +365,7 @@ impl<T> Optional<T> {
     /// assert_eq!(zipped.into_option(), Some((1, "hello")));
     /// ```
     pub fn zip<U>(self, other: Optional<U>) -> Optional<(T, U)> {
-        Optional::from_option(
-            self.into_option()
-                .zip(other.into_option())
-        )
+        Optional::from_option(self.into_option().zip(other.into_option()))
     }
 
     /// Converts from `Optional<T>` (or `&Optional<T>`) to `Optional<&T::Target>`.
@@ -551,9 +542,9 @@ impl<T> From<Option<T>> for Optional<T> {
 }
 
 // Implements conversion to Option<T>
-impl<T> Into<Option<T>> for Optional<T> {
-    fn into(self) -> Option<T> {
-        self.into_option()
+impl<T> From<Optional<T>> for Option<T> {
+    fn from(opt: Optional<T>) -> Self {
+        opt.into_option()
     }
 }
 

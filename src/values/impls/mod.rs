@@ -1,20 +1,20 @@
-mod null;
 mod bool;
-mod int;
-mod uint;
-mod double;
-mod string;
 mod bytes;
-mod r#struct;
+mod double;
 mod duration;
-mod timestamp;
+mod error;
+mod int;
 mod list;
 mod map;
-mod unknown;
-mod r#type;
-mod error;
+mod null;
 mod opaque;
 mod optional;
+mod string;
+mod r#struct;
+mod timestamp;
+mod r#type;
+mod uint;
+mod unknown;
 
 /// Implements the `TypedValue`/'TypedMapKey' trait for the given type.
 macro_rules! impl_typed {
@@ -680,9 +680,8 @@ macro_rules! impl_from_map {
     };
 }
 
-
-use impl_typed;
-use impl_into;
 use impl_from;
 use impl_from_list;
 use impl_from_map;
+use impl_into;
+use impl_typed;

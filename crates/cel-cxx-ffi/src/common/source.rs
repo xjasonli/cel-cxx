@@ -19,11 +19,7 @@ mod ffi {
         include!("cel-cxx-ffi/include/absl.h");
         include!("cel-cxx-ffi/include/common/source.h");
 
-        fn Source_new(
-            content: &[u8],
-            description: &str,
-            result: &mut UniquePtr<Source>,
-        ) -> Status;
+        fn Source_new(content: &[u8], description: &str, result: &mut UniquePtr<Source>) -> Status;
     }
 }
 

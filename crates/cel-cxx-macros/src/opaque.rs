@@ -1,30 +1,38 @@
+use crate::symbol::*;
 use proc_macro2::TokenStream;
 use quote::quote;
-use crate::symbol::*;
 
 pub fn expand_derive_opaque(input: syn::DeriveInput) -> syn::Result<TokenStream> {
     let ast = Ast::from_ast(&input)?;
-    let tokens = [
-        impl_typed(&ast),
-        impl_into(&ast),
-        impl_from(&ast),
-    ].into_iter().flatten();
+    let tokens = [impl_typed(&ast), impl_into(&ast), impl_from(&ast)]
+        .into_iter()
+        .flatten();
     Ok(tokens.collect())
 }
 
-fn add_generic_bounds(generic_params: &[syn::Ident], generics: &syn::Generics, bounds: Vec<syn::TypeParamBound>) -> syn::Generics {
+fn add_generic_bounds(
+    generic_params: &[syn::Ident],
+    generics: &syn::Generics,
+    bounds: Vec<syn::TypeParamBound>,
+) -> syn::Generics {
     let mut generics = generics.clone();
     if bounds.is_empty() {
         return generics;
     }
-    let bounds = bounds.into_iter()
+    let bounds = bounds
+        .into_iter()
         .collect::<syn::punctuated::Punctuated<syn::TypeParamBound, syn::Token![+]>>();
 
     for type_param in generic_params {
         if generics.where_clause.is_none() {
             generics.where_clause = Some(syn::parse_quote!(where));
         }
-        generics.where_clause.as_mut().unwrap().predicates.push(syn::parse_quote!(#type_param: #bounds));
+        generics
+            .where_clause
+            .as_mut()
+            .unwrap()
+            .predicates
+            .push(syn::parse_quote!(#type_param: #bounds));
     }
     generics
 }
@@ -98,7 +106,10 @@ fn impl_from(input: &Ast) -> TokenStream {
     let generics = add_generic_bounds(
         &input.generic_params,
         &input.generics,
-        vec![syn::parse_quote!(#cel::values::FromValue), syn::parse_quote!(#cel::values::TypedValue)],
+        vec![
+            syn::parse_quote!(#cel::values::FromValue),
+            syn::parse_quote!(#cel::values::TypedValue),
+        ],
     );
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
@@ -120,7 +131,7 @@ fn impl_from(input: &Ast) -> TokenStream {
                 }
             }
         }
-        
+
         impl #impl_generics ::std::convert::TryFrom<#cel::values::Value> for #name #ty_generics #where_clause {
             type Error = #cel::values::FromValueError;
             fn try_from(value: #cel::values::Value) -> ::std::result::Result<Self, Self::Error> {
@@ -170,7 +181,7 @@ impl Ast {
         if let Some(const_param) = input.generics.const_params().next() {
             return Err(syn::Error::new_spanned(
                 const_param,
-                "opaque types cannot have const generic parameters"
+                "opaque types cannot have const generic parameters",
             ));
         }
 
@@ -182,9 +193,9 @@ impl Ast {
         let bound: syn::TraitBound = syn::parse2(quote! { #cel_path::values::TypedValue })?;
         for param in generics.params.iter_mut() {
             if let syn::GenericParam::Type(ref mut type_param) = *param {
-                type_param.bounds.push(
-                    syn::TypeParamBound::Trait(bound.clone())
-                );
+                type_param
+                    .bounds
+                    .push(syn::TypeParamBound::Trait(bound.clone()));
                 generic_params.push(type_param.ident.clone());
             }
         }
@@ -208,9 +219,9 @@ impl Ast {
 
 //
 // #[derive(Opaque)]
-// #[cel(type = "MyType")]
-// #[cel(crate = my_crate)]
-// #[cel(type = "MyType", crate = my_crate)]
+// #[cel_cxx(type = "MyType")]
+// #[cel_cxx(crate = my_crate)]
+// #[cel_cxx(type = "MyType", crate = my_crate)]
 struct Attrs {
     pub type_name: Option<syn::Expr>,
     pub crate_path: Option<syn::Path>,

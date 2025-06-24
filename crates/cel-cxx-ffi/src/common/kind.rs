@@ -119,8 +119,9 @@ impl SpanElement for Kind {
 impl std::fmt::Display for Kind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
-            ffi::KindToString(*self).to_str()
-                .map_err(|_| std::fmt::Error)?
+            ffi::KindToString(*self)
+                .to_str()
+                .map_err(|_| std::fmt::Error)?,
         )
     }
 }
@@ -152,16 +153,12 @@ impl Kind {
 /// # Examples
 ///
 /// ```rust
-/// use cel_cxx_ffi::common::kind::{Kind, TypeKind};
+/// use cel_cxx_ffi::common::{Kind, TypeKind};
 ///
 /// // TypeKind can be converted to Kind
 /// let type_kind = TypeKind::Int;
 /// let kind: Kind = type_kind.into();
 /// assert!(kind.is_type_kind());
-///
-/// // Not all Kind variants are valid TypeKinds
-/// assert!(Kind::Int.is_type_kind());
-/// assert!(!Kind::Error.is_type_kind());
 /// ```
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -197,7 +194,6 @@ pub enum TypeKind {
     Enum = Kind::Enum as u8,
 }
 
-
 unsafe impl cxx::ExternType for TypeKind {
     type Id = cxx::type_id!("cel::TypeKind");
     type Kind = cxx::kind::Trivial;
@@ -211,8 +207,9 @@ impl SpanElement for TypeKind {
 impl std::fmt::Display for TypeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
-            ffi::TypeKindToString(*self).to_str()
-                .map_err(|_| std::fmt::Error)?
+            ffi::TypeKindToString(*self)
+                .to_str()
+                .map_err(|_| std::fmt::Error)?,
         )
     }
 }
@@ -234,7 +231,7 @@ impl std::fmt::Display for TypeKind {
 /// # Examples
 ///
 /// ```rust
-/// use cel_cxx_ffi::common::kind::{Kind, ValueKind};
+/// use cel_cxx_ffi::common::{Kind, ValueKind};
 ///
 /// // ValueKind can be converted to Kind
 /// let value_kind = ValueKind::Int;
@@ -243,7 +240,7 @@ impl std::fmt::Display for TypeKind {
 ///
 /// // Not all Kind variants are valid ValueKinds
 /// assert!(Kind::Int.is_value_kind());
-/// assert!(!Kind::Type.is_value_kind());
+/// assert!(!Kind::Function.is_value_kind());
 /// ```
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -266,7 +263,6 @@ pub enum ValueKind {
     Opaque = Kind::Opaque as u8,
 }
 
-
 unsafe impl cxx::ExternType for ValueKind {
     type Id = cxx::type_id!("cel::ValueKind");
     type Kind = cxx::kind::Trivial;
@@ -280,8 +276,9 @@ impl SpanElement for ValueKind {
 impl std::fmt::Display for ValueKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
-            ffi::ValueKindToString(*self).to_str()
-                .map_err(|_| std::fmt::Error)?
+            ffi::ValueKindToString(*self)
+                .to_str()
+                .map_err(|_| std::fmt::Error)?,
         )
     }
 }

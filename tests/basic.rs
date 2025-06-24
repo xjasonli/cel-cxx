@@ -1,12 +1,12 @@
-use std::convert::Infallible;
 use std::collections::HashMap;
+use std::convert::Infallible;
 
 use cel_cxx::*;
 
 const MY_NAMESPACE: &str = "testing";
 
 #[test]
-fn test_math() -> Result<(), Error>{
+fn test_math() -> Result<(), Error> {
     println!("test math");
 
     let env = Env::builder()
@@ -18,8 +18,7 @@ fn test_math() -> Result<(), Error>{
 
     let activation = Activation::new()
         .bind_variable("a", 2i64)?
-        .bind_variable("b", 3i64)?
-        ;
+        .bind_variable("b", 3i64)?;
 
     let res = program.evaluate(&activation)?;
     assert_eq!(res, Value::Int(5));
@@ -32,15 +31,26 @@ fn test_function_return_types() -> Result<(), Error> {
     println!("test function return types - value types vs Result<T, E>");
 
     // Functions returning value types directly
-    fn add_direct(a: i64, b: i64) -> i64 { a + b }
-    fn concat_direct(a: &str, b: &str) -> String { format!("{}{}", a, b) }
-    fn get_length_direct(s: &str) -> i64 { s.len() as i64 }
-    
+    fn add_direct(a: i64, b: i64) -> i64 {
+        a + b
+    }
+    fn concat_direct(a: &str, b: &str) -> String {
+        format!("{}{}", a, b)
+    }
+    fn get_length_direct(s: &str) -> i64 {
+        s.len() as i64
+    }
+
     // Functions returning Result<T, E>
-    fn add_result(a: i64, b: i64) -> Result<i64, Infallible> { Ok(a + b) }
+    fn add_result(a: i64, b: i64) -> Result<i64, Infallible> {
+        Ok(a + b)
+    }
     fn divide_result(a: i64, b: i64) -> Result<i64, std::io::Error> {
         if b == 0 {
-            Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "division by zero"))
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "division by zero",
+            ))
         } else {
             Ok(a / b)
         }
@@ -75,8 +85,7 @@ fn test_function_return_types() -> Result<(), Error> {
     }
 
     {
-        let activation = Activation::new()
-            .bind_variable("text", "Hello".to_string())?;
+        let activation = Activation::new().bind_variable("text", "Hello".to_string())?;
         let program = env.compile("get_length_direct(text)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(5));
@@ -161,8 +170,14 @@ fn test_reference_types() -> Result<(), Error> {
 
     // Test Vec<&str>
     {
-        let activation = Activation::new()
-            .bind_variable("string_list", vec!["apple".to_string(), "banana".to_string(), "cherry".to_string()])?;
+        let activation = Activation::new().bind_variable(
+            "string_list",
+            vec![
+                "apple".to_string(),
+                "banana".to_string(),
+                "cherry".to_string(),
+            ],
+        )?;
         let program = env.compile("process_string_list(string_list)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::String("apple, banana, cherry".into()));
@@ -174,14 +189,14 @@ fn test_reference_types() -> Result<(), Error> {
         map.insert(1, "one".to_string());
         map.insert(2, "two".to_string());
         map.insert(3, "three".to_string());
-        
-        let activation = Activation::new()
-            .bind_variable("string_map", map)?;
+
+        let activation = Activation::new().bind_variable("string_map", map)?;
         let program = env.compile("process_string_map(string_map)")?;
         let res = program.evaluate(&activation)?;
         // Note: HashMap iteration order is not guaranteed, so we check if result contains expected values
-        let result_str: String = res.try_into()
-            .map_err(|_| Error::invalid_argument("failed to convert result to string".to_string()))?;
+        let result_str: String = res.try_into().map_err(|_| {
+            Error::invalid_argument("failed to convert result to string".to_string())
+        })?;
         assert!(result_str.contains("one"));
         assert!(result_str.contains("two"));
         assert!(result_str.contains("three"));
@@ -189,16 +204,15 @@ fn test_reference_types() -> Result<(), Error> {
 
     // Test Option<&str>
     {
-        let activation = Activation::new()
-            .bind_variable("optional_string", Some("hello".to_string()))?;
+        let activation =
+            Activation::new().bind_variable("optional_string", Some("hello".to_string()))?;
         let program = env.compile("process_optional_string(optional_string)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::String("hello".into()));
     }
 
     {
-        let activation = Activation::new()
-            .bind_variable("optional_string", None::<String>)?;
+        let activation = Activation::new().bind_variable("optional_string", None::<String>)?;
         let program = env.compile("process_optional_string(optional_string)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::String("default".into()));
@@ -206,8 +220,8 @@ fn test_reference_types() -> Result<(), Error> {
 
     // Test &str
     {
-        let activation = Activation::new()
-            .bind_variable("single_string", "hello world".to_string())?;
+        let activation =
+            Activation::new().bind_variable("single_string", "hello world".to_string())?;
         let program = env.compile("process_string_ref(single_string)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::String("HELLO WORLD".into()));
@@ -215,8 +229,14 @@ fn test_reference_types() -> Result<(), Error> {
 
     // Test function returning borrowed data
     {
-        let activation = Activation::new()
-            .bind_variable("string_list", vec!["first".to_string(), "second".to_string(), "third".to_string()])?;
+        let activation = Activation::new().bind_variable(
+            "string_list",
+            vec![
+                "first".to_string(),
+                "second".to_string(),
+                "third".to_string(),
+            ],
+        )?;
         let program = env.compile("get_first_string(string_list)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::String("first".into()));
@@ -273,8 +293,7 @@ fn test_container_special_cases() -> Result<(), Error> {
 
     // Test Vec<i64>
     {
-        let activation = Activation::new()
-            .bind_variable("numbers", vec![1, 2, 3, 4, 5])?;
+        let activation = Activation::new().bind_variable("numbers", vec![1, 2, 3, 4, 5])?;
         let program = env.compile("sum_numbers(numbers)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(15));
@@ -282,8 +301,10 @@ fn test_container_special_cases() -> Result<(), Error> {
 
     // Test Vec<String> with generic function
     {
-        let activation = Activation::new()
-            .bind_variable("strings", vec!["a".to_string(), "b".to_string(), "c".to_string()])?;
+        let activation = Activation::new().bind_variable(
+            "strings",
+            vec!["a".to_string(), "b".to_string(), "c".to_string()],
+        )?;
         let program = env.compile("count_strings(strings)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(3));
@@ -291,8 +312,7 @@ fn test_container_special_cases() -> Result<(), Error> {
 
     // Test Vec<i64> with generic function
     {
-        let activation = Activation::new()
-            .bind_variable("numbers", vec![1, 2, 3, 4, 5])?;
+        let activation = Activation::new().bind_variable("numbers", vec![1, 2, 3, 4, 5])?;
         let program = env.compile("count_ints(numbers)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(5));
@@ -304,9 +324,8 @@ fn test_container_special_cases() -> Result<(), Error> {
         map.insert("alice".to_string(), 100);
         map.insert("bob".to_string(), 85);
         map.insert("charlie".to_string(), 92);
-        
-        let activation = Activation::new()
-            .bind_variable("score_map", map)?;
+
+        let activation = Activation::new().bind_variable("score_map", map)?;
         let program = env.compile("get_map_value(score_map, 'alice')")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Optional(Some(Value::Int(100)).into()));
@@ -314,16 +333,14 @@ fn test_container_special_cases() -> Result<(), Error> {
 
     // Test Option
     {
-        let activation = Activation::new()
-            .bind_variable("maybe_number", Some(42))?;
+        let activation = Activation::new().bind_variable("maybe_number", Some(42))?;
         let program = env.compile("unwrap_or_default(maybe_number)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(42));
     }
 
     {
-        let activation = Activation::new()
-            .bind_variable("maybe_number", None::<i64>)?;
+        let activation = Activation::new().bind_variable("maybe_number", None::<i64>)?;
         let program = env.compile("unwrap_or_default(maybe_number)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(0));
@@ -331,13 +348,8 @@ fn test_container_special_cases() -> Result<(), Error> {
 
     // Test nested containers
     {
-        let nested = vec![
-            vec![1, 2, 3],
-            vec![4, 5],
-            vec![6, 7, 8, 9]
-        ];
-        let activation = Activation::new()
-            .bind_variable("nested_numbers", nested)?;
+        let nested = vec![vec![1, 2, 3], vec![4, 5], vec![6, 7, 8, 9]];
+        let activation = Activation::new().bind_variable("nested_numbers", nested)?;
         let program = env.compile("process_nested_list(nested_numbers)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(45)); // 6 + 9 + 30 = 45
@@ -349,9 +361,8 @@ fn test_container_special_cases() -> Result<(), Error> {
         map.insert("group1".to_string(), vec![1, 2, 3]);
         map.insert("group2".to_string(), vec![4, 5]);
         map.insert("group3".to_string(), vec![6, 7, 8]);
-        
-        let activation = Activation::new()
-            .bind_variable("map_of_lists", map)?;
+
+        let activation = Activation::new().bind_variable("map_of_lists", map)?;
         let program = env.compile("process_map_of_lists(map_of_lists)")?;
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(36)); // 6 + 9 + 21 = 36
@@ -365,20 +376,38 @@ fn test_standard_conversions() -> Result<(), Error> {
     println!("test standard Rust conversions - TryFrom/Into/From/TryInto");
 
     // Test functions that return different value types
-    fn return_bool() -> bool { true }
-    fn return_int() -> i64 { 42 }
-    fn return_uint() -> u64 { 100 }
-    fn return_double() -> f64 { 3.14 }
-    fn return_string() -> String { "hello".to_string() }
-    fn return_bytes() -> Vec<u8> { vec![1, 2, 3, 4] }
-    fn return_list() -> Vec<i64> { vec![1, 2, 3] }
+    fn return_bool() -> bool {
+        true
+    }
+    fn return_int() -> i64 {
+        42
+    }
+    fn return_uint() -> u64 {
+        100
+    }
+    fn return_double() -> f64 {
+        std::f64::consts::PI
+    }
+    fn return_string() -> String {
+        "hello".to_string()
+    }
+    fn return_bytes() -> Vec<u8> {
+        vec![1, 2, 3, 4]
+    }
+    fn return_list() -> Vec<i64> {
+        vec![1, 2, 3]
+    }
     fn return_map() -> HashMap<String, i64> {
         let mut map = HashMap::new();
         map.insert("key".to_string(), 42);
         map
     }
-    fn return_optional_some() -> Option<i64> { Some(123) }
-    fn return_optional_none() -> Option<i64> { None }
+    fn return_optional_some() -> Option<i64> {
+        Some(123)
+    }
+    fn return_optional_none() -> Option<i64> {
+        None
+    }
 
     let env = Env::builder()
         .register_global_function("return_bool", return_bool)?
@@ -397,16 +426,18 @@ fn test_standard_conversions() -> Result<(), Error> {
     {
         let program = env.compile("return_bool()")?;
         let res = program.evaluate(())?;
-        let rust_bool: bool = res.try_into()
+        let rust_bool: bool = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to bool".to_string()))?;
-        assert_eq!(rust_bool, true);
+        assert!(rust_bool);
     }
 
     // Test int conversion
     {
         let program = env.compile("return_int()")?;
         let res = program.evaluate(())?;
-        let rust_int: i64 = res.try_into()
+        let rust_int: i64 = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to i64".to_string()))?;
         assert_eq!(rust_int, 42);
     }
@@ -415,7 +446,8 @@ fn test_standard_conversions() -> Result<(), Error> {
     {
         let program = env.compile("return_uint()")?;
         let res = program.evaluate(())?;
-        let rust_uint: u64 = res.try_into()
+        let rust_uint: u64 = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to u64".to_string()))?;
         assert_eq!(rust_uint, 100);
     }
@@ -424,16 +456,18 @@ fn test_standard_conversions() -> Result<(), Error> {
     {
         let program = env.compile("return_double()")?;
         let res = program.evaluate(())?;
-        let rust_double: f64 = res.try_into()
+        let rust_double: f64 = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to f64".to_string()))?;
-        assert_eq!(rust_double, 3.14);
+        assert_eq!(rust_double, std::f64::consts::PI);
     }
 
     // Test string conversion
     {
         let program = env.compile("return_string()")?;
         let res = program.evaluate(())?;
-        let rust_string: String = res.try_into()
+        let rust_string: String = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to String".to_string()))?;
         assert_eq!(rust_string, "hello");
     }
@@ -442,7 +476,8 @@ fn test_standard_conversions() -> Result<(), Error> {
     {
         let program = env.compile("return_bytes()")?;
         let res = program.evaluate(())?;
-        let rust_bytes: Vec<u8> = res.try_into()
+        let rust_bytes: Vec<u8> = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to Vec<u8>".to_string()))?;
         assert_eq!(rust_bytes, vec![1, 2, 3, 4]);
     }
@@ -451,7 +486,8 @@ fn test_standard_conversions() -> Result<(), Error> {
     {
         let program = env.compile("return_list()")?;
         let res = program.evaluate(())?;
-        let rust_list: Vec<i64> = res.try_into()
+        let rust_list: Vec<i64> = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to Vec<i64>".to_string()))?;
         assert_eq!(rust_list, vec![1, 2, 3]);
     }
@@ -460,7 +496,8 @@ fn test_standard_conversions() -> Result<(), Error> {
     {
         let program = env.compile("return_map()")?;
         let res = program.evaluate(())?;
-        let rust_map: HashMap<String, i64> = res.try_into()
+        let rust_map: HashMap<String, i64> = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to HashMap".to_string()))?;
         assert_eq!(rust_map.get("key"), Some(&42));
     }
@@ -469,7 +506,8 @@ fn test_standard_conversions() -> Result<(), Error> {
     {
         let program = env.compile("return_optional_some()")?;
         let res = program.evaluate(())?;
-        let rust_optional: Option<i64> = res.try_into()
+        let rust_optional: Option<i64> = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to Option<i64>".to_string()))?;
         assert_eq!(rust_optional, Some(123));
     }
@@ -478,7 +516,8 @@ fn test_standard_conversions() -> Result<(), Error> {
     {
         let program = env.compile("return_optional_none()")?;
         let res = program.evaluate(())?;
-        let rust_optional: Option<i64> = res.try_into()
+        let rust_optional: Option<i64> = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("failed to convert to Option<i64>".to_string()))?;
         assert_eq!(rust_optional, None);
     }
@@ -500,8 +539,8 @@ fn test_into_value_conversions() -> Result<(), Error> {
     let uint_val: Value = 100u64.into();
     assert_eq!(uint_val, Value::Uint(100));
 
-    let double_val: Value = 3.14f64.into();
-    assert_eq!(double_val, Value::Double(3.14));
+    let double_val: Value = std::f64::consts::PI.into();
+    assert_eq!(double_val, Value::Double(std::f64::consts::PI));
 
     let string_val: Value = "hello".to_string().into();
     assert_eq!(string_val, Value::String("hello".into()));
@@ -543,11 +582,15 @@ fn test_into_value_conversions() -> Result<(), Error> {
 }
 
 #[test]
-fn test_simplefunc() -> Result<(), Error>{
+fn test_simplefunc() -> Result<(), Error> {
     println!("test simple function");
 
-    fn sum(a: i64, b: i64) -> Result<i64, Infallible> {Ok(a+b)}
-    fn square(a: i64) -> Result<i64, Infallible> {Ok(a*a)}
+    fn sum(a: i64, b: i64) -> Result<i64, Infallible> {
+        Ok(a + b)
+    }
+    fn square(a: i64) -> Result<i64, Infallible> {
+        Ok(a * a)
+    }
 
     let env = Env::builder()
         .register_global_function("sum", sum)?
@@ -560,8 +603,7 @@ fn test_simplefunc() -> Result<(), Error>{
 
     let activation = Activation::new()
         .bind_variable("a", 2i64)?
-        .bind_variable("b", 3i64)?
-        ;
+        .bind_variable("b", 3i64)?;
 
     let res = program.evaluate(&activation)?;
     assert_eq!(res, Value::Int(25));
@@ -573,8 +615,7 @@ fn test_simplefunc() -> Result<(), Error>{
 fn test_opaque_function() -> Result<(), Error> {
     println!("test opaque function");
 
-    #[derive(Debug, Clone, PartialEq)]
-    #[derive(Opaque)]
+    #[derive(Debug, Clone, PartialEq, Opaque)]
     #[cel_cxx(type = format!("{}.{}", MY_NAMESPACE, "MyOpaque"))]
     struct MyOpaque(i64);
 
@@ -584,9 +625,15 @@ fn test_opaque_function() -> Result<(), Error> {
         }
     }
 
-    fn get_type(_: MyOpaque) -> Result<String, Error> { Ok("i64".to_string()) }
-    fn get_value(a: MyOpaque) -> Result<i64, Error> { Ok(a.0) }
-    fn sum(a: MyOpaque, b: i64) -> Result<i64, Error> { Ok(a.0 + b) }
+    fn get_type(_: MyOpaque) -> Result<String, Error> {
+        Ok("i64".to_string())
+    }
+    fn get_value(a: MyOpaque) -> Result<i64, Error> {
+        Ok(a.0)
+    }
+    fn sum(a: MyOpaque, b: i64) -> Result<i64, Error> {
+        Ok(a.0 + b)
+    }
 
     let env = Env::builder()
         .register_member_function("get_type", get_type)?
@@ -606,8 +653,7 @@ fn test_opaque_function() -> Result<(), Error> {
         let mo = MyOpaque(16);
         let activation = Activation::new()
             .bind_variable("mo", mo)?
-            .bind_variable("a", 0i32)?
-            ;
+            .bind_variable("a", 0i32)?;
 
         let res = program.evaluate(&activation)?;
         assert_eq!(res, Value::Int(16));
@@ -618,18 +664,18 @@ fn test_opaque_function() -> Result<(), Error> {
         let program = env.compile(expr)?;
 
         let mo = MyOpaque(16);
-        let ml: Vec<i64> = vec![84,85,86,87,88];
+        let ml: Vec<i64> = vec![84, 85, 86, 87, 88];
         let activation = Activation::new()
             .bind_variable("mo2", mo)?
-            .bind_variable("ml",ml)?
-            ;
+            .bind_variable("ml", ml)?;
 
         let res = program.evaluate(&activation)?;
 
-        let list: Vec<i64> = res.try_into()
+        let list: Vec<i64> = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("invalid vec i64".to_string()))?;
 
-        assert_eq!(list, vec![100,101,102,103,104]);
+        assert_eq!(list, vec![100, 101, 102, 103, 104]);
     }
 
     Ok(())

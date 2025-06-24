@@ -1,8 +1,8 @@
 use super::*;
-use ouroboros::self_referencing;
-use crate::{ffi, Constant, Program, ProgramInner, ValueType};
 use crate::function::FunctionRegistry;
 use crate::variable::VariableRegistry;
+use crate::{ffi, Constant, Program, ProgramInner, ValueType};
+use ouroboros::self_referencing;
 
 #[self_referencing]
 #[derive(Debug)]
@@ -38,25 +38,35 @@ impl<'f> EnvInner<'f> {
                     ffi::DescriptorPool::generated(),
                     &ffi::CompilerOptions::default(),
                 )?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::compiler::CompilerLibrary::new_standard())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::compiler::CompilerLibrary::new_optional())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::extensions::strings::compiler_library())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::extensions::bindings_ext::compiler_library())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::extensions::encoders::compiler_library())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::extensions::lists::compiler_library())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::extensions::math_ext::compiler_library())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::extensions::proto_ext::compiler_library())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::extensions::regex::compiler_library())?;
-                builder.pin_mut()
+                builder
+                    .pin_mut()
                     .add_library(ffi::extensions::sets::compiler_library())?;
 
                 for (name, decl_or_constant) in variable_registry.entries() {
@@ -70,8 +80,12 @@ impl<'f> EnvInner<'f> {
                                 Constant::Double(value) => ffi::Constant::new_double(*value),
                                 Constant::Bytes(value) => ffi::Constant::new_bytes(value),
                                 Constant::String(value) => ffi::Constant::new_string(value),
-                                Constant::Duration(value) => ffi::Constant::new_duration((*value).into()),
-                                Constant::Timestamp(value) => ffi::Constant::new_timestamp((*value).into()),
+                                Constant::Duration(value) => {
+                                    ffi::Constant::new_duration((*value).into())
+                                }
+                                Constant::Timestamp(value) => {
+                                    ffi::Constant::new_timestamp((*value).into())
+                                }
                             };
                             ffi::VariableDecl::new_constant(name, &ffi_constant)
                         }
@@ -79,11 +93,18 @@ impl<'f> EnvInner<'f> {
                             let value_type = decl_or_constant.decl();
                             ffi::VariableDecl::new(
                                 name,
-                                &ffi::type_from_rust(value_type, ffi_ctx.arena(), ffi_ctx.descriptor_pool())
+                                &ffi::type_from_rust(
+                                    value_type,
+                                    ffi_ctx.arena(),
+                                    ffi_ctx.descriptor_pool(),
+                                ),
                             )
                         }
                     };
-                    builder.pin_mut().checker_builder().add_variable(&ffi_variable_decl);
+                    builder
+                        .pin_mut()
+                        .checker_builder()
+                        .add_variable(&ffi_variable_decl);
                 }
 
                 for (name, overloads) in function_registry.entries() {
@@ -96,22 +117,29 @@ impl<'f> EnvInner<'f> {
                             let ffi_result = ffi::type_from_rust(
                                 type_overload.decl().result(),
                                 ffi_ctx.arena(),
-                                ffi_ctx.descriptor_pool()
+                                ffi_ctx.descriptor_pool(),
                             );
-                            let ffi_arguments = type_overload.decl().arguments()
+                            let ffi_arguments = type_overload
+                                .decl()
+                                .arguments()
                                 .iter()
-                                .map(|ty| ffi::type_from_rust(ty, ffi_ctx.arena(), ffi_ctx.descriptor_pool()))
+                                .map(|ty| {
+                                    ffi::type_from_rust(
+                                        ty,
+                                        ffi_ctx.arena(),
+                                        ffi_ctx.descriptor_pool(),
+                                    )
+                                })
                                 .collect::<Vec<_>>();
-                            let ffi_overload_decl = ffi::OverloadDecl::new(
-                                &id,
-                                member,
-                                &ffi_result,
-                                &ffi_arguments
-                            );
+                            let ffi_overload_decl =
+                                ffi::OverloadDecl::new(&id, member, &ffi_result, &ffi_arguments);
                             ffi_function_decl.pin_mut().add_overload(&ffi_overload_decl);
                         }
                     }
-                    builder.pin_mut().checker_builder().add_function(&ffi_function_decl);
+                    builder
+                        .pin_mut()
+                        .checker_builder()
+                        .add_function(&ffi_function_decl);
                 }
 
                 let compiler = builder.pin_mut().build()?;
@@ -153,33 +181,34 @@ impl<'f> EnvInner<'f> {
                     for kind_overload in overloads.entries() {
                         let receiver_style = kind_overload.member();
                         let ffi_types = kind_overload.argument_kinds();
-                        let ffi_function_descriptor = ffi::FunctionDescriptor::new(
-                            name, receiver_style, ffi_types, true
-                        );
-                        builder.pin_mut().function_registry().register_lazy(&ffi_function_descriptor);
+                        let ffi_function_descriptor =
+                            ffi::FunctionDescriptor::new(name, receiver_style, ffi_types, true);
+                        builder
+                            .pin_mut()
+                            .function_registry()
+                            .register_lazy(&ffi_function_descriptor);
                     }
                 }
 
                 for (_, decl) in variable_registry.entries() {
-                    match decl.decl() {
-                        ValueType::Opaque(opaque) => {
-                            let ffi_opaque_type = ffi::opaque_type_from_rust(
-                                &opaque,
-                                ffi_ctx.arena(),
-                                ffi_ctx.descriptor_pool()
-                            );
-                            builder.pin_mut()
-                                .type_registry()
-                                .register_type(&ffi_opaque_type);
-                        }
-                        _ => {}
+                    if let ValueType::Opaque(opaque) = decl.decl() {
+                        let ffi_opaque_type = ffi::opaque_type_from_rust(
+                            opaque,
+                            ffi_ctx.arena(),
+                            ffi_ctx.descriptor_pool(),
+                        );
+                        builder
+                            .pin_mut()
+                            .type_registry()
+                            .register_type(&ffi_opaque_type);
                     }
                 }
 
                 let runtime = builder.pin_mut().build()?;
                 Ok(runtime)
             },
-        }.try_build()
+        }
+        .try_build()
     }
 
     pub fn function_registry<'this>(&'this self) -> &'this Arc<FunctionRegistry<'f>> {
@@ -187,11 +216,11 @@ impl<'f> EnvInner<'f> {
     }
 
     #[allow(unused)]
-    pub fn variable_registry<'this>(&'this self) -> &'this Arc<VariableRegistry> {
+    pub fn variable_registry(&self) -> &Arc<VariableRegistry> {
         self.with_variable_registry(|variable_registry| variable_registry)
     }
 
-    pub fn ctx<'this>(&'this self) -> &'this ffi::Ctx {
+    pub fn ctx(&self) -> &ffi::Ctx {
         self.with_ffi_ctx(|ffi_ctx| ffi_ctx)
     }
 
@@ -204,7 +233,8 @@ impl<'f> EnvInner<'f> {
     }
 
     pub fn compile<Fm: FnMarker, Rm: RuntimeMarker, S: AsRef<[u8]>>(
-        self: Arc<Self>, source: S
+        self: Arc<Self>,
+        source: S,
     ) -> Result<Program<'f, Fm, Rm>, Error> {
         let inner = ProgramInner::new_from_env_source(self, source)?;
         Ok(Program {

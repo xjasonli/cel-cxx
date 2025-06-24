@@ -11,8 +11,8 @@
 //! - **External services**: Capture service clients for API calls
 //! - **State management**: Access mutable state from function implementations
 
-use std::collections::HashMap;
 use super::*;
+use std::collections::HashMap;
 
 /// Runtime function bindings.
 ///
@@ -130,7 +130,10 @@ impl<'f> FunctionBindings<'f> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn bind<F, Fm, Args>(
-        &mut self, name: impl Into<String>, member: bool, f: F
+        &mut self,
+        name: impl Into<String>,
+        member: bool,
+        f: F,
     ) -> Result<&mut Self, Error>
     where
         F: IntoFunction<'f, Fm, Args>,
@@ -138,7 +141,8 @@ impl<'f> FunctionBindings<'f> {
         Args: Arguments,
     {
         let name = name.into();
-        let entry = self.entries
+        let entry = self
+            .entries
             .entry(name)
             .or_insert_with(FunctionOverloads::new);
         entry.add(member, f.into_function())?;
@@ -165,7 +169,9 @@ impl<'f> FunctionBindings<'f> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn bind_member<F, Fm, Args>(
-        &mut self, name: impl Into<String>, f: F
+        &mut self,
+        name: impl Into<String>,
+        f: F,
     ) -> Result<&mut Self, Error>
     where
         F: IntoFunction<'f, Fm, Args>,
@@ -174,7 +180,7 @@ impl<'f> FunctionBindings<'f> {
     {
         self.bind(name, true, f)
     }
-    
+
     /// Binds a global function implementation.
     ///
     /// Convenience method for binding global functions that can be called from any context.
@@ -194,7 +200,9 @@ impl<'f> FunctionBindings<'f> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn bind_global<F, Fm, Args>(
-        &mut self, name: impl Into<String>, f: F
+        &mut self,
+        name: impl Into<String>,
+        f: F,
     ) -> Result<&mut Self, Error>
     where
         F: IntoFunction<'f, Fm, Args>,
@@ -242,7 +250,9 @@ impl<'f> FunctionBindings<'f> {
     /// Returns a mutable iterator over all function entries.
     ///
     /// The iterator yields `(name, overloads)` pairs and allows modifying the overloads.
-    pub fn entries_mut(&mut self) -> impl Iterator<Item = (&str, &mut FunctionOverloads<Function<'f>>)> {
+    pub fn entries_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&str, &mut FunctionOverloads<Function<'f>>)> {
         self.entries
             .iter_mut()
             .map(|(name, entry)| (name.as_str(), entry))

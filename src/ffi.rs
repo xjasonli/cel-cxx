@@ -1,5 +1,5 @@
-pub(crate) use cel_cxx_ffi::*;
 use crate as rust;
+pub(crate) use cel_cxx_ffi::*;
 
 mod activation;
 mod error;
@@ -62,10 +62,14 @@ impl Ctx {
     }
 
     pub fn descriptor_pool(&self) -> &DescriptorPool {
-        self.descriptor_pool.as_ref().expect("descriptor pool is not initialized")
+        self.descriptor_pool
+            .as_ref()
+            .expect("descriptor pool is not initialized")
     }
 
     pub fn message_factory(&self) -> &MessageFactory {
-        self.message_factory.as_ref().expect("message factory is not initialized")
+        self.message_factory
+            .as_ref()
+            .expect("message factory is not initialized")
     }
 }

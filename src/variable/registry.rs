@@ -11,10 +11,10 @@
 //! - **Lookup**: Efficient variable type resolution during compilation
 //! - **Iteration**: Enumerate all declared variables
 
-use std::collections::HashMap;
-use crate::ValueType;
 use crate::values::*;
 use crate::Error;
+use crate::ValueType;
+use std::collections::HashMap;
 
 /// Compile-time variable registry.
 ///
@@ -47,7 +47,6 @@ pub struct VariableRegistry {
     entries: HashMap<String, VariableDeclOrConstant>,
 }
 
-
 impl VariableRegistry {
     /// Creates a new empty variable registry.
     ///
@@ -55,7 +54,9 @@ impl VariableRegistry {
     ///
     /// A new empty `VariableRegistry`
     pub fn new() -> Self {
-        Self { entries: HashMap::new() }
+        Self {
+            entries: HashMap::new(),
+        }
     }
 
     /// Defines a constant value.
@@ -90,11 +91,16 @@ impl VariableRegistry {
     /// ```
     ///
     /// [`IntoConstant`]: crate::values::IntoConstant
-    pub fn define_constant<T>(&mut self, name: impl Into<String>, value: T) -> Result<&mut Self, Error>
+    pub fn define_constant<T>(
+        &mut self,
+        name: impl Into<String>,
+        value: T,
+    ) -> Result<&mut Self, Error>
     where
         T: IntoConstant,
     {
-        self.entries.insert(name.into(), VariableDeclOrConstant::new_constant(value));
+        self.entries
+            .insert(name.into(), VariableDeclOrConstant::new_constant(value));
         Ok(self)
     }
 
@@ -135,7 +141,8 @@ impl VariableRegistry {
     where
         T: TypedValue,
     {
-        self.entries.insert(name.into(), VariableDeclOrConstant::new(T::value_type()));
+        self.entries
+            .insert(name.into(), VariableDeclOrConstant::new(T::value_type()));
         Ok(self)
     }
 
@@ -275,7 +282,10 @@ impl VariableDeclOrConstant {
     where
         T: IntoConstant,
     {
-        Self { r#type: T::value_type(), constant: Some(value.into_constant()) }
+        Self {
+            r#type: T::value_type(),
+            constant: Some(value.into_constant()),
+        }
     }
 
     /// Creates a new variable declaration entry.
@@ -288,7 +298,10 @@ impl VariableDeclOrConstant {
     ///
     /// New `VariableDeclOrConstant` containing the type declaration
     pub fn new(r#type: ValueType) -> Self {
-        Self { r#type, constant: None }
+        Self {
+            r#type,
+            constant: None,
+        }
     }
 
     /// Returns whether this entry is a constant.

@@ -1,6 +1,6 @@
-use std::hash::Hash;
 use super::*;
 use crate::IntoError;
+use std::hash::Hash;
 
 /// Trait for types that have a known CEL type.
 ///
@@ -88,12 +88,12 @@ impl<T: TypedValue + ?Sized> TypedValue for &mut T {
 ///
 /// ```rust
 /// use cel_cxx::{IntoValue, Value};
-/// 
+///
 /// // Built-in types can be converted directly
 /// let string_val = "hello".into_value();
 /// let int_val = 42i64.into_value();
 /// let bool_val = true.into_value();
-/// 
+///
 /// assert_eq!(string_val, Value::String("hello".to_string().into()));
 /// assert_eq!(int_val, Value::Int(42));
 /// assert_eq!(bool_val, Value::Bool(true));
@@ -121,13 +121,13 @@ pub trait IntoValue: Sized {
     fn into_value(self) -> Value;
 }
 
-impl<T: IntoValue + Clone + ?Sized> IntoValue for &T {
+impl<T: IntoValue + Clone> IntoValue for &T {
     fn into_value(self) -> Value {
         T::into_value(Clone::clone(self))
     }
 }
 
-impl<T: IntoValue + Clone + ?Sized> IntoValue for &mut T {
+impl<T: IntoValue + Clone> IntoValue for &mut T {
     fn into_value(self) -> Value {
         T::into_value(Clone::clone(self))
     }
@@ -160,7 +160,7 @@ impl<T: IntoValue + Clone + ?Sized> IntoValue for &mut T {
 ///
 /// ```rust
 /// use cel_cxx::{FromValue, Value};
-/// 
+///
 /// let cel_string = Value::String("hello".to_string().into());
 /// let rust_string = String::from_value(&cel_string)?;
 /// assert_eq!(rust_string, "hello");
@@ -175,9 +175,9 @@ impl<T: IntoValue + Clone + ?Sized> IntoValue for &mut T {
 ///
 /// ```rust
 /// use cel_cxx::{FromValue, Value};
-/// 
+///
 /// let cel_string = Value::String("hello world".to_string().into());
-/// 
+///
 /// // Convert to borrowed string slice (zero-copy)
 /// let borrowed_str = <&str>::from_value(&cel_string)?;
 /// assert_eq!(borrowed_str, "hello world");
@@ -269,7 +269,10 @@ impl FromValueError {
     /// // Error created successfully with custom type description
     /// ```
     pub fn new(value: Value, to: impl ToString) -> Self {
-        Self { value, to_type: to.to_string() }
+        Self {
+            value,
+            to_type: to.to_string(),
+        }
     }
 
     /// Create a new conversion error with automatic type name detection.
@@ -300,13 +303,20 @@ impl FromValueError {
 
 impl std::fmt::Display for FromValueError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "cannot convert value {} to type {}", self.value, self.to_type)
+        write!(
+            f,
+            "cannot convert value {} to type {}",
+            self.value, self.to_type
+        )
     }
 }
 
 impl From<FromValueError> for Error {
     fn from(error: FromValueError) -> Self {
-        Error::invalid_argument(format!("cannot convert value {} to type {}", error.value, error.to_type))
+        Error::invalid_argument(format!(
+            "cannot convert value {} to type {}",
+            error.value, error.to_type
+        ))
     }
 }
 
@@ -327,8 +337,7 @@ impl From<FromValueError> for Error {
 pub trait TypedMapKey: TypedValue {
     /// Returns the CEL map key type for this type.
     fn mapkey_type() -> MapKeyType {
-        MapKeyType::try_from(Self::value_type())
-            .expect("invalid map key type")
+        MapKeyType::try_from(Self::value_type()).expect("invalid map key type")
     }
 }
 
@@ -372,13 +381,13 @@ pub trait IntoMapKey: IntoValue + Eq + Hash + Ord {
     }
 }
 
-impl<T: IntoMapKey + Clone + ?Sized> IntoMapKey for &T {
+impl<T: IntoMapKey + Clone> IntoMapKey for &T {
     fn into_mapkey(self) -> MapKey {
         T::into_mapkey(Clone::clone(self))
     }
 }
 
-impl<T: IntoMapKey + Clone + ?Sized> IntoMapKey for &mut T {
+impl<T: IntoMapKey + Clone> IntoMapKey for &mut T {
     fn into_mapkey(self) -> MapKey {
         T::into_mapkey(Clone::clone(self))
     }
@@ -417,7 +426,7 @@ where
 }
 
 /// Error type for failed map key conversions.
-/// 
+///
 /// This error is returned when attempting to convert a CEL [`MapKey`] to a Rust type
 /// using the [`FromMapKey`] trait, but the conversion fails due to type mismatch.
 ///
@@ -513,7 +522,11 @@ impl FromMapKeyError {
 
 impl std::fmt::Display for FromMapKeyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "cannot convert map key {} to type {}", self.key, self.to_type)
+        write!(
+            f,
+            "cannot convert map key {} to type {}",
+            self.key, self.to_type
+        )
     }
 }
 
@@ -525,7 +538,10 @@ impl From<FromMapKeyError> for FromValueError {
 
 impl From<FromMapKeyError> for Error {
     fn from(error: FromMapKeyError) -> Self {
-        Error::invalid_argument(format!("cannot convert map key {} to type {}", error.key, error.to_type))
+        Error::invalid_argument(format!(
+            "cannot convert map key {} to type {}",
+            error.key, error.to_type
+        ))
     }
 }
 
@@ -615,13 +631,13 @@ pub trait IntoConstant: IntoValue + TypedValue {
     }
 }
 
-impl<T: IntoConstant + Clone + ?Sized> IntoConstant for &T {
+impl<T: IntoConstant + Clone> IntoConstant for &T {
     fn into_constant(self) -> Constant {
         T::into_constant(Clone::clone(self))
     }
 }
 
-impl<T: IntoConstant + Clone + ?Sized> IntoConstant for &mut T {
+impl<T: IntoConstant + Clone> IntoConstant for &mut T {
     fn into_constant(self) -> Constant {
         T::into_constant(Clone::clone(self))
     }
@@ -643,15 +659,14 @@ impl<T: IntoConstant + Clone + ?Sized> IntoConstant for &mut T {
 pub trait IntoResult: private::Sealed {
     /// Convert the value into a CEL result.
     fn into_result(self) -> Result<Value, Error>;
-    
+
     /// Get the CEL type of the resulting value.
     fn value_type() -> ValueType;
 }
 
 impl<T: IntoValue + TypedValue, E: IntoError> IntoResult for Result<T, E> {
     fn into_result(self) -> Result<Value, Error> {
-        self.map(|v| v.into_value())
-            .map_err(|e| e.into_error())
+        self.map(|v| v.into_value()).map_err(|e| e.into_error())
     }
 
     fn value_type() -> ValueType {
@@ -672,7 +687,6 @@ impl<T: IntoValue + TypedValue> IntoResult for T {
 // Sealed implementations for IntoResult
 impl<T: IntoValue + TypedValue, E: IntoError> private::Sealed for Result<T, E> {}
 impl<T: IntoValue + TypedValue> private::Sealed for T {}
-
 
 mod private {
     pub trait Sealed {}

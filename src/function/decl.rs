@@ -58,8 +58,8 @@
 //! ```
 
 use super::count_args;
-use crate::values::*;
 use crate::types::*;
+use crate::values::*;
 
 // =============================================================================
 // Public API
@@ -190,7 +190,7 @@ macro_rules! impl_function_decl {
 
             const ARGUMENTS_LEN: usize = count_args!($($ty),*);
         }
-        
+
         // Sealed implementation for function pointer types
         impl<R, $($ty,)*> private::Sealed for fn($($ty,)*) -> R
         where
@@ -231,7 +231,7 @@ mod tests {
     fn test_zero_parameter_function() {
         // Test function with no parameters
         type ConstantFn = fn() -> i64;
-        
+
         assert_eq!(ConstantFn::arguments(), vec![]);
         assert_eq!(ConstantFn::result(), ValueType::Int);
     }
@@ -240,7 +240,7 @@ mod tests {
     fn test_single_parameter_function() {
         // Test function with one parameter
         type SquareFn = fn(i64) -> i64;
-        
+
         assert_eq!(SquareFn::arguments(), vec![ValueType::Int]);
         assert_eq!(SquareFn::result(), ValueType::Int);
     }
@@ -249,8 +249,11 @@ mod tests {
     fn test_multiple_parameter_function() {
         // Test function with multiple parameters
         type AddFn = fn(i64, i64, i64) -> i64;
-        
-        assert_eq!(AddFn::arguments(), vec![ValueType::Int, ValueType::Int, ValueType::Int]);
+
+        assert_eq!(
+            AddFn::arguments(),
+            vec![ValueType::Int, ValueType::Int, ValueType::Int]
+        );
         assert_eq!(AddFn::result(), ValueType::Int);
     }
 
@@ -258,8 +261,11 @@ mod tests {
     fn test_mixed_type_function() {
         // Test function with mixed argument types
         type FormatFn = fn(String, i64, bool) -> String;
-        
-        assert_eq!(FormatFn::arguments(), vec![ValueType::String, ValueType::Int, ValueType::Bool]);
+
+        assert_eq!(
+            FormatFn::arguments(),
+            vec![ValueType::String, ValueType::Int, ValueType::Bool]
+        );
         assert_eq!(FormatFn::result(), ValueType::String);
     }
 
@@ -267,8 +273,11 @@ mod tests {
     fn test_string_function() {
         // Test function with string types
         type ConcatFn = fn(String, String) -> String;
-        
-        assert_eq!(ConcatFn::arguments(), vec![ValueType::String, ValueType::String]);
+
+        assert_eq!(
+            ConcatFn::arguments(),
+            vec![ValueType::String, ValueType::String]
+        );
         assert_eq!(ConcatFn::result(), ValueType::String);
     }
 
@@ -276,8 +285,11 @@ mod tests {
     fn test_floating_point_function() {
         // Test function with floating point types
         type MathFn = fn(f64, f64) -> f64;
-        
-        assert_eq!(MathFn::arguments(), vec![ValueType::Double, ValueType::Double]);
+
+        assert_eq!(
+            MathFn::arguments(),
+            vec![ValueType::Double, ValueType::Double]
+        );
         assert_eq!(MathFn::result(), ValueType::Double);
     }
 
@@ -285,7 +297,7 @@ mod tests {
     fn test_boolean_function() {
         // Test function with boolean types
         type LogicFn = fn(bool, bool) -> bool;
-        
+
         assert_eq!(LogicFn::arguments(), vec![ValueType::Bool, ValueType::Bool]);
         assert_eq!(LogicFn::result(), ValueType::Bool);
     }
@@ -294,7 +306,7 @@ mod tests {
     fn test_maximum_parameters() {
         // Test function with maximum supported parameters (10)
         type MaxParamFn = fn(i64, i64, i64, i64, i64, i64, i64, i64, i64, i64) -> i64;
-        
+
         let expected_args = vec![ValueType::Int; 10];
         assert_eq!(MaxParamFn::arguments(), expected_args);
         assert_eq!(MaxParamFn::result(), ValueType::Int);

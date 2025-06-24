@@ -1,5 +1,5 @@
+use super::{impl_from, impl_into, impl_typed};
 use crate::{types::*, values::*};
-use super::{impl_typed, impl_into, impl_from};
 
 impl_typed!(
     Double: Value {

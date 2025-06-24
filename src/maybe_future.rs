@@ -15,7 +15,7 @@
 //!
 //! # Documentation Generation
 //!
-//! **Important**: When building documentation with `--all-features` (as on docs.rs), only the 
+//! **Important**: When building documentation with `--all-features` (as on docs.rs), only the
 //! async variant is shown because the `async` feature is enabled. The synchronous variant
 //! (simple type alias) is only visible when building docs without the `async` feature.
 //!
@@ -50,7 +50,7 @@
 //!     Ok(())
 //! }
 //!
-//! // Async mode (with async feature) 
+//! // Async mode (with async feature)
 //! #[cfg(feature = "async")]
 //! async fn example_usage<'a>(maybe_future: MaybeFuture<'a, i32, Error>) -> Result<(), Error> {
 //!     match maybe_future {
@@ -140,10 +140,9 @@ mod imp {
     pub type MaybeFuture<'a, T, E = crate::Error> = Result<T, E>;
 }
 
-
 #[cfg(feature = "async")]
 mod imp {
-    use futures::future::{Future, BoxFuture};
+    use futures::future::{BoxFuture, Future};
     use std::pin::Pin;
 
     /// A type that can represent either an immediate result or a future.
@@ -196,9 +195,9 @@ mod imp {
     /// use cel_cxx::MaybeFuture;
     /// use futures::future::BoxFuture;
     ///
-    /// let future_result: BoxFuture<'_, Result<i32, &str>> = 
+    /// let future_result: BoxFuture<'_, Result<i32, &str>> =
     ///     Box::pin(async { Ok(42) });
-    /// let maybe_future: MaybeFuture<'_, i32, &str> = 
+    /// let maybe_future: MaybeFuture<'_, i32, &str> =
     ///     MaybeFuture::Future(future_result);
     ///
     /// assert!(maybe_future.is_future());
@@ -300,7 +299,7 @@ mod imp {
                 MaybeFuture::Future(_) => None,
             }
         }
-        
+
         /// Returns a mutable reference to the future if this is a future.
         pub fn future_mut(&mut self) -> Option<&mut BoxFuture<'a, Result<T, E>>> {
             match self {

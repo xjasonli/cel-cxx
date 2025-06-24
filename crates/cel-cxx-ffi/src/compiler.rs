@@ -1,10 +1,10 @@
-use std::pin::Pin;
 use crate::absl::Status;
-use crate::protobuf::DescriptorPool;
-use crate::parser::{ParserBuilder, Parser};
-use crate::checker::{ValidationResult, TypeCheckerBuilder, TypeChecker};
+use crate::checker::{CheckerLibrary, CheckerOptions};
+use crate::checker::{TypeChecker, TypeCheckerBuilder, ValidationResult};
 use crate::parser::ParserOptions;
-use crate::checker::{CheckerOptions, CheckerLibrary};
+use crate::parser::{Parser, ParserBuilder};
+use crate::protobuf::DescriptorPool;
+use std::pin::Pin;
 
 #[cxx::bridge]
 mod ffi {
@@ -38,7 +38,9 @@ mod ffi {
 
         type CompilerBuilder<'a>;
         #[rust_name = "checker_builder"]
-        fn GetCheckerBuilder<'a>(self: Pin<&mut CompilerBuilder<'a>>) -> Pin<&mut TypeCheckerBuilder<'a>>;
+        fn GetCheckerBuilder<'a>(
+            self: Pin<&mut CompilerBuilder<'a>>,
+        ) -> Pin<&mut TypeCheckerBuilder<'a>>;
         #[rust_name = "parser_builder"]
         fn GetParserBuilder<'a>(self: Pin<&mut CompilerBuilder<'a>>) -> Pin<&mut ParserBuilder>;
 
@@ -79,7 +81,9 @@ mod ffi {
         // CompilerLibrary
         fn CompilerLibrary_new_standard() -> UniquePtr<CompilerLibrary>;
         fn CompilerLibrary_new_optional() -> UniquePtr<CompilerLibrary>;
-        fn CompilerLibrary_from_checker_library(checker_library: UniquePtr<CheckerLibrary>) -> UniquePtr<CompilerLibrary>;
+        fn CompilerLibrary_from_checker_library(
+            checker_library: UniquePtr<CheckerLibrary>,
+        ) -> UniquePtr<CompilerLibrary>;
     }
 }
 
@@ -106,7 +110,9 @@ impl<'a> Compiler<'a> {
 
 impl<'a> std::fmt::Debug for Compiler<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Compiler {{ type_checker: {:?}, parser: {:?} }}",
+        write!(
+            f,
+            "Compiler {{ type_checker: {:?}, parser: {:?} }}",
             self.type_checker(),
             self.parser(),
         )
@@ -131,7 +137,10 @@ impl<'a> CompilerBuilder<'a> {
         }
     }
 
-    pub fn add_library(self: Pin<&mut Self>, library: cxx::UniquePtr<CompilerLibrary>) -> Result<(), Status> {
+    pub fn add_library(
+        self: Pin<&mut Self>,
+        library: cxx::UniquePtr<CompilerLibrary>,
+    ) -> Result<(), Status> {
         let status = ffi::CompilerBuilder_add_library(self, library);
         if status.is_ok() {
             Ok(())
@@ -171,7 +180,9 @@ impl CompilerLibrary {
         ffi::CompilerLibrary_new_optional()
     }
 
-    pub fn from_checker_library(checker_library: cxx::UniquePtr<CheckerLibrary>) -> cxx::UniquePtr<Self> {
+    pub fn from_checker_library(
+        checker_library: cxx::UniquePtr<CheckerLibrary>,
+    ) -> cxx::UniquePtr<Self> {
         ffi::CompilerLibrary_from_checker_library(checker_library)
     }
 }

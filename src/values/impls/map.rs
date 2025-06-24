@@ -1,7 +1,7 @@
-use crate::{types::*, values::*};
 use super::*;
+use crate::{types::*, values::*};
 
-use std::collections::{HashMap, BTreeMap, VecDeque, LinkedList};
+use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
 
 impl_typed!(
     Map: Value {
@@ -41,7 +41,7 @@ impl_into!(
 
         @[K: IntoMapKey + Clone, V: IntoValue + Clone]
         &[(K, V)] => |self|
-            self.into_iter()
+            self.iter()
                 .map(|(k, v)| (k.into_mapkey(), v.into_value()))
                 .collect(),
 
@@ -69,6 +69,7 @@ type VecMap<K, V> = Vec<(K, V)>;
 type VecDequeMap<K, V> = VecDeque<(K, V)>;
 type LinkedListMap<K, V> = LinkedList<(K, V)>;
 
+#[rustfmt::skip]
 impl_from_map!(
     HashMap,
 

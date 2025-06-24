@@ -1,5 +1,5 @@
-use itertools::Itertools;
 use super::{MapKey, Value};
+use itertools::Itertools;
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -18,9 +18,8 @@ impl std::fmt::Display for Value {
             Value::Map(m) => write!(
                 f,
                 "{{{}}}",
-                m.iter().format_with(", ", |(k, v), f| {
-                    f(&format_args!("{}: {}", k, v))
-                })
+                m.iter()
+                    .format_with(", ", |(k, v), f| { f(&format_args!("{}: {}", k, v)) })
             ),
             Value::Unknown(_u) => write!(f, ""),
             Value::Type(t) => write!(f, "{}", t),
@@ -45,9 +44,9 @@ impl std::fmt::Display for MapKey {
 fn display_bytes<B: AsRef<[u8]>>(buf: B) -> String {
     String::from_utf8(
         buf.as_ref()
-           .iter()
-           .map(|b| std::ascii::escape_default(*b))
-           .flatten()
-           .collect(),
-    ).unwrap()
+            .iter()
+            .flat_map(|b| std::ascii::escape_default(*b))
+            .collect(),
+    )
+    .unwrap()
 }

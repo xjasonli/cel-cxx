@@ -11,19 +11,21 @@
 //!   [tokio](https://github.com/tokio-rs/tokio).
 //!
 
+use async_scoped::spawner::{Blocker, FuncSpawner, Spawner};
 use futures::Future;
-use async_scoped::spawner::{Spawner, Blocker, FuncSpawner};
 
 pub(crate) mod abort;
 
 /// Runtime trait for CEL asynchronous runtime.
 pub trait Runtime: 'static {
     /// Scoped spawner for CEL asynchronous runtime.
-    type ScopedSpawner
-        : Spawner<()>
+    type ScopedSpawner: Spawner<()>
         + FuncSpawner<(), SpawnHandle = <Self::ScopedSpawner as Spawner<()>>::SpawnHandle>
         + Blocker
-        + Default + Send + Sync + 'static;
+        + Default
+        + Send
+        + Sync
+        + 'static;
 
     /// Blocking runner for CEL asynchronous runtime.
     type BlockingRunner: BlockingRunner;

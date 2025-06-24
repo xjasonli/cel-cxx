@@ -10,12 +10,12 @@
 //! - **Efficient lookup**: Fast variable resolution during evaluation
 //! - **Lifetime management**: Proper handling of borrowed values
 
-use std::collections::HashMap;
 use crate::function::*;
-use crate::ValueType;
-use crate::values::*;
 use crate::marker::*;
+use crate::values::*;
 use crate::Error;
+use crate::ValueType;
+use std::collections::HashMap;
 
 /// Runtime variable bindings.
 ///
@@ -97,13 +97,12 @@ impl<'f> VariableBindings<'f> {
     ///     .bind("username", "alice")?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn bind<T>(
-        &mut self, name: impl Into<String>, value: T
-    ) -> Result<&mut Self, Error>
+    pub fn bind<T>(&mut self, name: impl Into<String>, value: T) -> Result<&mut Self, Error>
     where
         T: IntoValue + TypedValue,
     {
-        self.entries.insert(name.into(), VariableBinding::from_value(value));
+        self.entries
+            .insert(name.into(), VariableBinding::from_value(value));
         Ok(self)
     }
 
@@ -141,13 +140,16 @@ impl<'f> VariableBindings<'f> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn bind_provider<F, Fm>(
-        &mut self, name: impl Into<String>, provider: F
+        &mut self,
+        name: impl Into<String>,
+        provider: F,
     ) -> Result<&mut Self, Error>
     where
         F: IntoFunction<'f, Fm>,
         Fm: FnMarker,
     {
-        self.entries.insert(name.into(), VariableBinding::from_provider(provider));
+        self.entries
+            .insert(name.into(), VariableBinding::from_provider(provider));
         Ok(self)
     }
 
@@ -185,7 +187,8 @@ impl<'f> VariableBindings<'f> {
     ///
     /// Iterator yielding `(&str, &VariableBinding)` pairs
     pub fn entries(&self) -> impl Iterator<Item = (&str, &VariableBinding<'f>)> {
-        self.entries.iter()
+        self.entries
+            .iter()
             .map(|(name, entry)| (name.as_str(), entry))
     }
 
@@ -197,7 +200,8 @@ impl<'f> VariableBindings<'f> {
     ///
     /// Iterator yielding `(&str, &mut VariableBinding)` pairs
     pub fn entries_mut(&mut self) -> impl Iterator<Item = (&str, &mut VariableBinding<'f>)> {
-        self.entries.iter_mut()
+        self.entries
+            .iter_mut()
             .map(|(name, entry)| (name.as_str(), entry))
     }
 

@@ -27,19 +27,35 @@ pub(crate) fn error_to_rust(ffi_status: &Status) -> rust::Error {
         StatusCode::Ok => rust::Error::ok(ffi_status.message().to_string_lossy()),
         StatusCode::Cancelled => rust::Error::cancelled(ffi_status.message().to_string_lossy()),
         StatusCode::Unknown => rust::Error::unknown(ffi_status.message().to_string_lossy()),
-        StatusCode::InvalidArgument => rust::Error::invalid_argument(ffi_status.message().to_string_lossy()),
-        StatusCode::DeadlineExceeded => rust::Error::deadline_exceeded(ffi_status.message().to_string_lossy()),
+        StatusCode::InvalidArgument => {
+            rust::Error::invalid_argument(ffi_status.message().to_string_lossy())
+        }
+        StatusCode::DeadlineExceeded => {
+            rust::Error::deadline_exceeded(ffi_status.message().to_string_lossy())
+        }
         StatusCode::NotFound => rust::Error::not_found(ffi_status.message().to_string_lossy()),
-        StatusCode::AlreadyExists => rust::Error::already_exists(ffi_status.message().to_string_lossy()),
-        StatusCode::PermissionDenied => rust::Error::permission_denied(ffi_status.message().to_string_lossy()),
-        StatusCode::ResourceExhausted => rust::Error::resource_exhausted(ffi_status.message().to_string_lossy()),
-        StatusCode::FailedPrecondition => rust::Error::failed_precondition(ffi_status.message().to_string_lossy()),
+        StatusCode::AlreadyExists => {
+            rust::Error::already_exists(ffi_status.message().to_string_lossy())
+        }
+        StatusCode::PermissionDenied => {
+            rust::Error::permission_denied(ffi_status.message().to_string_lossy())
+        }
+        StatusCode::ResourceExhausted => {
+            rust::Error::resource_exhausted(ffi_status.message().to_string_lossy())
+        }
+        StatusCode::FailedPrecondition => {
+            rust::Error::failed_precondition(ffi_status.message().to_string_lossy())
+        }
         StatusCode::Aborted => rust::Error::aborted(ffi_status.message().to_string_lossy()),
         StatusCode::OutOfRange => rust::Error::out_of_range(ffi_status.message().to_string_lossy()),
-        StatusCode::Unimplemented => rust::Error::unimplemented(ffi_status.message().to_string_lossy()),
+        StatusCode::Unimplemented => {
+            rust::Error::unimplemented(ffi_status.message().to_string_lossy())
+        }
         StatusCode::Internal => rust::Error::internal(ffi_status.message().to_string_lossy()),
         StatusCode::Unavailable => rust::Error::unavailable(ffi_status.message().to_string_lossy()),
         StatusCode::DataLoss => rust::Error::data_loss(ffi_status.message().to_string_lossy()),
-        StatusCode::Unauthenticated => rust::Error::unauthenticated(ffi_status.message().to_string_lossy()),
+        StatusCode::Unauthenticated => {
+            rust::Error::unauthenticated(ffi_status.message().to_string_lossy())
+        }
     }
 }

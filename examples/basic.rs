@@ -11,9 +11,7 @@ fn main() -> Result<(), Error> {
     let env = Env::builder()
         .declare_variable::<String>("name")?
         .declare_variable::<i64>("age")?
-        .register_global_function("greet", |name: &str| {
-            format!("Hello, {}!", name)
-        })?
+        .register_global_function("greet", |name: &str| format!("Hello, {}!", name))?
         .register_global_function("is_adult", |age: i64| age >= 18)?
         .build()?;
 
@@ -38,5 +36,3 @@ fn main() -> Result<(), Error> {
     println!("\n✅ Basic example completed!");
     Ok(())
 }
-
-

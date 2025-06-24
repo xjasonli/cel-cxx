@@ -57,7 +57,12 @@ pub(crate) fn value_from_rust<'a>(
         rust::Value::Map(m) => {
             let mut map_value_builder = MapValueBuilder::new(arena);
             for (k, v) in m {
-                let key = value_from_rust(&k.clone().into_value(), arena, descriptor_pool, message_factory);
+                let key = value_from_rust(
+                    &k.clone().into_value(),
+                    arena,
+                    descriptor_pool,
+                    message_factory,
+                );
                 let value = value_from_rust(v, arena, descriptor_pool, message_factory);
                 map_value_builder.pin_mut().put(&key, &value);
             }
@@ -82,7 +87,8 @@ pub(crate) fn value_from_rust<'a>(
             Value::new_opaque(&opaque_value)
         }
         rust::Value::Optional(o) => {
-            let optional_value = optional_value_from_rust(o, arena, descriptor_pool, message_factory);
+            let optional_value =
+                optional_value_from_rust(o, arena, descriptor_pool, message_factory);
             Value::new_optional(&optional_value)
         }
     }
@@ -131,33 +137,49 @@ pub(crate) fn value_to_rust<'a>(
         }
         ValueKind::Timestamp => {
             let timestamp_value = value.get_timestamp();
-            Ok(rust::Value::Timestamp(timestamp_value.native_value().into()))
+            Ok(rust::Value::Timestamp(
+                timestamp_value.native_value().into(),
+            ))
         }
         ValueKind::List => {
             let mut result = Vec::new();
             let list_value = value.get_list();
-            let mut iter = list_value.new_iterator()
+            let mut iter = list_value
+                .new_iterator()
                 .map_err(|e| super::error_to_rust(&e))?;
             while iter.pin_mut().has_next() {
-                let item = iter.pin_mut()
+                let item = iter
+                    .pin_mut()
                     .next1(descriptor_pool, message_factory, arena)
                     .map_err(|e| super::error_to_rust(&e))?;
-                result.push(value_to_rust(&item, arena, descriptor_pool, message_factory)?);
+                result.push(value_to_rust(
+                    &item,
+                    arena,
+                    descriptor_pool,
+                    message_factory,
+                )?);
             }
             Ok(rust::Value::List(result))
         }
         ValueKind::Map => {
             let mut result = std::collections::HashMap::new();
             let map_value = value.get_map();
-            let mut iter = map_value.new_iterator()
+            let mut iter = map_value
+                .new_iterator()
                 .map_err(|e| super::error_to_rust(&e))?;
             while iter.pin_mut().has_next() {
-                let (key, value) = iter.pin_mut()
+                let (key, value) = iter
+                    .pin_mut()
                     .next2(descriptor_pool, message_factory, arena)
                     .map_err(|e| super::error_to_rust(&e))?;
                 result.insert(
-                    rust::MapKey::from_value(value_to_rust(&key, arena, descriptor_pool, message_factory)?)
-                        .map_err(|v| rust::Error::invalid_argument(v.to_string()))?,
+                    rust::MapKey::from_value(value_to_rust(
+                        &key,
+                        arena,
+                        descriptor_pool,
+                        message_factory,
+                    )?)
+                    .map_err(|v| rust::Error::invalid_argument(v.to_string()))?,
                     value_to_rust(&value, arena, descriptor_pool, message_factory)?,
                 );
             }
@@ -172,27 +194,28 @@ pub(crate) fn value_to_rust<'a>(
         }
         ValueKind::Error => {
             let error_value = value.get_error();
-            Ok(rust::Value::Error(error_to_rust(&error_value.native_value())))
+            Ok(rust::Value::Error(error_to_rust(
+                &error_value.native_value(),
+            )))
         }
         ValueKind::Opaque => {
             if value.is_optional() {
                 let optional_value = value.get_optional();
                 let result = if optional_value.has_value() {
-                    rust::Optional::new(
-                        value_to_rust(
-                            &optional_value.get_value(),
-                            arena,
-                            descriptor_pool,
-                            message_factory,
-                        )?
-                    )
+                    rust::Optional::new(value_to_rust(
+                        &optional_value.get_value(),
+                        arena,
+                        descriptor_pool,
+                        message_factory,
+                    )?)
                 } else {
                     rust::Optional::none()
                 };
                 Ok(rust::Value::Optional(result))
             } else {
                 let opaque_value = value.get_opaque();
-                let result = opaque_value.downcast::<FfiOpaqueValueImpl>()
+                let result = opaque_value
+                    .downcast::<FfiOpaqueValueImpl>()
                     .map(|v| v.0)
                     .ok_or(rust::Error::internal("Failed to downcast opaque value"))?;
                 Ok(rust::Value::Opaque(result))
@@ -216,7 +239,11 @@ impl core::cmp::PartialEq for FfiOpaqueValueImpl {
 }
 
 impl FfiOpaqueValue for FfiOpaqueValueImpl {
-    fn opaque_type<'a>(&self, arena: &'a Arena, descriptor_pool: &'a DescriptorPool) -> OpaqueType<'a> {
+    fn opaque_type<'a>(
+        &self,
+        arena: &'a Arena,
+        descriptor_pool: &'a DescriptorPool,
+    ) -> OpaqueType<'a> {
         super::opaque_type_from_rust(&self.0.opaque_type(), arena, descriptor_pool)
     }
 }
@@ -224,7 +251,7 @@ impl FfiOpaqueValue for FfiOpaqueValueImpl {
 pub(crate) fn opaque_value_from_rust<'a>(
     value: &rust::OpaqueValue,
     arena: &'a Arena,
-    descriptor_pool: &'a DescriptorPool
+    descriptor_pool: &'a DescriptorPool,
 ) -> cxx::UniquePtr<OpaqueValue<'a>> {
     let ffi = FfiOpaqueValueImpl(value.clone());
     OpaqueValue::new(arena, descriptor_pool, ffi)

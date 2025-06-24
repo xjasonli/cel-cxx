@@ -117,11 +117,8 @@ use super::*;
 ///     }
 /// }
 /// ```
-pub trait Opaque
-    : dyn_clone::DynClone
-    + std::fmt::Debug + std::fmt::Display
-    + Send + Sync
-    + private::Sealed
+pub trait Opaque:
+    dyn_clone::DynClone + std::fmt::Debug + std::fmt::Display + Send + Sync + private::Sealed
 {
     /// Returns the opaque type information for this value.
     ///
@@ -172,11 +169,8 @@ dyn_clone::clone_trait_object!(Opaque);
 ///
 /// // All necessary traits are automatically implemented by the derive macro
 /// ```
-pub trait TypedOpaque
-    : Opaque
-    + Clone + PartialEq
-    + std::fmt::Debug + std::fmt::Display
-    + Send + Sync
+pub trait TypedOpaque:
+    Opaque + Clone + PartialEq + std::fmt::Debug + std::fmt::Display + Send + Sync
 {
     /// Returns the static opaque type for this value type.
     fn opaque_type() -> OpaqueType;
@@ -232,8 +226,7 @@ impl std::cmp::PartialEq for dyn Opaque {
 }
 impl std::cmp::Eq for dyn Opaque {}
 
-
-impl<T: TypedOpaque + ?Sized> Opaque for T {
+impl<T: TypedOpaque> Opaque for T {
     fn opaque_type(&self) -> OpaqueType {
         <Self as TypedOpaque>::opaque_type()
     }
@@ -252,12 +245,18 @@ mod private {
     }
 
     impl<T: Opaque + PartialEq> Sealed for T {
-        fn into_any(self: Box<Self>) -> Box<dyn Any> { self }
-        fn as_any(&self) -> &dyn Any { self }
-        fn as_any_mut(&mut self) -> &mut dyn Any { self }
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self
+        }
 
         fn dyn_eq(&self, other: &dyn Any) -> bool {
-            other.downcast_ref::<T>().map_or(false, |other| self == other)
+            other.downcast_ref::<T>() == Some(self)
         }
     }
 }

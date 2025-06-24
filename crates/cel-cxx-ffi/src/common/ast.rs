@@ -1,5 +1,5 @@
-use crate::protobuf::{Arena, DescriptorPool};
 use crate::common::Type;
+use crate::protobuf::{Arena, DescriptorPool};
 
 #[cxx::bridge]
 mod ffi {

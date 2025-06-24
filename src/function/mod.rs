@@ -179,11 +179,11 @@
 //! # }
 //! ```
 
-use crate::values::*;
-use crate::types::*;
 use crate::error::*;
-use crate::maybe_future::*;
 use crate::marker::*;
+use crate::maybe_future::*;
+use crate::types::*;
+use crate::values::*;
 use std::sync::Arc;
 
 pub mod decl;
@@ -267,8 +267,8 @@ pub trait Arguments: Sized + private::Sealed {}
 /// # use cel_cxx::function::IntoFunction;
 /// # use std::convert::Infallible;
 /// fn add(a: i64, b: i64) -> i64 { a + b }
-/// fn divide(a: i64, b: i64) -> Result<f64, Infallible> { 
-///     Ok(a as f64 / b as f64) 
+/// fn divide(a: i64, b: i64) -> Result<f64, Infallible> {
+///     Ok(a as f64 / b as f64)
 /// }
 ///
 /// let add_func = add.into_function();
@@ -374,7 +374,9 @@ pub struct Function<'f> {
 impl<'f> Function<'f> {
     /// Create a new function implementation from an `ErasedFn`.
     fn new(inner: impl ErasedFn + 'f) -> Self {
-        Self { inner: Arc::new(inner) }
+        Self {
+            inner: Arc::new(inner),
+        }
     }
 
     /// Call the function with the provided arguments.
@@ -390,7 +392,7 @@ impl<'f> Function<'f> {
     /// # Returns
     ///
     /// Returns a [`MaybeFuture`] that represents either an immediate result or a future:
-    /// 
+    ///
     /// - **Without `async` feature**: [`MaybeFuture`] is `Result<Value, Error>` - returns immediately
     /// - **With `async` feature**: [`MaybeFuture`] can be either:
     ///   - `MaybeFuture::Result(Result<Value, Error>)` for synchronous functions
@@ -423,15 +425,15 @@ impl<'f> Function<'f> {
     ///
     /// let args = vec![Value::Int(10), Value::Int(20)];
     /// let maybe_result = func.call(args);
-    /// 
+    ///
     /// // In sync mode, extract the result directly
     /// # #[cfg(not(feature = "async"))]
     /// let result = maybe_result.unwrap();
-    /// 
+    ///
     /// // In async mode, check if it's an immediate result
     /// # #[cfg(feature = "async")]
     /// let result = maybe_result.expect_result("shoud be result")?;
-    /// 
+    ///
     /// assert_eq!(result, Value::Int(30));
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
@@ -448,17 +450,17 @@ impl<'f> Function<'f> {
     ///
     /// let args = vec![Value::Int(6), Value::Int(7)];
     /// let maybe_result = func.call(args);
-    /// 
+    ///
     /// // For async functions, extract and await the future
     /// let result = maybe_result.unwrap_future().await.unwrap();
     /// assert_eq!(result, Value::Int(42));
     /// # }
     /// ```
-    pub fn call<'this, 'future>(
-        &'this self,
-        args: Vec<Value>
-    ) -> MaybeFuture<'future, Value, Error>
-    where 'this: 'future, Self: 'future {
+    pub fn call<'this, 'future>(&'this self, args: Vec<Value>) -> MaybeFuture<'future, Value, Error>
+    where
+        'this: 'future,
+        Self: 'future,
+    {
         self.inner.call(args)
     }
 
@@ -523,8 +525,8 @@ impl<'f> Function<'f> {
     /// # use cel_cxx::function::*;
     /// # use cel_cxx::types::ValueType;
     /// # use std::convert::Infallible;
-    /// fn get_message() -> Result<String, Infallible> { 
-    ///     Ok("Hello".to_string()) 
+    /// fn get_message() -> Result<String, Infallible> {
+    ///     Ok("Hello".to_string())
     /// }
     /// let func = get_message.into_function();
     ///
@@ -601,11 +603,10 @@ impl<'f> Function<'f> {
 /// interact with [`Function`] instead.
 trait ErasedFn: Send + Sync {
     /// Call the function with the provided arguments.
-    fn call<'this, 'future>(
-        &'this self,
-        args: Vec<Value>
-    ) -> MaybeFuture<'future, Value, Error>
-    where 'this: 'future, Self: 'future;
+    fn call<'this, 'future>(&'this self, args: Vec<Value>) -> MaybeFuture<'future, Value, Error>
+    where
+        'this: 'future,
+        Self: 'future;
 
     /// Get the expected argument types.
     fn arguments(&self) -> Vec<ValueType>;
@@ -638,7 +639,6 @@ impl_arguments!(A1, A2, A3, A4, A5, A6, A7, A8);
 impl_arguments!(A1, A2, A3, A4, A5, A6, A7, A8, A9);
 impl_arguments!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
 
-
 /// Internal trait for safely converting `FromValue::Output` to function parameter types.
 ///
 /// This trait contains unsafe code for lifetime erasure and should only be used
@@ -650,54 +650,56 @@ trait Argument: FromValue + TypedValue {
     /// This method safely converts a [`Value`] reference to the target type
     /// by first using [`FromValue::from_value`] and then performing controlled
     /// lifetime erasure via [`Self::from_output`].
-    fn make_argument<'a>(value: &'a Value) -> Result<Self, FromValueError> {
+    fn make_argument(value: &Value) -> Result<Self, FromValueError> {
         let output = <Self as FromValue>::from_value(value)?;
         Ok(unsafe { Self::from_output(output) })
     }
 
     /// Convert `FromValue::Output<'a>` to `Self` by erasing lifetime information.
-    /// 
+    ///
     /// # Safety
-    /// 
+    ///
     /// This method performs an unsafe lifetime erasure operation that is only safe
     /// under specific controlled conditions:
-    /// 
-    /// 1. **Memory Layout Guarantee**: The method assumes that `Self` and 
+    ///
+    /// 1. **Memory Layout Guarantee**: The method assumes that `Self` and
     ///    `Self::Output<'a>` have identical memory layouts. This is verified by
     ///    a debug assertion checking `size_of` equality.
-    /// 
+    ///
     /// 2. **Lifetime Erasure Safety**: The lifetime parameter 'a is erased through
     ///    unsafe pointer casting. This is safe because:
     ///    - The input `output` is consumed (moved) into this function
     ///    - The returned `Self` will be immediately consumed by the function call
     ///    - No references escape the function call scope
-    /// 
+    ///
     /// 3. **Controlled Usage Context**: This method is only called within the
     ///    function dispatch mechanism where:
     ///    - The source `&[Value]` array remains valid for the entire function call
     ///    - The converted arguments are immediately passed to the target function
     ///    - The function result is immediately converted via `IntoResult`
-    /// 
+    ///
     /// 4. **Type System Cooperation**: For reference types like `&str`:
     ///    - `Self::Output<'a>` is `&'a str` (borrowed from Value)
     ///    - `Self` is `&str` (with erased lifetime)
     ///    - The underlying string data in Value remains valid throughout the call
-    /// 
+    ///
     /// The safety of this operation relies on the fact that the lifetime erasure
     /// is temporary and scoped - the converted values never outlive the original
     /// Value array that owns the underlying data.
-    /// 
+    ///
     /// # Implementation Details
-    /// 
+    ///
     /// The conversion process:
     /// 1. Cast the reference to `output` as a pointer to `Self`
     /// 2. Forget the original `output` to prevent double-drop
     /// 3. Read the value from the pointer, effectively transferring ownership
-    /// 
+    ///
     /// This is essentially a controlled `transmute` operation that preserves
     /// the bit representation while changing the type signature.
     unsafe fn from_output<'a>(output: <Self as FromValue>::Output<'a>) -> Self {
-        debug_assert!(std::mem::size_of::<<Self as FromValue>::Output<'a>>() == std::mem::size_of::<Self>());
+        debug_assert!(
+            std::mem::size_of::<<Self as FromValue>::Output<'a>>() == std::mem::size_of::<Self>()
+        );
 
         let ptr: *const Self = (&output as *const <Self as FromValue>::Output<'a>).cast();
         std::mem::forget(output);
@@ -757,13 +759,13 @@ macro_rules! impl_fn_wrapper {
                     let f = || {
                         // Compile-time constant: number of expected arguments
                         const EXPECTED_LEN: usize = count_args!($($ty),*);
-                        
+
                         if args.len() != EXPECTED_LEN {
                             return Err(Error::invalid_argument(
                                 format!("expected {} arguments, got {}", EXPECTED_LEN, args.len())
                             ));
                         }
-                        
+
                         #[allow(unused_mut, unused_variables)]
                         let mut iter = args.iter();
                         $(
@@ -771,7 +773,7 @@ macro_rules! impl_fn_wrapper {
                                 iter.next().expect("argument count already validated")
                             ).map_err(|e| Error::invalid_argument(format!("argument error: {}", e)))?;
                         )*
-                        
+
                         let result = (self.func)($([< $ty:lower >],)*);
                         result.into_result()
                     };
@@ -790,7 +792,7 @@ macro_rules! impl_fn_wrapper {
                     count_args!($($ty),*)
                 }
             }
-            
+
             // Implementation of IntoFunction for synchronous functions
             impl<'f, F, R, $($ty,)*> IntoFunction<'f, (), ($($ty,)*)> for F
             where
@@ -803,7 +805,7 @@ macro_rules! impl_fn_wrapper {
                     Function::new(FnWrapper::<F, R, ($($ty,)*)>::new(self))
                 }
             }
-            
+
             // Sealed implementation for synchronous functions
             impl<'f, F, R, $($ty,)*> private::Sealed<(), ($($ty,)*)> for F
             where
@@ -881,13 +883,13 @@ mod async_impls {
                         let f = || async move {
                             // Compile-time constant: number of expected arguments
                             const EXPECTED_LEN: usize = count_args!($($ty),*);
-                            
+
                             if args.len() != EXPECTED_LEN {
                                 return Err(Error::invalid_argument(
                                     format!("expected {} arguments, got {}", EXPECTED_LEN, args.len())
                                 ));
                             }
-                            
+
                             #[allow(unused_mut, unused_variables)]
                             let mut iter = args.iter();
                             $(
@@ -895,7 +897,7 @@ mod async_impls {
                                     iter.next().expect("argument count already validated")
                                 ).map_err(|e| Error::invalid_argument(format!("argument error: {}", e)))?;
                             )*
-                            
+
                             let future = (self.func)($([< $ty:lower >],)*);
                             let result = future.await;
                             result.into_result()
@@ -915,7 +917,7 @@ mod async_impls {
                         count_args!($($ty),*)
                     }
                 }
-                
+
                 // Implementation of IntoFunction for asynchronous functions
                 impl<'f, F, Fut, R, $($ty,)*> IntoFunction<'f, Async, ($($ty,)*)> for F
                 where
@@ -928,7 +930,7 @@ mod async_impls {
                         Function::new(FnWrapperAsync::<F, R, ($($ty,)*)>::new(self))
                     }
                 }
-                
+
                 // Sealed implementation for asynchronous functions
                 impl<'f, F, Fut, R, $($ty,)*> private::Sealed<Async, ($($ty,)*)> for F
                 where
@@ -941,7 +943,6 @@ mod async_impls {
         };
     }
 
-    
     impl_fn_wrapper_async!();
     impl_fn_wrapper_async!(A1);
     impl_fn_wrapper_async!(A1, A2);
@@ -981,17 +982,19 @@ mod tests {
     #[test]
     fn test_basic_function_registration() {
         // Test basic function registration and metadata extraction
-        fn add(a: i64, b: i64) -> i64 { a + b }
+        fn add(a: i64, b: i64) -> i64 {
+            a + b
+        }
         let func = add.into_function();
-        
+
         assert_eq!(func.arguments(), vec![ValueType::Int, ValueType::Int]);
         assert_eq!(func.result(), ValueType::Int);
-        
+
         // Test closure registration
         let multiplier = 3;
         let multiply = move |x: i64| -> i64 { x * multiplier };
         let func2 = multiply.into_function();
-        
+
         assert_eq!(func2.arguments(), vec![ValueType::Int]);
         assert_eq!(func2.result(), ValueType::Int);
     }
@@ -999,12 +1002,14 @@ mod tests {
     #[test]
     fn test_reference_return_functions() {
         // Test functions that return borrowed data
-        fn return_arg<'a>(a: &'a str) -> &'a str { a }
+        fn return_arg(a: &str) -> &str {
+            a
+        }
         let func = return_arg.into_function();
-        
+
         assert_eq!(func.arguments(), vec![ValueType::String]);
         assert_eq!(func.result(), ValueType::String);
-        
+
         // Test function invocation
         let result = func.call(vec!["hello".into()]);
         let result = result.expect_result("test_reference_return_functions");
@@ -1015,15 +1020,13 @@ mod tests {
     fn test_closure_with_captured_data() {
         // Test closures that capture environment variables
         let prefix = String::from("Hello, ");
-        let with_prefix = move |name: &str| -> String { 
-            format!("{}{}", prefix, name) 
-        };
-        
+        let with_prefix = move |name: &str| -> String { format!("{}{}", prefix, name) };
+
         let func = with_prefix.into_function();
-        
+
         assert_eq!(func.arguments(), vec![ValueType::String]);
         assert_eq!(func.result(), ValueType::String);
-        
+
         // Test function invocation
         let result = func.call(vec!["world".into()]);
         let result = result.expect_result("test_closure_with_captured_data");
@@ -1033,12 +1036,14 @@ mod tests {
     #[test]
     fn test_zero_parameter_function() {
         // Test functions with no parameters
-        fn get_answer() -> i64 { 42 }
+        fn get_answer() -> i64 {
+            42
+        }
         let func = get_answer.into_function();
-        
+
         assert_eq!(func.arguments(), vec![]);
         assert_eq!(func.result(), ValueType::Int);
-        
+
         // Test function invocation
         let result = func.call(vec![]);
         let result = result.expect_result("test_zero_parameter_function");
@@ -1048,12 +1053,17 @@ mod tests {
     #[test]
     fn test_multiple_parameter_function() {
         // Test functions with multiple parameters
-        fn add_three(a: i64, b: i64, c: i64) -> i64 { a + b + c }
+        fn add_three(a: i64, b: i64, c: i64) -> i64 {
+            a + b + c
+        }
         let func = add_three.into_function();
-        
-        assert_eq!(func.arguments(), vec![ValueType::Int, ValueType::Int, ValueType::Int]);
+
+        assert_eq!(
+            func.arguments(),
+            vec![ValueType::Int, ValueType::Int, ValueType::Int]
+        );
         assert_eq!(func.result(), ValueType::Int);
-        
+
         // Test function invocation
         let result = func.call(vec![1i64.into(), 2i64.into(), 3i64.into()]);
         let result = result.expect_result("test_multiple_parameter_function");
@@ -1065,25 +1075,28 @@ mod tests {
         // Test functions that return Result for error handling
         fn divide(a: i64, b: i64) -> Result<i64, std::io::Error> {
             if b == 0 {
-                Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "division by zero"))
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "division by zero",
+                ))
             } else {
                 Ok(a / b)
             }
         }
-        
+
         let func = divide.into_function();
-        
+
         assert_eq!(func.arguments(), vec![ValueType::Int, ValueType::Int]);
         assert_eq!(func.result(), ValueType::Int);
-        
+
         // Test successful case
         let result = func.call(vec![10i64.into(), 2i64.into()]);
         let result = result.expect_result("test_result_error_handling_success");
         assert_eq!(result.unwrap(), 5i64.into());
-        
+
         // Test error case
         let result = func.call(vec![10i64.into(), 0i64.into()]);
         let result = result.expect_result("test_result_error_handling_error");
         assert!(result.is_err());
     }
-} 
+}

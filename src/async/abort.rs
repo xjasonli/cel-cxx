@@ -1,7 +1,7 @@
 //! Abortable utilities for CEL asynchronous runtime.
-//! 
-use futures::Future;
+//!
 use futures::channel::oneshot;
+use futures::Future;
 use std::pin::Pin;
 
 /// Create a new abortable pair.
@@ -43,7 +43,10 @@ pin_project_lite::pin_project! {
 
 impl Future for Abortable {
     type Output = ();
-    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+    fn poll(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
         let this = self.project();
         let receiver = this.receiver;
         receiver.poll(cx).map(|_| ())

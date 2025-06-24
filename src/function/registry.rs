@@ -16,8 +16,8 @@
 //! The registry is designed to be thread-safe and can be shared across
 //! multiple evaluation contexts.
 
-use std::collections::HashMap;
 use super::*;
+use std::collections::HashMap;
 
 /// Compile-time function registry.
 ///
@@ -144,7 +144,10 @@ impl<'f> FunctionRegistry<'f> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register<F, Fm, Args>(
-        &mut self, name: impl Into<String>, member: bool, f: F
+        &mut self,
+        name: impl Into<String>,
+        member: bool,
+        f: F,
     ) -> Result<&mut Self, Error>
     where
         F: IntoFunction<'f, Fm, Args>,
@@ -152,7 +155,8 @@ impl<'f> FunctionRegistry<'f> {
         Args: Arguments,
     {
         let name = name.into();
-        let entry = self.entries
+        let entry = self
+            .entries
             .entry(name)
             .or_insert_with(FunctionOverloads::new);
         entry.add_impl(member, f.into_function())?;
@@ -179,7 +183,9 @@ impl<'f> FunctionRegistry<'f> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register_member<F, Fm, Args>(
-        &mut self, name: impl Into<String>, f: F
+        &mut self,
+        name: impl Into<String>,
+        f: F,
     ) -> Result<&mut Self, Error>
     where
         F: IntoFunction<'f, Fm, Args>,
@@ -208,7 +214,9 @@ impl<'f> FunctionRegistry<'f> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register_global<F, Fm, Args>(
-        &mut self, name: impl Into<String>, f: F
+        &mut self,
+        name: impl Into<String>,
+        f: F,
     ) -> Result<&mut Self, Error>
     where
         F: IntoFunction<'f, Fm, Args>,
@@ -256,7 +264,8 @@ impl<'f> FunctionRegistry<'f> {
         D: FunctionDecl,
     {
         let name = name.into();
-        let entry = self.entries
+        let entry = self
+            .entries
             .entry(name)
             .or_insert_with(FunctionOverloads::new);
         entry.add_decl(member, D::function_type())?;
@@ -291,9 +300,7 @@ impl<'f> FunctionRegistry<'f> {
     /// registry.declare_member::<fn(String) -> i64>("hash")?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn declare_member<D>(
-        &mut self, name: impl Into<String>
-    ) -> Result<&mut Self, Error>
+    pub fn declare_member<D>(&mut self, name: impl Into<String>) -> Result<&mut Self, Error>
     where
         D: FunctionDecl,
     {
@@ -328,9 +335,7 @@ impl<'f> FunctionRegistry<'f> {
     /// registry.declare_global::<fn(String, String) -> Result<String, Error>>("concat")?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn declare_global<D>(
-        &mut self, name: impl Into<String>
-    ) -> Result<&mut Self, Error>
+    pub fn declare_global<D>(&mut self, name: impl Into<String>) -> Result<&mut Self, Error>
     where
         D: FunctionDecl,
     {
@@ -359,7 +364,10 @@ impl<'f> FunctionRegistry<'f> {
     /// # Returns
     ///
     /// `Some(&mut FunctionOverloads)` if found, `None` if not found
-    pub fn find_mut(&mut self, name: &str) -> Option<&mut FunctionOverloads<FunctionDeclOrImpl<'f>>> {
+    pub fn find_mut(
+        &mut self,
+        name: &str,
+    ) -> Option<&mut FunctionOverloads<FunctionDeclOrImpl<'f>>> {
         self.entries.get_mut(name)
     }
 
@@ -368,7 +376,9 @@ impl<'f> FunctionRegistry<'f> {
     /// # Returns
     ///
     /// Iterator yielding `(&str, &FunctionOverloads)` pairs
-    pub fn entries(&self) -> impl Iterator<Item = (&str, &FunctionOverloads<FunctionDeclOrImpl<'f>>)> {
+    pub fn entries(
+        &self,
+    ) -> impl Iterator<Item = (&str, &FunctionOverloads<FunctionDeclOrImpl<'f>>)> {
         self.entries.iter().map(|(k, v)| (k.as_str(), v))
     }
 
@@ -377,7 +387,9 @@ impl<'f> FunctionRegistry<'f> {
     /// # Returns
     ///
     /// Iterator yielding `(&str, &mut FunctionOverloads)` pairs
-    pub fn entries_mut(&mut self) -> impl Iterator<Item = (&str, &mut FunctionOverloads<FunctionDeclOrImpl<'f>>)> {
+    pub fn entries_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (&str, &mut FunctionOverloads<FunctionDeclOrImpl<'f>>)> {
         self.entries.iter_mut().map(|(k, v)| (k.as_str(), v))
     }
 
@@ -391,7 +403,9 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// `Ok(())` if removal was successful, `Err(Error)` if function not found
     pub fn remove(&mut self, name: &str) -> Result<(), Error> {
-        self.entries.remove(name).ok_or_else(|| Error::not_found(format!("Function '{}' not found", name)))?;
+        self.entries
+            .remove(name)
+            .ok_or_else(|| Error::not_found(format!("Function '{}' not found", name)))?;
         Ok(())
     }
 
@@ -421,24 +435,44 @@ impl<'f> FunctionRegistry<'f> {
     }
 }
 
-
 #[allow(dead_code)]
 #[allow(unused_variables)]
 #[allow(unused_imports)]
 #[cfg(test)]
 mod test {
-    use std::{collections::{BTreeMap, HashMap}, sync::Arc};
-    use crate::{Opaque, Error, types::{OpaqueType, ValueType}, values::{TypedOpaque, Value}, values::OpaqueValue, values::Optional};
+    use crate::{
+        types::{OpaqueType, ValueType},
+        values::OpaqueValue,
+        values::Optional,
+        values::{TypedOpaque, Value},
+        Error, Opaque,
+    };
+    use std::{
+        collections::{BTreeMap, HashMap},
+        sync::Arc,
+    };
 
     use super::*;
 
-    fn f1(v: i64) -> Result<i64, Error> { Ok(5)}
-    fn f11(a1: i64, a2: i64) -> Result<i64, Error> { Ok(5)}
+    fn f1(v: i64) -> Result<i64, Error> {
+        Ok(5)
+    }
+    fn f11(a1: i64, a2: i64) -> Result<i64, Error> {
+        Ok(5)
+    }
 
-    fn f2(a1: HashMap<i64, i64>) -> Result<i64, Error> { Ok(5)}
-    fn f3(a1: String) -> Result<i64, Error> { Ok(5)}
-    fn f4(a1: String, a2: String) -> Result<i64, Error> { Ok(5)}
-    fn f5(a1: String, a2: String, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> { Ok(5)}
+    fn f2(a1: HashMap<i64, i64>) -> Result<i64, Error> {
+        Ok(5)
+    }
+    fn f3(a1: String) -> Result<i64, Error> {
+        Ok(5)
+    }
+    fn f4(a1: String, a2: String) -> Result<i64, Error> {
+        Ok(5)
+    }
+    fn f5(a1: String, a2: String, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> {
+        Ok(5)
+    }
 
     #[derive(Opaque, Debug, Clone, PartialEq)]
     #[cel_cxx(type = "MyOpaque", crate = crate)]
@@ -450,28 +484,40 @@ mod test {
         }
     }
 
-    fn f6(a1: String, a2: MyOpaque, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> { Ok(5)}
+    fn f6(a1: String, a2: MyOpaque, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> {
+        Ok(5)
+    }
 
-    fn f7(a1: &str) -> Result<(), Error> { Ok(())}
+    fn f7(a1: &str) -> Result<(), Error> {
+        Ok(())
+    }
 
-    fn f8(a1: &MyOpaque) -> &MyOpaque { a1 }
+    fn f8(a1: &MyOpaque) -> &MyOpaque {
+        a1
+    }
 
-    fn f9(a1: Optional<&MyOpaque>) -> Result<Option<&MyOpaque>, Error> { Ok(a1.into_option()) }
+    fn f9(a1: Optional<&MyOpaque>) -> Result<Option<&MyOpaque>, Error> {
+        Ok(a1.into_option())
+    }
 
-    async fn async_f1(a1: String, a2: i64, a3: Option<String>) -> Result<i64, Error> { Ok(5)}
+    async fn async_f1(a1: String, a2: i64, a3: Option<String>) -> Result<i64, Error> {
+        Ok(5)
+    }
 
-    fn f_map1(a1: HashMap<String, Vec<u8>>) -> Result<(), Error> { Ok(()) }
-    fn f_map2(a1: HashMap<&str, &[u8]>) -> Result<(), Error> { Ok(()) }
+    fn f_map1(a1: HashMap<String, Vec<u8>>) -> Result<(), Error> {
+        Ok(())
+    }
+    fn f_map2(a1: HashMap<&str, &[u8]>) -> Result<(), Error> {
+        Ok(())
+    }
     fn f_map3<'a>(a1: HashMap<&'a str, &'a str>) -> Result<BTreeMap<&'a str, &'a str>, Error> {
-        Ok(BTreeMap::from_iter(a1.into_iter().map(|(k, v)| (k, v))))
+        Ok(BTreeMap::from_iter(a1))
     }
 
     #[test]
-    fn test_register() -> Result<(), Error>{
+    fn test_register() -> Result<(), Error> {
         let n = 100;
-        let lifetime_closure = |a: i64, b: i64| {
-            Ok::<_, Error>(a + b + n)
-        };
+        let lifetime_closure = |a: i64, b: i64| Ok::<_, Error>(a + b + n);
         let mut registry = FunctionRegistry::new();
         registry
             .register_member("f1", f1)?
@@ -487,10 +533,8 @@ mod test {
             .register_global("f9", f9)?
             .register_global("f_map1", f_map1)?
             .register_global("f_map2", f_map2)?
-            .register_global("f_map3", f_map3)?
-        ;
+            .register_global("f_map3", f_map3)?;
 
-        
         #[cfg(feature = "async")]
         #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
         let registry = registry.register_global("async_f1", async_f1)?;
@@ -504,19 +548,19 @@ mod test {
         let y: Box<dyn Opaque> = Box::new(x);
 
         let value: OpaqueValue = Box::new(MyOpaque(1));
-        assert_eq!(value.is::<MyOpaque>(), true);
-        assert_eq!(value.downcast_ref::<MyOpaque>().is_some(), true);
+        assert!(value.is::<MyOpaque>());
+        assert!(value.downcast_ref::<MyOpaque>().is_some());
         let value2 = value.clone().downcast::<MyOpaque>();
-        assert_eq!(value2.is_ok(), true);
+        assert!(value2.is_ok());
 
         let value3 = value.clone();
-        assert_eq!(value3.is::<MyOpaque>(), true);
+        assert!(value3.is::<MyOpaque>());
 
         let value4: OpaqueValue = Box::new(MyOpaque(1));
-        assert_eq!(value4.is::<MyOpaque>(), true);
-        assert_eq!(value4.clone().downcast::<MyOpaque>().is_ok(), true);
+        assert!(value4.is::<MyOpaque>());
+        assert!(value4.clone().downcast::<MyOpaque>().is_ok());
         let value5 = value4.downcast::<MyOpaque>();
-        assert_eq!(value5.is_ok(), true);
+        assert!(value5.is_ok());
 
         Ok(())
     }

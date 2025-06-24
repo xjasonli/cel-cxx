@@ -1,7 +1,7 @@
-use tokio::task::JoinHandle;
 use cel_cxx::*;
-use tokio::time::{sleep, Duration};
 use tokio::runtime::Runtime;
+use tokio::task::JoinHandle;
+use tokio::time::{sleep, Duration};
 
 const MY_NAMESPACE: &str = "testing";
 
@@ -9,7 +9,7 @@ const MY_NAMESPACE: &str = "testing";
 fn test_simple_asyncfunc() -> Result<(), Error> {
     println!("test simple async function");
 
-    async fn asleep() -> Result<(), Error>{
+    async fn asleep() -> Result<(), Error> {
         sleep(Duration::from_secs(1)).await;
         Ok(())
     }
@@ -76,15 +76,15 @@ fn test_simple_asyncfunc_timeout() -> Result<(), Error> {
         tokio::select! {
             res = wf => {
                 println!("Future completed");
-                return res;
+                res
             },
             _ = sleep(Duration::from_secs(1)) => {
                 println!("Future was cancelled due to timeout");
-                return Err(Error::invalid_argument("Timeout".to_string()));
+                Err(Error::invalid_argument("Timeout".to_string()))
             },
         }
     });
-    
+
     assert!(res.is_err());
     println!("Expected timeout occurred: {:?}", res);
 
@@ -150,7 +150,7 @@ fn test_opaque_asyncfunc() -> Result<(), Error> {
             AsyncOpaque(1),
             AsyncOpaque(3),
             AsyncOpaque(4),
-            AsyncOpaque(5)
+            AsyncOpaque(5),
         ];
 
         let activation = Activation::new()
@@ -158,7 +158,8 @@ fn test_opaque_asyncfunc() -> Result<(), Error> {
             .bind_variable("a", 12i64)?;
 
         let res = rt.block_on(async { program.evaluate(&activation).await })?;
-        let result_list: Vec<i64> = res.try_into()
+        let result_list: Vec<i64> = res
+            .try_into()
             .map_err(|_| Error::invalid_argument("conversion failed".to_string()))?;
         assert_eq!(result_list, vec![11, 13, 14, 15]);
         println!("Async collection operation result: {:?}", result_list);
@@ -183,13 +184,13 @@ fn test_async_variable_provider() -> Result<(), Error> {
         .build()?;
 
     let program = env.compile("async_var + sync_var")?;
-    
+
     let rt = Runtime::new().map_err(|e| Error::invalid_argument(e.to_string()))?;
     let _guard = rt.enter();
 
     let activation = Activation::new()
         .bind_variable("sync_var", 8i64)?
-        .bind_variable_provider("async_var", || get_async_value())?;
+        .bind_variable_provider("async_var", get_async_value)?;
 
     let res = rt.block_on(async { program.evaluate(&activation).await })?;
     assert_eq!(res, Value::Int(50));
@@ -218,7 +219,9 @@ fn call_async_spawn() -> Result<(), Error> {
     let _guard = rt.enter();
 
     let handle = spawn_async_task("test message".to_string());
-    let result = rt.block_on(handle).map_err(|e| Error::invalid_argument(e.to_string()))?;
+    let result = rt
+        .block_on(handle)
+        .map_err(|e| Error::invalid_argument(e.to_string()))?;
     println!("Spawned async task result: {}", result);
     assert_eq!(result, 100);
     Ok(())
@@ -231,4 +234,3 @@ fn spawn_async_task(msg: String) -> JoinHandle<i32> {
         100
     })
 }
-

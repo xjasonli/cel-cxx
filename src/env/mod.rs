@@ -1,37 +1,37 @@
-use std::sync::Arc;
-use crate::{FnMarker, FnMarkerAggr, IntoConstant, RuntimeMarker};
 use crate::function::{Arguments, FunctionDecl, FunctionRegistry, IntoFunction};
 use crate::variable::VariableRegistry;
+use crate::{FnMarker, FnMarkerAggr, IntoConstant, RuntimeMarker};
+use std::sync::Arc;
 
 mod inner;
 
-pub(crate) use inner::EnvInner;
-use crate::{Program, Error, TypedValue};
 use crate::ffi;
+use crate::{Error, Program, TypedValue};
+pub(crate) use inner::EnvInner;
 
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 use crate::marker::Async;
 
 /// CEL expression evaluation environment.
-/// 
+///
 /// The `Env` struct represents a CEL environment that can compile expressions
 /// into programs. It encapsulates function registries, variable declarations,
 /// and type information needed for expression compilation.
-/// 
+///
 /// # Type Parameters
-/// 
+///
 /// - `'f`: Lifetime of functions registered in this environment
 /// - `Fm`: Function marker type indicating sync/async function support
 /// - `Rm`: Runtime marker type indicating the async runtime (if any)
-/// 
+///
 /// # Examples
-/// 
+///
 /// ## Basic Usage
-/// 
+///
 /// ```rust,no_run
 /// use cel_cxx::*;
-/// 
+///
 /// let env = Env::builder()
 ///     .declare_variable::<String>("name")?
 ///     .build()?;
@@ -39,12 +39,12 @@ use crate::marker::Async;
 /// let program = env.compile("'Hello, ' + name")?;
 /// # Ok::<(), cel_cxx::Error>(())
 /// ```
-/// 
+///
 /// ## With Custom Functions
-/// 
+///
 /// ```rust,no_run
 /// use cel_cxx::*;
-/// 
+///
 /// let env = Env::builder()
 ///     .register_global_function("add", |x: i64, y: i64| -> i64 { x + y })?
 ///     .build()?;
@@ -59,7 +59,7 @@ pub struct Env<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
 }
 
 /// Type alias for asynchronous CEL environments.
-/// 
+///
 /// This is a convenience type alias for environments that support asynchronous
 /// function evaluation.
 #[cfg(feature = "async")]
@@ -68,16 +68,16 @@ pub type AsyncEnv<'f, Rm = ()> = Env<'f, Async, Rm>;
 
 impl<'f> Env<'f> {
     /// Creates a new environment builder.
-    /// 
+    ///
     /// This is the starting point for creating a CEL environment. The builder
     /// allows you to register functions, declare variables, and configure
     /// the environment before building it.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let builder = Env::builder();
     /// ```
     pub fn builder() -> EnvBuilder<'f, ()> {
@@ -87,58 +87,56 @@ impl<'f> Env<'f> {
 
 impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
     /// Compiles a CEL expression into a Program.
-    /// 
+    ///
     /// This method takes a CEL expression as a string or byte slice and compiles
     /// it into a [`Program`] that can be evaluated with different activations.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `source` - The CEL expression to compile
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns a [`Result`] containing the compiled [`Program`] or an [`Error`]
     /// if compilation fails.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let env = Env::builder().build().unwrap();
     /// let program = env.compile("1 + 2 * 3").unwrap();
     /// ```
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if:
     /// - The expression contains syntax errors
     /// - Referenced functions or variables are not declared
     /// - Type checking fails
     pub fn compile<S: AsRef<[u8]>>(&self, source: S) -> Result<Program<'f, Fm, Rm>, Error> {
-        self.inner
-            .clone()
-            .compile::<Fm, Rm, _>(source)
+        self.inner.clone().compile::<Fm, Rm, _>(source)
     }
 }
 
 /// Builder for creating CEL environments.
-/// 
+///
 /// The `EnvBuilder` allows you to configure a CEL environment by registering
 /// functions, declaring variables, and setting up runtime options before
 /// building the final environment.
-/// 
+///
 /// # Type Parameters
-/// 
+///
 /// - `'f`: Lifetime of functions that will be registered
 /// - `Fm`: Function marker type indicating sync/async function support
 /// - `Rm`: Runtime marker type indicating the async runtime (if any)
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust,no_run
 /// use cel_cxx::*;
-/// 
+///
 /// let env = Env::builder()
 ///     .register_global_function("double", |x: i64| -> i64 { x * 2 })?
 ///     .declare_variable::<String>("message")?
@@ -154,12 +152,12 @@ pub struct EnvBuilder<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
 
 impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// Creates a new environment builder.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let builder = EnvBuilder::<()>::new();
     /// ```
     pub fn new() -> Self {
@@ -174,7 +172,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
 impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// Registers a function (either global or member).
-    /// 
+    ///
     /// This method allows you to register custom functions that can be called
     /// from CEL expressions. The function can be either a global function or
     /// a member function of a type.
@@ -194,19 +192,19 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// - Return types are automatically determined
     /// - Error handling is automatically supported for `Result<T, E>` returns
     /// - Reference parameters like `&str` are handled safely
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `name` - The name of the function as it will appear in CEL expressions
     /// * `member` - Whether this is a member function (`true`) or global function (`false`)
     /// * `f` - The function implementation (function pointer, closure, etc.)
-    /// 
+    ///
     /// # Type Parameters
-    /// 
+    ///
     /// * `F` - The function implementation type
     /// * `Ffm` - The function marker type (sync/async) inferred from the function
     /// * `Args` - The argument tuple type (automatically inferred)
-    /// 
+    ///
     /// # Returns
     ///
     /// A new `EnvBuilder` with updated function marker type. If this is the first
@@ -243,14 +241,14 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// - Function name conflicts with existing registration
     /// - Function signature is invalid or unsupported
     /// - Type inference fails
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ## Basic Functions
-    /// 
+    ///
     /// ```rust
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let builder = Env::builder()
     ///     .register_function("add", false, |a: i64, b: i64| a + b)?
     ///     .register_function("greet", false, |name: &str| format!("Hello, {}!", name))?;
@@ -265,7 +263,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// let builder = Env::builder()
     ///     .register_function("contains", true, |text: &str, substr: &str| text.contains(substr))?
     ///     .register_function("length", true, |text: &str| text.len() as i64)?;
-    /// 
+    ///
     /// // Usage in expressions:
     /// // text.contains("hello")
     /// // text.length()
@@ -302,15 +300,17 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register_function<F, Ffm, Args>(
-        mut self, name: impl Into<String>, member: bool, f: F
+        mut self,
+        name: impl Into<String>,
+        member: bool,
+        f: F,
     ) -> Result<EnvBuilder<'f, <Ffm as FnMarkerAggr<Fm>>::Output, Rm>, Error>
     where
         F: IntoFunction<'f, Ffm, Args>,
         Ffm: FnMarker + FnMarkerAggr<Fm>,
         Args: Arguments,
     {
-        self.function_registry
-            .register(name, member, f)?;
+        self.function_registry.register(name, member, f)?;
 
         Ok(EnvBuilder {
             function_registry: self.function_registry,
@@ -372,15 +372,16 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register_member_function<F, Ffm, Args>(
-        mut self, name: impl Into<String>, f: F
+        mut self,
+        name: impl Into<String>,
+        f: F,
     ) -> Result<EnvBuilder<'f, <Ffm as FnMarkerAggr<Fm>>::Output, Rm>, Error>
     where
         F: IntoFunction<'f, Ffm, Args>,
         Ffm: FnMarker + FnMarkerAggr<Fm>,
         Args: Arguments,
     {
-        self.function_registry
-            .register_member(name, f)?;
+        self.function_registry.register_member(name, f)?;
 
         Ok(EnvBuilder {
             function_registry: self.function_registry,
@@ -488,15 +489,16 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn register_global_function<F, Ffm, Args>(
-        mut self, name: impl Into<String>, f: F
+        mut self,
+        name: impl Into<String>,
+        f: F,
     ) -> Result<EnvBuilder<'f, <Ffm as FnMarkerAggr<Fm>>::Output, Rm>, Error>
     where
         F: IntoFunction<'f, Ffm, Args>,
         Ffm: FnMarker + FnMarkerAggr<Fm>,
         Args: Arguments,
     {
-        self.function_registry
-            .register_global(name, f)?;
+        self.function_registry.register_global(name, f)?;
 
         Ok(EnvBuilder {
             function_registry: self.function_registry,
@@ -507,21 +509,23 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     }
 
     /// Declares a function signature without providing an implementation.
-    /// 
+    ///
     /// This is useful when you want to declare that a function exists for
     /// type checking purposes, but will provide the implementation later
     /// via activation bindings.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `name` - The name of the function
     /// * `member` - Whether this is a member function (`true`) or global function (`false`)
-    /// 
+    ///
     /// # Type Parameters
-    /// 
+    ///
     /// * `D` - The function declaration type that specifies the signature
     pub fn declare_function<D>(
-        mut self, name: impl Into<String>, member: bool
+        mut self,
+        name: impl Into<String>,
+        member: bool,
     ) -> Result<Self, Error>
     where
         D: FunctionDecl,
@@ -536,17 +540,15 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     }
 
     /// Declares a member function signature without providing an implementation.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `name` - The name of the member function
-    /// 
+    ///
     /// # Type Parameters
-    /// 
+    ///
     /// * `D` - The function declaration type that specifies the signature
-    pub fn declare_member_function<D>(
-        mut self, name: impl Into<String>
-    ) -> Result<Self, Error>
+    pub fn declare_member_function<D>(mut self, name: impl Into<String>) -> Result<Self, Error>
     where
         D: FunctionDecl,
     {
@@ -560,17 +562,15 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     }
 
     /// Declares a global function signature without providing an implementation.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `name` - The name of the global function
-    /// 
+    ///
     /// # Type Parameters
-    /// 
+    ///
     /// * `D` - The function declaration type that specifies the signature
-    pub fn declare_global_function<D>(
-        mut self, name: impl Into<String>
-    ) -> Result<Self, Error>
+    pub fn declare_global_function<D>(mut self, name: impl Into<String>) -> Result<Self, Error>
     where
         D: FunctionDecl,
     {
@@ -584,27 +584,25 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     }
 
     /// Defines a constant value that can be referenced in expressions.
-    /// 
+    ///
     /// Constants are immutable values that are resolved at compile time.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `name` - The name of the constant
     /// * `value` - The constant value
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let builder = Env::builder()
     ///     .define_constant("PI", 3.14159)
     ///     .unwrap();
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn define_constant<T>(
-        mut self, name: impl Into<String>, value: T
-    ) -> Result<Self, Error>
+    pub fn define_constant<T>(mut self, name: impl Into<String>, value: T) -> Result<Self, Error>
     where
         T: IntoConstant,
     {
@@ -618,24 +616,24 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     }
 
     /// Declares a variable of a specific type.
-    /// 
+    ///
     /// This declares that a variable of the given name and type may be
     /// provided during evaluation. The actual value must be bound in
     /// the activation when evaluating expressions.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `name` - The name of the variable
-    /// 
+    ///
     /// # Type Parameters
-    /// 
+    ///
     /// * `T` - The type of the variable
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let builder = Env::builder()
     ///     .declare_variable::<String>("user_name")?
     ///     .declare_variable::<i64>("age")?;
@@ -656,35 +654,33 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     }
 
     /// Builds the environment from the configured builder.
-    /// 
+    ///
     /// This method consumes the builder and creates the final [`Env`] instance
     /// that can be used to compile CEL expressions.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns a [`Result`] containing the built [`Env`] or an [`Error`] if
     /// the environment could not be created.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let env = Env::builder()
     ///     .declare_variable::<String>("name")?
     ///     .build()?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the environment configuration is invalid or
     /// if the underlying CEL environment cannot be created.
     pub fn build(self) -> Result<Env<'f, Fm, Rm>, Error> {
-        let inner = EnvInner::new_with_registries(
-            self.function_registry,
-            self.variable_registry,
-        ).map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
+        let inner = EnvInner::new_with_registries(self.function_registry, self.variable_registry)
+            .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
         let env = Env {
             inner: Arc::new(inner),
             _fn_marker: self._fn_marker,
@@ -701,21 +697,21 @@ const _: () = {
 
     impl<'f, Rm: RuntimeMarker> Env<'f, (), Rm> {
         /// Forces conversion to an async environment.
-        /// 
+        ///
         /// This method converts a synchronous environment to an asynchronous one,
         /// allowing it to work with async functions and evaluation.
-        /// 
+        ///
         /// # Type Parameters
-        /// 
+        ///
         /// * `Rt` - The async runtime type to use
-        /// 
+        ///
         /// # Examples
-        /// 
+        ///
         /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::*;
-        /// 
+        ///
         /// let sync_env = Env::builder().build()?;
         /// let async_env = sync_env.force_async();
         /// # }
@@ -732,17 +728,17 @@ const _: () = {
 
     impl<'f, Rm: RuntimeMarker> EnvBuilder<'f, (), Rm> {
         /// Forces conversion to an async environment builder.
-        /// 
+        ///
         /// This method converts a synchronous environment builder to an asynchronous one,
         /// allowing it to register async functions and build async environments.
-        /// 
+        ///
         /// # Examples
-        /// 
+        ///
         /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::*;
-        /// 
+        ///
         /// let async_builder = Env::builder().force_async();
         /// # }
         /// ```
@@ -758,21 +754,21 @@ const _: () = {
 
     impl<'f, Fm: FnMarker> Env<'f, Fm, ()> {
         /// Sets the async runtime for this environment.
-        /// 
+        ///
         /// This method specifies which async runtime should be used for
         /// asynchronous evaluation of expressions.
-        /// 
+        ///
         /// # Type Parameters
-        /// 
+        ///
         /// * `Rt` - The runtime type to use (must implement [`Runtime`])
-        /// 
+        ///
         /// # Examples
-        /// 
+        ///
         /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::*;
-        /// 
+        ///
         /// let env = Env::builder()
         ///     .build()?
         ///     .use_runtime::<Tokio>();
@@ -789,17 +785,17 @@ const _: () = {
         }
 
         /// Configures the environment to use the Tokio async runtime.
-        /// 
+        ///
         /// This is a convenience method for setting the runtime to Tokio.
         /// Requires the `tokio` feature to be enabled.
-        /// 
+        ///
         /// # Examples
-        /// 
+        ///
         /// ```rust,no_run
         /// # #[cfg(all(feature = "async", feature = "tokio"))]
         /// # {
         /// use cel_cxx::*;
-        /// 
+        ///
         /// let env = Env::builder()
         ///     .build()?
         ///     .use_tokio();
@@ -813,17 +809,17 @@ const _: () = {
         }
 
         /// Configures the environment to use the async-std runtime.
-        /// 
+        ///
         /// This is a convenience method for setting the runtime to async-std.
         /// Requires the `async-std` feature to be enabled.
-        /// 
+        ///
         /// # Examples
-        /// 
+        ///
         /// ```rust,no_run
         /// # #[cfg(all(feature = "async", feature = "async-std"))]
         /// # {
         /// use cel_cxx::*;
-        /// 
+        ///
         /// let env = Env::builder()
         ///     .build()?
         ///     .use_async_std();
@@ -839,21 +835,21 @@ const _: () = {
 
     impl<'f, Fm: FnMarker> EnvBuilder<'f, Fm, ()> {
         /// Sets the async runtime for the environment builder.
-        /// 
+        ///
         /// This method specifies which async runtime should be used by
         /// environments built from this builder.
-        /// 
+        ///
         /// # Type Parameters
-        /// 
+        ///
         /// * `Rt` - The runtime type to use (must implement [`Runtime`])
-        /// 
+        ///
         /// # Examples
-        /// 
+        ///
         /// ```rust,no_run
         /// # #[cfg(feature = "async")]
         /// # {
         /// use cel_cxx::*;
-        /// 
+        ///
         /// let builder = Env::builder().use_runtime::<Tokio>();
         /// # }
         /// ```
@@ -867,17 +863,17 @@ const _: () = {
         }
 
         /// Configures the builder to use the Tokio async runtime.
-        /// 
+        ///
         /// This is a convenience method for setting the runtime to Tokio.
         /// Requires the `tokio` feature to be enabled.
-        /// 
+        ///
         /// # Examples
-        /// 
+        ///
         /// ```rust,no_run
         /// # #[cfg(all(feature = "async", feature = "tokio"))]
         /// # {
         /// use cel_cxx::*;
-        /// 
+        ///
         /// let builder = Env::builder().use_tokio();
         /// # }
         /// ```
@@ -888,17 +884,17 @@ const _: () = {
         }
 
         /// Configures the builder to use the async-std runtime.
-        /// 
+        ///
         /// This is a convenience method for setting the runtime to async-std.
         /// Requires the `async-std` feature to be enabled.
-        /// 
+        ///
         /// # Examples
-        /// 
+        ///
         /// ```rust,no_run
         /// # #[cfg(all(feature = "async", feature = "async-std"))]
         /// # {
         /// use cel_cxx::*;
-        /// 
+        ///
         /// let builder = Env::builder().use_async_std();
         /// # }
         /// ```
@@ -912,9 +908,7 @@ const _: () = {
 
 impl<'f, Fm: FnMarker, Rm: RuntimeMarker> std::fmt::Debug for Env<'f, Fm, Rm> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Env")
-            .field("inner", &self.inner)
-            .finish()
+        f.debug_struct("Env").field("inner", &self.inner).finish()
     }
 }
 
@@ -927,7 +921,6 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Clone for Env<'f, Fm, Rm> {
         }
     }
 }
-
 
 impl<'f, Fm: FnMarker, Rm: RuntimeMarker> std::fmt::Debug for EnvBuilder<'f, Fm, Rm> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

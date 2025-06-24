@@ -5,9 +5,9 @@ mod opaque;
 mod symbol;
 
 /// Derive macro for creating opaque types for cxx-cel.
-/// 
+///
 /// # Example
-/// 
+///
 /// ```ignore
 /// #[derive(Opaque, Debug, Clone, PartialEq)]
 /// #[cel_cxx(type = "my_app.my_module.MyType")]
@@ -15,7 +15,7 @@ mod symbol;
 ///     value: i32,
 /// }
 /// ```
-/// 
+///
 #[proc_macro_derive(Opaque, attributes(cel_cxx))]
 pub fn derive_opaque(input: TokenStream) -> TokenStream {
     let input = syn::parse_macro_input!(input as syn::DeriveInput);

@@ -10,9 +10,8 @@ edition = "2021"
 authors = ["Jason Li <xjason.li@gmail.com>"]
 license = "Apache-2.0"
 repository = "https://github.com/xjasonli/cel-cxx"
-rust-version = "1.70"
+rust-version = "1.80"
 homepage = "https://github.com/xjasonli/cel-cxx"
-readme = "README.md"
 keywords = ["cel", "expression", "language", "ffi", "cxx", "google"]
 
 [workspace.dependencies]
@@ -54,6 +53,7 @@ name = "cel-cxx"
 description = "A Rust-native interface for Common Expression Language (CEL), implemented as a high-level idiomatic Rust wrapper around google/cel-cpp"
 categories = ["api-bindings", "parser-implementations", "ffi", "embedded"]
 documentation = "https://docs.rs/cel-cxx"
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -61,7 +61,6 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 homepage.workspace = true
-readme.workspace = true
 keywords.workspace = true
 
 [package.metadata.docs.rs]

@@ -27,7 +27,7 @@ impl Student {
     fn get_name(&self) -> String {
         self.name.clone()
     }
-    
+
     async fn get_age(&self) -> i32 {
         self.age
     }
@@ -43,8 +43,13 @@ async fn exercise1() -> Result<(), Error> {
         .use_tokio()
         .build()?;
 
-    let activation = Activation::new()
-        .bind_variable("student", Student { name: "John".to_string(), age: 18 })?;
+    let activation = Activation::new().bind_variable(
+        "student",
+        Student {
+            name: "John".to_string(),
+            age: 18,
+        },
+    )?;
 
     let program = env.compile("student.get_name()")?;
     let result = program.evaluate(&activation).await?;
@@ -70,12 +75,9 @@ async fn exercise2() -> Result<()> {
         .build()?;
     let program = env.compile("a + b + get_const()")?;
 
-
     let activation = Activation::new()
         .bind_variable("a", 1)?
-        .bind_variable_provider("b", async move || -> Result<i64, Infallible> {
-            Ok(1)
-        })?;
+        .bind_variable_provider("b", async move || -> Result<i64, Infallible> { Ok(1) })?;
     let result = program.evaluate(&activation).await?;
     println!("exercise8, result: {}", result);
     Ok(())

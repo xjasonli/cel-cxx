@@ -3,6 +3,7 @@ name = "cel-cxx-ffi"
 description = "FFI bindings for the cel-cxx crate"
 categories = ["api-bindings", "ffi"]
 documentation = "https://docs.rs/cel-cxx-ffi"
+readme = "README.md"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -10,7 +11,6 @@ license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 homepage.workspace = true
-readme = "README.md"
 keywords.workspace = true
 
 [package.metadata.docs.rs]

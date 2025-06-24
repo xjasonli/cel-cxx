@@ -1,7 +1,7 @@
-use crate::{types::*, values::*};
 use super::*;
+use crate::{types::*, values::*};
 
-use std::collections::{VecDeque, LinkedList};
+use std::collections::{LinkedList, VecDeque};
 
 impl_typed!(
     List: Value {
@@ -34,7 +34,7 @@ impl_into!(
                 .collect(),
 
         @[T: IntoValue]
-        VecDeque<T> => |self| 
+        VecDeque<T> => |self|
             self.into_iter()
                 .map(IntoValue::into_value)
                 .collect(),
@@ -50,10 +50,8 @@ impl_into!(
 impl_from_list!(
     #[adder = push]
     Vec,
-
     #[adder = push_back]
     VecDeque,
-
     #[adder = push_back]
     LinkedList,
 );

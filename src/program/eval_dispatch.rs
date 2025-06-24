@@ -1,6 +1,6 @@
-use std::sync::Arc;
 use super::inner::ProgramInner;
 use crate::*;
+use std::sync::Arc;
 
 pub trait EvalDispatch<'f, A, Afm> {
     type Output;
@@ -13,6 +13,12 @@ pub struct EvalDispatcher<Fm, Rm> {
     _rt_marker: std::marker::PhantomData<Rm>,
 }
 
+impl<Fm, Rm> Default for EvalDispatcher<Fm, Rm> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<Fm, Rm> EvalDispatcher<Fm, Rm> {
     pub fn new() -> Self {
         Self {
@@ -23,11 +29,10 @@ impl<Fm, Rm> EvalDispatcher<Fm, Rm> {
 }
 
 // Implement RunDispatch for Dispatcher<()>
-impl<'f, 'a, A, Rm> EvalDispatch<'f, A, ()> for EvalDispatcher<(), Rm>
+impl<'f, A, Rm> EvalDispatch<'f, A, ()> for EvalDispatcher<(), Rm>
 where
     Rm: RuntimeMarker,
-    A: ActivationInterface<'f, ()> + 'a,
-    'f: 'a,
+    A: ActivationInterface<'f, ()>,
 {
     type Output = Result<Value, Error>;
 
@@ -40,15 +45,14 @@ where
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 const _: () = {
-    use futures::future::BoxFuture;
     use crate::r#async::*;
+    use futures::future::BoxFuture;
 
-    impl<'f, 'a, A, Rm, Afm> EvalDispatch<'f, A, Afm> for EvalDispatcher<Async, Rm>
+    impl<'f, A, Rm, Afm> EvalDispatch<'f, A, Afm> for EvalDispatcher<Async, Rm>
     where
-        'f: 'a,
         Rm: Runtime,
         <Rm::ScopedSpawner as async_scoped::spawner::Spawner<()>>::FutureOutput: Send,
-        A: ActivationInterface<'f, Afm> + 'a,
+        A: ActivationInterface<'f, Afm>,
         Afm: FnMarker,
     {
         type Output = BoxFuture<'f, Result<Value, Error>>;

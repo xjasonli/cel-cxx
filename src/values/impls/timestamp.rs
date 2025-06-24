@@ -1,5 +1,5 @@
+use super::{impl_from, impl_into, impl_typed};
 use crate::{types::*, values::*};
-use super::{impl_typed, impl_into, impl_from};
 
 use std::time::SystemTime;
 
@@ -19,7 +19,7 @@ impl_into!(
 
 impl_from!(
     Timestamp: Value {
-        Timestamp => |v| v.clone(),
+        Timestamp => |v| *v,
         SystemTime => |v| (*v).into(),
     }
 );

@@ -16,7 +16,10 @@ impl<'f> FfiFunctionImpl<'f> {
         descriptor: cxx::SharedPtr<FunctionDescriptor>,
         overloads: Vec<rust::function::Function<'f>>,
     ) -> Self {
-        Self { descriptor, overloads }
+        Self {
+            descriptor,
+            overloads,
+        }
     }
 }
 
@@ -30,14 +33,19 @@ impl<'f> FfiFunction for FfiFunctionImpl<'f> {
         overload_id: Span<'_, cxx::CxxString>,
     ) -> Result<cxx::UniquePtr<Value<'a>>, Status> {
         for overload in self.overloads.iter() {
-            let target_id: String = overload.function_type().id(&self.descriptor.name().to_string_lossy(), self.descriptor.receiver_style());
-            if overload_id.iter()
-                .find(|id| id.as_bytes() == target_id.as_bytes())
-                .is_none() {
+            let target_id: String = overload.function_type().id(
+                &self.descriptor.name().to_string_lossy(),
+                self.descriptor.receiver_style(),
+            );
+            if !overload_id
+                .iter()
+                .any(|id| id.as_bytes() == target_id.as_bytes())
+            {
                 continue;
             }
 
-            let rust_args = args.into_iter()
+            let rust_args = args
+                .into_iter()
                 .map(|arg| value_to_rust(arg, arena, descriptor_pool, message_factory))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|e| error_from_rust(&e))?;
@@ -48,15 +56,18 @@ impl<'f> FfiFunction for FfiFunctionImpl<'f> {
             #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
             let result = result.expect_result("should not be a future");
 
-            let value = result.map(|value| value_from_rust(&value, arena, descriptor_pool, message_factory).into())
+            let value = result
+                .map(|value| value_from_rust(&value, arena, descriptor_pool, message_factory))
                 .map_err(|e| error_from_rust(&e))?;
 
             return Ok(value);
         }
-        return Err(Status::new(StatusCode::InvalidArgument, "No matching overload found"));
+        Err(Status::new(
+            StatusCode::InvalidArgument,
+            "No matching overload found",
+        ))
     }
 }
-
 
 // Activation 运行时使用, 包含运行时用到的变量和函数, 由 program.evaluate 调用时传入;
 // function_registry 在编译时使用, 可能是 Decl, 也可能是 Impl; Impl 一定有 Decl;
@@ -82,13 +93,14 @@ impl<'f> FfiActivationImpl<'f> {
                 let member = kind_overload.member();
                 let types = kind_overload.argument_kinds();
                 let descriptor = FunctionDescriptor::new_shared(name, member, types, true);
-                let mut type_overloads= Vec::new();
+                let mut type_overloads = Vec::new();
                 for type_overload in kind_overload.entries() {
                     if let Some(fn_impl) = type_overload.r#impl() {
                         type_overloads.push(fn_impl.clone());
                     }
                 }
-                let implementation = Function::new(FfiFunctionImpl::new(descriptor.clone(), type_overloads));
+                let implementation =
+                    Function::new(FfiFunctionImpl::new(descriptor.clone(), type_overloads));
                 ols.push(FunctionOverload {
                     descriptor,
                     implementation,
@@ -104,8 +116,9 @@ impl<'f> FfiActivationImpl<'f> {
                     let member = kind_overload.member();
                     let types = kind_overload.argument_kinds();
                     let descriptor = FunctionDescriptor::new_shared(name, member, types, true);
-                    let type_overloads= kind_overload.entries().map(|type_overload| type_overload.clone()).collect::<Vec<_>>();
-                    let implementation = Function::new(FfiFunctionImpl::new(descriptor.clone(), type_overloads));
+                    let type_overloads = kind_overload.entries().cloned().collect::<Vec<_>>();
+                    let implementation =
+                        Function::new(FfiFunctionImpl::new(descriptor.clone(), type_overloads));
                     ols.push(FunctionOverload {
                         descriptor,
                         implementation,
@@ -142,12 +155,10 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
     ) -> Result<Option<cxx::UniquePtr<Value<'a>>>, Status> {
         let variable = self.variables.get(name);
         match variable {
-            None => {
-                Ok(None)
-            }
-            Some(rust::variable::VariableBinding::Value((_value_type, value))) => {
-                Ok(Some(value_from_rust(value, arena, descriptor_pool, message_factory)))
-            }
+            None => Ok(None),
+            Some(rust::variable::VariableBinding::Value((_value_type, value))) => Ok(Some(
+                value_from_rust(value, arena, descriptor_pool, message_factory),
+            )),
             Some(rust::variable::VariableBinding::Provider(provider)) => {
                 // 运行时获取同步 provider 的值
                 let res = provider.call(vec![]);
@@ -155,11 +166,17 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
                 #[cfg(not(feature = "async"))]
                 {
                     match res {
-                        Ok(ref value) => {
-                            Ok(Some(value_from_rust(value, arena, descriptor_pool, message_factory)))
-                        }
+                        Ok(ref value) => Ok(Some(value_from_rust(
+                            value,
+                            arena,
+                            descriptor_pool,
+                            message_factory,
+                        ))),
                         Err(e) => {
-                            return Err(Status::new(StatusCode::Internal, format!("Failed to call provider: {}", e).as_str()));
+                            return Err(Status::new(
+                                StatusCode::Internal,
+                                format!("Failed to call provider: {}", e).as_str(),
+                            ));
                         }
                     }
                 }
@@ -171,11 +188,19 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
                         match res {
                             Ok(ref value) => {
                                 // provider 成功
-                                Ok(Some(value_from_rust(value, arena, descriptor_pool, message_factory)))
+                                Ok(Some(value_from_rust(
+                                    value,
+                                    arena,
+                                    descriptor_pool,
+                                    message_factory,
+                                )))
                             }
                             Err(e) => {
                                 // provider 报错
-                                return Err(Status::new(StatusCode::Internal, format!("Failed to call provider: {}", e).as_str()));
+                                Err(Status::new(
+                                    StatusCode::Internal,
+                                    format!("Failed to call provider: {}", e).as_str(),
+                                ))
                             }
                         }
                     }
@@ -197,21 +222,22 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
             None => {
                 vec![]
             }
-            Some(overloads) => {
-                overloads.iter().map(|overload| FunctionOverloadReference::new(&overload.descriptor, &overload.implementation)).collect()
-            }
+            Some(overloads) => overloads
+                .iter()
+                .map(|overload| {
+                    FunctionOverloadReference::new(&overload.descriptor, &overload.implementation)
+                })
+                .collect(),
         }
     }
 }
 
-
-
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 pub(crate) mod async_activation {
-    use crate::r#async::{BlockingRunner, abort::Abortable};
-    use std::sync::{Arc, Mutex};
     use super::*;
+    use crate::r#async::{abort::Abortable, BlockingRunner};
+    use std::sync::{Arc, Mutex};
 
     struct FfiAsyncFunctionImpl<'f, R>
     where
@@ -221,8 +247,7 @@ pub(crate) mod async_activation {
         overloads: Vec<AbortableFunctionRunner<'f, R>>,
     }
 
-
-    impl <'f, R> FfiAsyncFunctionImpl<'f, R>
+    impl<'f, R> FfiAsyncFunctionImpl<'f, R>
     where
         R: rust::r#async::BlockingRunner,
     {
@@ -231,16 +256,21 @@ pub(crate) mod async_activation {
             overloads: Vec<rust::function::Function<'f>>,
             abortable: Arc<Mutex<Abortable>>,
         ) -> Self {
-            let overloads= overloads.iter().map(|overload| AbortableFunctionRunner::new(overload.clone(), abortable.clone())).collect::<Vec<_>>();
-            Self { descriptor, overloads}
+            let overloads = overloads
+                .iter()
+                .map(|overload| AbortableFunctionRunner::new(overload.clone(), abortable.clone()))
+                .collect::<Vec<_>>();
+            Self {
+                descriptor,
+                overloads,
+            }
         }
     }
 
-    impl <'f, R> FfiFunction for FfiAsyncFunctionImpl<'f, R>
+    impl<'f, R> FfiFunction for FfiAsyncFunctionImpl<'f, R>
     where
         R: rust::r#async::BlockingRunner,
     {
-
         #[allow(unused_variables)]
         fn invoke<'a>(
             &self,
@@ -251,38 +281,45 @@ pub(crate) mod async_activation {
             overload_id: Span<'_, cxx::CxxString>,
         ) -> Result<cxx::UniquePtr<Value<'a>>, Status> {
             for overload in self.overloads.iter() {
-                let target_id: String = overload.function_impl().function_type().id(&self.descriptor.name().to_string_lossy(), self.descriptor.receiver_style());
-                if overload_id.iter()
-                    .find(|id| id.as_bytes() == target_id.as_bytes())
-                    .is_none() {
+                let target_id: String = overload.function_impl().function_type().id(
+                    &self.descriptor.name().to_string_lossy(),
+                    self.descriptor.receiver_style(),
+                );
+                if !overload_id
+                    .iter()
+                    .any(|id| id.as_bytes() == target_id.as_bytes())
+                {
                     continue;
                 }
 
-                let rust_args = args.into_iter()
+                let rust_args = args
+                    .into_iter()
                     .map(|arg| value_to_rust(arg, arena, descriptor_pool, message_factory))
                     .collect::<Result<Vec<_>, _>>()
                     .map_err(|e| error_from_rust(&e))?;
 
                 let result = overload.call(rust_args);
 
-                let value = result.map(|value| value_from_rust(&value, arena, descriptor_pool, message_factory).into())
+                let value = result
+                    .map(|value| value_from_rust(&value, arena, descriptor_pool, message_factory))
                     .map_err(|e| error_from_rust(&e))?;
                 return Ok(value);
             }
 
-            return Err(Status::new(StatusCode::InvalidArgument, "No matching async overload found"));
+            Err(Status::new(
+                StatusCode::InvalidArgument,
+                "No matching async overload found",
+            ))
         }
     }
 
-
     enum AbortableVariableBinding<'f, R>
-    where 
+    where
         R: rust::r#async::BlockingRunner,
     {
         Value(rust::Value),
         Provider(AbortableProviderRunner<'f, R>),
     }
-
 
     pub(crate) struct FfiAsyncActivationImpl<'f, R>
     where
@@ -311,13 +348,17 @@ pub(crate) mod async_activation {
                     let member = kind_overload.member();
                     let types = kind_overload.argument_kinds();
                     let descriptor = FunctionDescriptor::new_shared(name, member, types, true);
-                    let mut type_overloads= Vec::new();
+                    let mut type_overloads = Vec::new();
                     for type_overload in kind_overload.entries() {
                         if let Some(fn_impl) = type_overload.r#impl() {
                             type_overloads.push(fn_impl.clone());
                         }
                     }
-                    let implementation = Function::new(FfiAsyncFunctionImpl::<R>::new(descriptor.clone(), type_overloads, abortable.clone()));
+                    let implementation = Function::new(FfiAsyncFunctionImpl::<R>::new(
+                        descriptor.clone(),
+                        type_overloads,
+                        abortable.clone(),
+                    ));
                     ols.push(FunctionOverload {
                         descriptor,
                         implementation,
@@ -332,8 +373,12 @@ pub(crate) mod async_activation {
                         let member = kind_overload.member();
                         let types = kind_overload.argument_kinds();
                         let descriptor = FunctionDescriptor::new_shared(name, member, types, true);
-                        let type_overloads= kind_overload.entries().map(|type_overload| type_overload.clone()).collect::<Vec<_>>();
-                        let implementation = Function::new(FfiAsyncFunctionImpl::<R>::new(descriptor.clone(), type_overloads, abortable.clone()));
+                        let type_overloads = kind_overload.entries().cloned().collect::<Vec<_>>();
+                        let implementation = Function::new(FfiAsyncFunctionImpl::<R>::new(
+                            descriptor.clone(),
+                            type_overloads,
+                            abortable.clone(),
+                        ));
                         ols.push(FunctionOverload {
                             descriptor,
                             implementation,
@@ -350,10 +395,19 @@ pub(crate) mod async_activation {
                 if let Some(binding) = binding {
                     match binding {
                         rust::variable::VariableBinding::Value((_value_type, value)) => {
-                            variables.insert(name.to_string(), AbortableVariableBinding::Value(value.clone()));
+                            variables.insert(
+                                name.to_string(),
+                                AbortableVariableBinding::Value(value.clone()),
+                            );
                         }
                         rust::variable::VariableBinding::Provider(provider) => {
-                            variables.insert(name.to_string(), AbortableVariableBinding::Provider(AbortableProviderRunner::new(provider.clone(), abortable.clone())));
+                            variables.insert(
+                                name.to_string(),
+                                AbortableVariableBinding::Provider(AbortableProviderRunner::new(
+                                    provider.clone(),
+                                    abortable.clone(),
+                                )),
+                            );
                         }
                     }
                 }
@@ -380,22 +434,25 @@ pub(crate) mod async_activation {
         ) -> Result<Option<cxx::UniquePtr<Value<'a>>>, Status> {
             let variable = self.variables.get(name);
             match variable {
-                None => {
-                    Ok(None)
-                }
-                Some(AbortableVariableBinding::Value(value)) => {
-                    Ok(Some(value_from_rust(value, arena, descriptor_pool, message_factory)))
-                }
-                Some(AbortableVariableBinding::Provider(runner)) => {
-                    match runner.call() {
-                        Ok(value) => {
-                            Ok(Some(value_from_rust(&value, arena, descriptor_pool, message_factory)))
-                        }
-                        Err(e) => {
-                            return Err(Status::new(StatusCode::Internal, e.to_string().as_str()));
-                        }
-                    }
-                }
+                None => Ok(None),
+                Some(AbortableVariableBinding::Value(value)) => Ok(Some(value_from_rust(
+                    value,
+                    arena,
+                    descriptor_pool,
+                    message_factory,
+                ))),
+                Some(AbortableVariableBinding::Provider(runner)) => match runner.call() {
+                    Ok(value) => Ok(Some(value_from_rust(
+                        &value,
+                        arena,
+                        descriptor_pool,
+                        message_factory,
+                    ))),
+                    Err(e) => Err(Status::new(
+                        StatusCode::Internal,
+                        format!("Failed to call provider: {}", e).as_str(),
+                    )),
+                },
             }
         }
 
@@ -408,9 +465,15 @@ pub(crate) mod async_activation {
                 None => {
                     vec![]
                 }
-                Some(overloads) => {
-                    overloads.iter().map(|overload| FunctionOverloadReference::new(&overload.descriptor, &overload.implementation)).collect()
-                }
+                Some(overloads) => overloads
+                    .iter()
+                    .map(|overload| {
+                        FunctionOverloadReference::new(
+                            &overload.descriptor,
+                            &overload.implementation,
+                        )
+                    })
+                    .collect(),
             }
         }
     }
@@ -424,7 +487,11 @@ pub(crate) mod async_activation {
 
     impl<'f, R: BlockingRunner> AbortableFunctionRunner<'f, R> {
         fn new(function: rust::function::Function<'f>, abortable: Arc<Mutex<Abortable>>) -> Self {
-            Self { function, abortable, _marker: std::marker::PhantomData }
+            Self {
+                function,
+                abortable,
+                _marker: std::marker::PhantomData,
+            }
         }
 
         fn function_impl(&self) -> &rust::function::Function<'f> {
@@ -450,7 +517,11 @@ pub(crate) mod async_activation {
 
     impl<'f, R: BlockingRunner> AbortableProviderRunner<'f, R> {
         fn new(provider: rust::function::Function<'f>, abortable: Arc<Mutex<Abortable>>) -> Self {
-            Self { provider, abortable, _marker: std::marker::PhantomData }
+            Self {
+                provider,
+                abortable,
+                _marker: std::marker::PhantomData,
+            }
         }
 
         fn call(&self) -> Result<rust::Value, rust::Error> {
@@ -469,8 +540,7 @@ pub(crate) mod async_activation {
     ) -> Result<rust::Value, rust::Error> {
         use futures::FutureExt;
 
-        let mut abortable_guard = abortable.lock()
-            .expect("abortable lock failed");
+        let mut abortable_guard = abortable.lock().expect("abortable lock failed");
         let mut abortable = std::pin::Pin::new(&mut *abortable_guard).fuse();
         let mut fut = fut.as_mut().fuse();
         let fut = async move {

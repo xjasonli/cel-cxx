@@ -174,8 +174,6 @@ impl From<Timestamp> for chrono::DateTime<chrono::Utc> {
     }
 }
 
-
-
 // absl::StatusCode
 #[repr(i32)]
 #[derive(Copy, Clone)]
@@ -270,7 +268,7 @@ impl Status {
     pub fn is_already_exists(&self) -> bool {
         ffi::IsAlreadyExists(self)
     }
-    
+
     pub fn is_cancelled(&self) -> bool {
         ffi::IsCancelled(self)
     }
@@ -278,7 +276,7 @@ impl Status {
     pub fn is_data_loss(&self) -> bool {
         ffi::IsDataLoss(self)
     }
-    
+
     pub fn is_deadline_exceeded(&self) -> bool {
         ffi::IsDeadlineExceeded(self)
     }
@@ -286,7 +284,7 @@ impl Status {
     pub fn is_failed_precondition(&self) -> bool {
         ffi::IsFailedPrecondition(self)
     }
-    
+
     pub fn is_internal(&self) -> bool {
         ffi::IsInternal(self)
     }
@@ -294,7 +292,7 @@ impl Status {
     pub fn is_invalid_argument(&self) -> bool {
         ffi::IsInvalidArgument(self)
     }
-    
+
     pub fn is_not_found(&self) -> bool {
         ffi::IsNotFound(self)
     }
@@ -302,19 +300,19 @@ impl Status {
     pub fn is_out_of_range(&self) -> bool {
         ffi::IsOutOfRange(self)
     }
-    
+
     pub fn is_permission_denied(&self) -> bool {
         ffi::IsPermissionDenied(self)
     }
-    
+
     pub fn is_resource_exhausted(&self) -> bool {
         ffi::IsResourceExhausted(self)
     }
-    
+
     pub fn is_unauthenticated(&self) -> bool {
         ffi::IsUnauthenticated(self)
     }
-    
+
     pub fn is_unavailable(&self) -> bool {
         ffi::IsUnavailable(self)
     }
@@ -328,70 +326,69 @@ impl Status {
     }
 
     pub fn aborted(msg: &str) -> Self {
-        ffi::AbortedError(StringView::from_str(msg))
+        ffi::AbortedError(StringView::new_str(msg))
     }
 
     pub fn already_exists(msg: &str) -> Self {
-        ffi::AlreadyExistsError(StringView::from_str(msg))
+        ffi::AlreadyExistsError(StringView::new_str(msg))
     }
-    
+
     pub fn cancelled(msg: &str) -> Self {
-        ffi::CancelledError(StringView::from_str(msg))
+        ffi::CancelledError(StringView::new_str(msg))
     }
 
     pub fn data_loss(msg: &str) -> Self {
-        ffi::DataLossError(StringView::from_str(msg))
+        ffi::DataLossError(StringView::new_str(msg))
     }
-    
+
     pub fn deadline_exceeded(msg: &str) -> Self {
-        ffi::DeadlineExceededError(StringView::from_str(msg))
+        ffi::DeadlineExceededError(StringView::new_str(msg))
     }
 
     pub fn failed_precondition(msg: &str) -> Self {
-        ffi::FailedPreconditionError(StringView::from_str(msg))
+        ffi::FailedPreconditionError(StringView::new_str(msg))
     }
-    
+
     pub fn internal(msg: &str) -> Self {
-        ffi::InternalError(StringView::from_str(msg))
+        ffi::InternalError(StringView::new_str(msg))
     }
 
     pub fn invalid_argument(msg: &str) -> Self {
-        ffi::InvalidArgumentError(StringView::from_str(msg))
+        ffi::InvalidArgumentError(StringView::new_str(msg))
     }
-    
+
     pub fn not_found(msg: &str) -> Self {
-        ffi::NotFoundError(StringView::from_str(msg))
+        ffi::NotFoundError(StringView::new_str(msg))
     }
 
     pub fn out_of_range(msg: &str) -> Self {
-        ffi::OutOfRangeError(StringView::from_str(msg))
+        ffi::OutOfRangeError(StringView::new_str(msg))
     }
-    
+
     pub fn permission_denied(msg: &str) -> Self {
-        ffi::PermissionDeniedError(StringView::from_str(msg))
+        ffi::PermissionDeniedError(StringView::new_str(msg))
     }
-    
+
     pub fn resource_exhausted(msg: &str) -> Self {
-        ffi::ResourceExhaustedError(StringView::from_str(msg))
+        ffi::ResourceExhaustedError(StringView::new_str(msg))
     }
 
     pub fn unauthenticated(msg: &str) -> Self {
-        ffi::UnauthenticatedError(StringView::from_str(msg))
+        ffi::UnauthenticatedError(StringView::new_str(msg))
     }
 
     pub fn unavailable(msg: &str) -> Self {
-        ffi::UnavailableError(StringView::from_str(msg))
+        ffi::UnavailableError(StringView::new_str(msg))
     }
-    
+
     pub fn unimplemented(msg: &str) -> Self {
-        ffi::UnimplementedError(StringView::from_str(msg))
+        ffi::UnimplementedError(StringView::new_str(msg))
     }
 
     pub fn unknown(msg: &str) -> Self {
-        ffi::UnknownError(StringView::from_str(msg))
+        ffi::UnknownError(StringView::new_str(msg))
     }
 }
-
 
 // absl::Span
 #[repr(C)]
@@ -403,7 +400,9 @@ pub struct Span<'a, T: 'a + SpanElement> {
 
 impl<'a, T: 'a + SpanElement> Copy for Span<'a, T> {}
 impl<'a, T: 'a + SpanElement> Clone for Span<'a, T> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 unsafe impl<'a, T: 'a + SpanElement> cxx::ExternType for Span<'a, T> {
@@ -423,10 +422,7 @@ impl<'a, T: 'a + SpanElement> Span<'a, T> {
     pub fn get(&self, index: usize) -> Option<&'a T> {
         if index < self.len() {
             let offset = index * T::size_of();
-            unsafe {
-                self.ptr.byte_add(offset)
-                    .as_ref()
-            }
+            unsafe { self.ptr.byte_add(offset).as_ref() }
         } else {
             None
         }
@@ -450,7 +446,7 @@ impl<'a, T: 'a + SpanElement + cxx::ExternType<Kind = cxx::kind::Trivial>> Span<
     }
 
     pub fn as_slice(&self) -> &'a [T] {
-        unsafe { std::slice::from_raw_parts(self.ptr, self.len)}
+        unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
     }
 }
 
@@ -472,7 +468,10 @@ impl<'a, T: 'a + SpanElement> std::iter::Iterator for SpanIter<'a, T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.span.len() - self.index, Some(self.span.len() - self.index))
+        (
+            self.span.len() - self.index,
+            Some(self.span.len() - self.index),
+        )
     }
 }
 
@@ -494,16 +493,13 @@ impl<'a, T: 'a + SpanElement> std::iter::IntoIterator for Span<'a, T> {
 
 impl<'a, T: 'a + SpanElement + std::fmt::Debug> std::fmt::Debug for Span<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_list()
-            .entries(self.iter())
-            .finish()
+        f.debug_list().entries(self.iter()).finish()
     }
 }
 
 pub trait SpanElement: crate::SizedExternType {
     type TypeId;
 }
-
 
 // absl::string_view
 #[repr(C)]
@@ -526,7 +522,7 @@ impl<'a> SpanElement for StringView<'a> {
 }
 
 impl<'a> StringView<'a> {
-    pub fn from_bytes(bytes: &'a [u8]) -> Self {
+    pub fn new(bytes: &'a [u8]) -> Self {
         Self {
             len: bytes.len(),
             ptr: bytes.as_ptr(),
@@ -534,8 +530,8 @@ impl<'a> StringView<'a> {
         }
     }
 
-    pub fn from_str(s: &'a str) -> Self {
-        Self::from_bytes(s.as_bytes())
+    pub fn new_str(s: &'a str) -> Self {
+        Self::new(s.as_bytes())
     }
 
     pub fn len(&self) -> usize {

@@ -1,12 +1,11 @@
-use crate::values::*;
 use super::impl_into;
+use crate::values::*;
 
 impl_into!(
     Opaque: Value {
         OpaqueValue => |self| self,
     }
 );
-
 
 impl FromValue for OpaqueValue {
     type Output<'a> = OpaqueValue;

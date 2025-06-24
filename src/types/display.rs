@@ -1,17 +1,29 @@
+use super::*;
 use itertools::Itertools;
 use std::fmt::Display;
-use super::*;
 
 impl std::fmt::Display for ValueType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Null | Self::Unknown | Self::Error | Self::Any | Self::Dyn |
-            Self::Bool | Self::Int | Self::Uint | Self::Double | Self::String | Self::Bytes |
-            Self::BoolWrapper | Self::IntWrapper | Self::UintWrapper |
-            Self::DoubleWrapper | Self::StringWrapper | Self::BytesWrapper |
-            Self::Duration | Self::Timestamp => {
-                Display::fmt(&self.kind(), f)
-            }
+            Self::Null
+            | Self::Unknown
+            | Self::Error
+            | Self::Any
+            | Self::Dyn
+            | Self::Bool
+            | Self::Int
+            | Self::Uint
+            | Self::Double
+            | Self::String
+            | Self::Bytes
+            | Self::BoolWrapper
+            | Self::IntWrapper
+            | Self::UintWrapper
+            | Self::DoubleWrapper
+            | Self::StringWrapper
+            | Self::BytesWrapper
+            | Self::Duration
+            | Self::Timestamp => Display::fmt(&self.kind(), f),
             Self::Struct(struct_) => Display::fmt(struct_, f),
             Self::List(list) => Display::fmt(list, f),
             Self::Map(map) => Display::fmt(map, f),
@@ -58,7 +70,12 @@ impl std::fmt::Display for OpaqueType {
         if self.parameters().is_empty() {
             write!(f, "{}", self.name())
         } else {
-            write!(f, "{}<{}>", self.name(), self.parameters().iter().format(", "))
+            write!(
+                f,
+                "{}<{}>",
+                self.name(),
+                self.parameters().iter().format(", ")
+            )
         }
     }
 }
@@ -77,7 +94,12 @@ impl std::fmt::Display for TypeParamType {
 
 impl std::fmt::Display for FunctionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}) -> {}", self.arguments.iter().format(", "), self.result)
+        write!(
+            f,
+            "({}) -> {}",
+            self.arguments.iter().format(", "),
+            self.result
+        )
     }
 }
 
@@ -98,4 +120,4 @@ impl std::fmt::Display for MapKeyType {
             Self::TypeParam(type_param) => Display::fmt(type_param, f),
         }
     }
-} 
+}

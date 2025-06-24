@@ -1,4 +1,4 @@
-use crate::absl::{Status, Duration, Timestamp};
+use crate::absl::{Duration, Status, Timestamp};
 use crate::common::Type;
 
 #[cxx::bridge]
@@ -22,7 +22,8 @@ mod ffi {
         type OverloadDecl<'a>;
         type FunctionDecl<'a>;
         #[rust_name = "add_overload"]
-        fn AddOverload<'a>(self: Pin<&mut FunctionDecl<'a>>, overload: &OverloadDecl<'a>) -> Status;
+        fn AddOverload<'a>(self: Pin<&mut FunctionDecl<'a>>, overload: &OverloadDecl<'a>)
+            -> Status;
 
         type Constant;
         fn has_value(self: &Constant) -> bool;
@@ -52,13 +53,21 @@ mod ffi {
 
         // VariableDecl
         fn VariableDecl_new<'a>(name: &str, ty: &Type<'a>) -> UniquePtr<VariableDecl<'a>>;
-        fn VariableDecl_new_constant<'a>(name: &str, value: &Constant) -> UniquePtr<VariableDecl<'a>>;
+        fn VariableDecl_new_constant<'a>(
+            name: &str,
+            value: &Constant,
+        ) -> UniquePtr<VariableDecl<'a>>;
 
         // FunctionDecl
         fn FunctionDecl_new<'a>(name: &str) -> UniquePtr<FunctionDecl<'a>>;
 
         // OverloadDecl
-        fn OverloadDecl_new<'a>(id: &str, member: bool, result: &Type<'a>, args: &[Type<'a>]) -> UniquePtr<OverloadDecl<'a>>;
+        fn OverloadDecl_new<'a>(
+            id: &str,
+            member: bool,
+            result: &Type<'a>,
+            args: &[Type<'a>],
+        ) -> UniquePtr<OverloadDecl<'a>>;
 
         // Constnat
         fn Constant_new_null() -> UniquePtr<Constant>;
@@ -119,7 +128,7 @@ impl Constant {
     pub fn new_string(value: &str) -> cxx::UniquePtr<Self> {
         ffi::Constant_new_string(value)
     }
-    
+
     pub fn new_duration(value: Duration) -> cxx::UniquePtr<Self> {
         ffi::Constant_new_duration(value)
     }
@@ -144,7 +153,12 @@ unsafe impl Send for OverloadDecl<'_> {}
 unsafe impl Sync for OverloadDecl<'_> {}
 
 impl<'a> OverloadDecl<'a> {
-    pub fn new(id: &str, member: bool, result: &Type<'a>, arguments: &[Type<'a>]) -> cxx::UniquePtr<Self> {
+    pub fn new(
+        id: &str,
+        member: bool,
+        result: &Type<'a>,
+        arguments: &[Type<'a>],
+    ) -> cxx::UniquePtr<Self> {
         ffi::OverloadDecl_new(id, member, result, arguments)
     }
 }

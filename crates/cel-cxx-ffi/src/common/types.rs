@@ -1,7 +1,7 @@
-use crate::protobuf::{Arena, DescriptorPool};
-use crate::common::TypeKind;
-use crate::Rep;
 use crate::absl::{Span, SpanElement, StringView};
+use crate::common::TypeKind;
+use crate::protobuf::{Arena, DescriptorPool};
+use crate::Rep;
 
 #[cxx::bridge]
 mod ffi {
@@ -110,7 +110,6 @@ mod ffi {
         #[rust_name = "get_type"]
         fn GetType<'a>(self: &Type<'a>) -> TypeType<'a>;
 
-
         type EnumType<'a> = super::EnumType<'a>;
         fn name<'a>(self: &EnumType<'a>) -> string_view<'a>;
 
@@ -139,7 +138,6 @@ mod ffi {
         fn IsOptional(self: &OpaqueType) -> bool;
         #[rust_name = "as_optional"]
         fn GetOptional<'a>(self: &OpaqueType<'a>) -> OptionalType<'a>;
-
 
         type OptionalType<'a> = super::OptionalType<'a>;
         #[rust_name = "parameter"]
@@ -204,10 +202,7 @@ mod ffi {
         fn Type_new_unknown() -> Type<'static>;
 
         // EnumType
-        fn EnumType_new<'a>(
-            descriptor_pool: &'a DescriptorPool,
-            name: &str,
-        ) -> EnumType<'a>;
+        fn EnumType_new<'a>(descriptor_pool: &'a DescriptorPool, name: &str) -> EnumType<'a>;
 
         // FunctionType
         fn FunctionType_new<'a>(
@@ -217,23 +212,13 @@ mod ffi {
         ) -> FunctionType<'a>;
 
         // ListType
-        fn ListType_new<'a>(
-            arena: &'a Arena,
-            element: &Type<'a>,
-        ) -> ListType<'a>;
+        fn ListType_new<'a>(arena: &'a Arena, element: &Type<'a>) -> ListType<'a>;
 
         // MapType
-        fn MapType_new<'a>(
-            arena: &'a Arena,
-            key: &Type<'a>,
-            value: &Type<'a>,
-        ) -> MapType<'a>;
+        fn MapType_new<'a>(arena: &'a Arena, key: &Type<'a>, value: &Type<'a>) -> MapType<'a>;
 
         // MessageType
-        fn MessageType_new<'a>(
-            pool: &'a DescriptorPool,
-            name: &str,
-        ) -> MessageType<'a>;
+        fn MessageType_new<'a>(pool: &'a DescriptorPool, name: &str) -> MessageType<'a>;
 
         // OpaqueType
         fn OpaqueType_new<'a>(
@@ -244,19 +229,12 @@ mod ffi {
 
         // OptionalType
         fn OptionalType_default() -> OptionalType<'static>;
-        fn OptionalType_new<'a>(
-            arena: &'a Arena,
-            parameter: &Type<'a>,
-        ) -> OptionalType<'a>;
+        fn OptionalType_new<'a>(arena: &'a Arena, parameter: &Type<'a>) -> OptionalType<'a>;
 
         // StructType
         fn StructType_default() -> StructType<'static>;
-        fn StructType_new_message<'a>(
-            message_type: &MessageType<'a>,
-        ) -> StructType<'a>;
-        fn StructType_new_basic<'a>(
-            name: &'a str,
-        ) -> StructType<'a>;
+        fn StructType_new_message<'a>(message_type: &MessageType<'a>) -> StructType<'a>;
+        fn StructType_new_basic<'a>(name: &'a str) -> StructType<'a>;
 
         // TypeParamType
         fn TypeParamType_default() -> TypeParamType<'static>;
@@ -264,14 +242,14 @@ mod ffi {
 
         // TypeType
         fn TypeType_default() -> TypeType<'static>;
-        fn TypeType_new<'a>(
-            arena: &'a Arena,
-            parameter: &Type<'a>,
-        ) -> TypeType<'a>;
+        fn TypeType_new<'a>(arena: &'a Arena, parameter: &Type<'a>) -> TypeType<'a>;
         fn TypeType_has_type(type_type: &TypeType) -> bool;
 
         // TypeParameters
-        unsafe fn TypeParameters_get_unchecked<'a>(type_parameters: &TypeParameters<'a>, index: usize) -> &'a Type<'a>;
+        unsafe fn TypeParameters_get_unchecked<'a>(
+            type_parameters: &TypeParameters<'a>,
+            index: usize,
+        ) -> &'a Type<'a>;
     }
 }
 
@@ -415,7 +393,6 @@ unsafe impl<'a> cxx::ExternType for FunctionType<'a> {
     type Kind = cxx::kind::Trivial;
 }
 
-
 impl<'a> FunctionType<'a> {
     pub fn new(arena: &'a Arena, result: &Type<'a>, arguments: &[Type<'a>]) -> Self {
         ffi::FunctionType_new(arena, result, arguments)
@@ -458,7 +435,6 @@ impl<'a> MapType<'a> {
     }
 }
 
-
 // MessageType stores a pointer to the descriptor.
 //
 // So we use 1 pointer size to store the type.
@@ -476,7 +452,6 @@ impl<'a> MessageType<'a> {
         ffi::MessageType_new(pool, name)
     }
 }
-
 
 // OpaqueType stores a pointer to the data.
 //
@@ -496,9 +471,8 @@ impl<'a> OpaqueType<'a> {
     }
 }
 
-
 // OptionalType is a wrapper on OpaqueType.
-// 
+//
 // So we use 1 pointer size to store the type.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
@@ -520,7 +494,6 @@ impl<'a> OptionalType<'a> {
         ffi::OptionalType_new(arena, parameter)
     }
 }
-
 
 // StructType contains a StructTypeVariant, which largest member is
 // BasicStructType contains a std::string_view.
@@ -549,7 +522,6 @@ impl<'a> StructType<'a> {
         ffi::StructType_new_basic(name)
     }
 }
-
 
 // TypeParamType stores a std::string_view.
 //
@@ -602,7 +574,6 @@ impl<'a> TypeType<'a> {
     }
 }
 
-
 // TypeParameters stores a size_t and a array of two `Type`s.
 //
 // So we use 5 pointers size to store the type.
@@ -631,6 +602,12 @@ impl<'a> TypeParameters<'a> {
         }
     }
 
+    /// Get a type parameter at the specified index without bounds checking.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `index` is less than `self.len()`.
+    /// Calling this method with an out-of-bounds index is undefined behavior.
     pub unsafe fn get_unchecked(&self, index: usize) -> &Type<'a> {
         unsafe { ffi::TypeParameters_get_unchecked(self, index) }
     }
@@ -672,7 +649,10 @@ impl<'a> std::iter::Iterator for TypeParametersIter<'a> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.type_parameters.len() - self.index, Some(self.type_parameters.len() - self.index))
+        (
+            self.type_parameters.len() - self.index,
+            Some(self.type_parameters.len() - self.index),
+        )
     }
 }
 

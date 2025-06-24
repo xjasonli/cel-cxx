@@ -1,6 +1,6 @@
 use crate::absl::Status;
-use crate::runtime::{FunctionRegistry, RuntimeBuilder, RuntimeOptions};
 use crate::compiler::CompilerLibrary;
+use crate::runtime::{FunctionRegistry, RuntimeBuilder, RuntimeOptions};
 
 #[cxx::bridge]
 mod ffi {
@@ -46,7 +46,6 @@ mod ffi {
             function_registry: Pin<&mut FunctionRegistry<'f>>,
             runtime_options: &RuntimeOptions,
         ) -> Status;
-
 
         include!(<extensions/select_optimization.h>);
         type SelectOptimizationOptions = super::select_optimization::Options;
@@ -168,7 +167,6 @@ pub mod math_ext {
         }
     }
 }
-
 
 // proto_ext.h
 pub mod proto_ext {

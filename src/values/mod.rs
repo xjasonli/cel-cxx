@@ -12,7 +12,7 @@
 //! - **Null**: Represents absent values (`null`)
 //! - **Bool**: Boolean values (`true`, `false`)
 //! - **Int**: 64-bit signed integers (`i64`)
-//! - **Uint**: 64-bit unsigned integers (`u64`) 
+//! - **Uint**: 64-bit unsigned integers (`u64`)
 //! - **Double**: IEEE 754 double-precision floating point (`f64`)
 //! - **String**: UTF-8 encoded strings
 //! - **Bytes**: Arbitrary byte sequences
@@ -124,7 +124,7 @@
 //!
 //! #[derive(Opaque, Debug, Clone, PartialEq)]
 //! struct UserId(u64);
-//! 
+//!
 //! impl std::fmt::Display for UserId {
 //!     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //!         write!(f, "User({})", self.0)
@@ -177,20 +177,20 @@
 //! - Reference counting handles concurrent access safely
 //! - Conversion operations are atomic where required
 
-mod opaque;
 mod display;
-mod traits;
 mod impls;
+mod opaque;
 mod optional;
+mod traits;
 
-use std::collections::HashMap;
-use arc_slice::{ArcStr, ArcBytes};
-use crate::{Kind, Error};
 use crate::types::*;
+use crate::{Error, Kind};
+use arc_slice::{ArcBytes, ArcStr};
+use std::collections::HashMap;
 
 pub use opaque::*;
-pub use traits::*;
 pub use optional::*;
+pub use traits::*;
 
 /// CEL duration type.
 pub type Duration = chrono::Duration;
@@ -254,9 +254,10 @@ pub type OptionalValue = Optional<Value>;
 /// // Container types
 /// let list = Value::List(vec![Value::Int(1), Value::Int(2)]);
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub enum Value {
     /// Null value
+    #[default]
     Null,
 
     /// Boolean value
@@ -344,7 +345,7 @@ impl Value {
             Value::Opaque(_) | Value::Optional(_) => Kind::Opaque,
         }
     }
-    
+
     /// Returns the concrete type of this value.
     ///
     /// Returns detailed [`ValueType`] information including generic parameters.
@@ -401,7 +402,7 @@ impl Value {
                     return ValueType::List(ListType::new(elem_type));
                 }
                 ValueType::List(ListType::new(ValueType::Dyn))
-            },
+            }
             Value::Map(m) => {
                 let mut iter = m.iter();
                 if let Some((k, v)) = iter.next() {
@@ -413,21 +414,19 @@ impl Value {
                                 key_type = None;
                             }
                         }
-                        if val_type != ValueType::Dyn {
-                            if v.value_type() != val_type {
-                                val_type = ValueType::Dyn;
-                            }
+                        if val_type != ValueType::Dyn && v.value_type() != val_type {
+                            val_type = ValueType::Dyn;
                         }
 
                         if key_type.is_none() && val_type == ValueType::Dyn {
                             break;
                         }
                     }
-                    return ValueType::Map(MapType::new(key_type.unwrap_or(MapKeyType::Dyn), val_type));
+                    ValueType::Map(MapType::new(key_type.unwrap_or(MapKeyType::Dyn), val_type))
                 } else {
-                    return ValueType::Map(MapType::new(MapKeyType::Dyn, ValueType::Dyn));
+                    ValueType::Map(MapType::new(MapKeyType::Dyn, ValueType::Dyn))
                 }
-            },
+            }
             Value::Unknown(_u) => ValueType::Unknown,
             Value::Opaque(o) => ValueType::Opaque(o.opaque_type()),
             Value::Optional(opt) => {
@@ -435,16 +434,10 @@ impl Value {
                     return ValueType::Optional(OptionalType::new(v.value_type()));
                 }
                 ValueType::Optional(OptionalType::new(ValueType::Dyn))
-            },
+            }
             Value::Type(_t) => ValueType::Type(TypeType::new(None)),
             Value::Error(_e) => ValueType::Error,
         }
-    }
-}
-
-impl Default for Value {
-    fn default() -> Self {
-        Value::Null
     }
 }
 
@@ -717,13 +710,19 @@ mod test {
             (Value::Uint(1), Kind::Uint),
             (Value::Double(1.0), Kind::Double),
             (Value::String("test".into()), Kind::String),
-            (Value::Bytes(b"abc".into()), Kind::Bytes), 
-            (Value::Duration(chrono::Duration::seconds(1)), Kind::Duration),
+            (Value::Bytes(b"abc".into()), Kind::Bytes),
+            (
+                Value::Duration(chrono::Duration::seconds(1)),
+                Kind::Duration,
+            ),
             (Value::Timestamp(chrono::Utc::now()), Kind::Timestamp),
             (Value::List(vec![]), Kind::List),
             (Value::Map(HashMap::new()), Kind::Map),
             (Value::Type(ValueType::Null), Kind::Type),
-            (Value::Error(Error::invalid_argument("invalid").into()), Kind::Error),
+            (
+                Value::Error(Error::invalid_argument("invalid")),
+                Kind::Error,
+            ),
             (Value::Optional(Optional::none()), Kind::Opaque),
         ];
 
@@ -736,7 +735,7 @@ mod test {
     fn test_key_kind() {
         let cases = vec![
             (MapKey::Bool(true), Kind::Bool),
-            (MapKey::Int(1), Kind::Int), 
+            (MapKey::Int(1), Kind::Int),
             (MapKey::Uint(1), Kind::Uint),
             (MapKey::String("test".into()), Kind::String),
         ];
@@ -756,13 +755,34 @@ mod test {
             (Value::Double(1.0), ValueType::Double),
             (Value::String("test".into()), ValueType::String),
             (Value::Bytes(b"abc".into()), ValueType::Bytes),
-            (Value::Duration(chrono::Duration::seconds(1)), ValueType::Duration),
+            (
+                Value::Duration(chrono::Duration::seconds(1)),
+                ValueType::Duration,
+            ),
             (Value::Timestamp(chrono::Utc::now()), ValueType::Timestamp),
-            (Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]), ValueType::List(ListType::new(ValueType::Int))),
-            (Value::Map(HashMap::from([(MapKey::String("test".into()), Value::Int(1))])), ValueType::Map(MapType::new(MapKeyType::String, ValueType::Int))),
-            (Value::Type(ValueType::Double), ValueType::Type(TypeType::new(None))),
-            (Value::Error(Error::invalid_argument("invalid").into()), ValueType::Error),
-            (Value::Optional(Optional::new(Value::Int(5))), ValueType::Optional(OptionalType::new(ValueType::Int))),
+            (
+                Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]),
+                ValueType::List(ListType::new(ValueType::Int)),
+            ),
+            (
+                Value::Map(HashMap::from([(
+                    MapKey::String("test".into()),
+                    Value::Int(1),
+                )])),
+                ValueType::Map(MapType::new(MapKeyType::String, ValueType::Int)),
+            ),
+            (
+                Value::Type(ValueType::Double),
+                ValueType::Type(TypeType::new(None)),
+            ),
+            (
+                Value::Error(Error::invalid_argument("invalid")),
+                ValueType::Error,
+            ),
+            (
+                Value::Optional(Optional::new(Value::Int(5))),
+                ValueType::Optional(OptionalType::new(ValueType::Int)),
+            ),
         ];
 
         for (i, (value, expected_type)) in cases.into_iter().enumerate() {

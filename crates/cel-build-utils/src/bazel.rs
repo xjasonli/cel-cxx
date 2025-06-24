@@ -1,6 +1,11 @@
-use std::{ffi::OsStr, io::BufRead as _, path::{Path, PathBuf}, process::Command};
-use anyhow::Result;
 use anyhow::Context as _;
+use anyhow::Result;
+use std::{
+    ffi::OsStr,
+    io::BufRead as _,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 pub struct Bazel {
     pub path: PathBuf,
@@ -40,7 +45,7 @@ impl Bazel {
     ) -> Result<Self> {
         let path = bazel_path(minimal_version, download_dir, download_version)?;
         Ok(Self {
-            path: path,
+            path,
             ..Default::default()
         })
     }
@@ -108,21 +113,20 @@ impl Bazel {
     pub fn parse_output_libraries(&self, stdout: &[u8]) -> Result<Vec<PathBuf>> {
         let prefix = format!("bazel-out/{}", self.bin_dir()?);
 
-        Ok(
-            stdout.lines()
-                .filter_map(|line| line.ok())
-                .filter_map(|line| {
-                    let s = Path::new(line.trim());
-                    if !s.starts_with(&prefix) {
-                        return None;
-                    }
-                    if s.extension() != Some(OsStr::new("a")) {
-                        return None;
-                    }
-                    Some(s.to_owned())
-                })
-                .collect::<Vec<_>>()
-        )
+        Ok(stdout
+            .lines()
+            .map_while(Result::ok)
+            .filter_map(|line| {
+                let s = Path::new(line.trim());
+                if !s.starts_with(&prefix) {
+                    return None;
+                }
+                if s.extension() != Some(OsStr::new("a")) {
+                    return None;
+                }
+                Some(s.to_owned())
+            })
+            .collect::<Vec<_>>())
     }
     //pub fn parse_output_pb_headers(&self, stdout: &[u8]) -> Vec<PathBuf> {
     //    let prefix = format!("bazel-out/{}", self.bin_dir());
@@ -142,14 +146,19 @@ impl Bazel {
     //}
 
     pub fn parse_targets(&self, stdout: &[u8]) -> Vec<String> {
-        stdout.lines()
-            .filter_map(|line| line.ok())
+        stdout
+            .lines()
+            .map_while(Result::ok)
             .filter_map(|line| line.rsplitn(2, " ").last().map(|s| s.to_owned()))
             .collect::<Vec<_>>()
     }
 }
 
-fn bazel_path(minimal_version: &str, download_dir: &Path, download_version: Option<&str>) -> Result<PathBuf, anyhow::Error> {
+fn bazel_path(
+    minimal_version: &str,
+    download_dir: &Path,
+    download_version: Option<&str>,
+) -> Result<PathBuf, anyhow::Error> {
     // detect bazel or bazelisk version
     let minimal_ver = semver::Version::parse(minimal_version)?;
     if let Ok(ver) = bazel_command_version("bazel") {
@@ -175,14 +184,18 @@ fn bazel_path(minimal_version: &str, download_dir: &Path, download_version: Opti
 
 // bazel --version output:
 // bazel 8.2.1
-fn bazel_command_version<S: AsRef<std::ffi::OsStr>>(cmd: S) -> Result<semver::Version, anyhow::Error> {
+fn bazel_command_version<S: AsRef<std::ffi::OsStr>>(
+    cmd: S,
+) -> Result<semver::Version, anyhow::Error> {
     let output = std::process::Command::new(cmd)
         .arg("--version")
         .output()
         .context("Failed to run bazel")?;
     let s = String::from_utf8(output.stdout).context("Failed to parse bazel version")?;
     let re = regex::Regex::new(r"bazel ([^\s]+)")?;
-    let caps = re.captures(&s).ok_or(anyhow::anyhow!("Invalid bazel version"))?;
+    let caps = re
+        .captures(&s)
+        .ok_or(anyhow::anyhow!("Invalid bazel version"))?;
     let version = caps.get(1).unwrap().as_str();
     Ok(semver::Version::parse(version).unwrap())
 }
@@ -223,9 +236,9 @@ fn bazel_filename() -> Result<String, anyhow::Error> {
         _ => return Err(anyhow::anyhow!("Unsupported host os")),
     };
     if os == "windows" {
-        Ok(format!("bazel.exe"))
+        Ok("bazel.exe".to_string())
     } else {
-        Ok(format!("bazel"))
+        Ok("bazel".to_string())
     }
 }
 
@@ -259,9 +272,9 @@ fn download_bazel<P: AsRef<Path>>(dir: P, version: &str) -> Result<PathBuf, anyh
 
     let dl = downloader::Download::new(&url)
         .file_name(Path::new(&filename_tmp))
-        .verify(
-            downloader::verify::with_digest::<sha2::Sha256>(decode_hex(&sha256)?)
-        );
+        .verify(downloader::verify::with_digest::<sha2::Sha256>(decode_hex(
+            &sha256,
+        )?));
 
     let mut downloader = downloader::Downloader::builder()
         .connect_timeout(std::time::Duration::from_secs(10))
@@ -292,7 +305,10 @@ impl DownloadGuard {
         if dst.exists() {
             std::fs::remove_file(&dst).context("Failed to remove dst file")?;
         }
-        Ok(Self { tmp: Some(tmp), dst: Some(dst) })
+        Ok(Self {
+            tmp: Some(tmp),
+            dst: Some(dst),
+        })
     }
     pub fn complete(mut self) -> Result<PathBuf, anyhow::Error> {
         let Some(tmp) = self.tmp.take() else {

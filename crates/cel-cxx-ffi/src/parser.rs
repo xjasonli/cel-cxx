@@ -1,6 +1,6 @@
-use std::pin::Pin;
-use std::ffi::c_int;
 use crate::absl::{Status, StringView};
+use std::ffi::c_int;
+use std::pin::Pin;
 
 #[cxx::bridge]
 mod ffi {
@@ -92,7 +92,6 @@ impl Default for ParserOptions {
         ffi::ParserOptions_default()
     }
 }
-
 
 pub use ffi::ParserBuilder;
 unsafe impl Send for ParserBuilder {}

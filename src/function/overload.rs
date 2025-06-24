@@ -65,12 +65,10 @@ impl<T: FunctionTypeOverload> FunctionOverloads<T> {
     /// # Returns
     ///
     /// Returns `Some(&FunctionKindOverload)` if found, `None` otherwise
-    pub fn find(&self, member: bool, kinds: &[Kind]) -> Option<&FunctionKindOverload<T>>
-    {
-        self.0.iter()
-            .find(|overload| {
-                overload.member() == member && overload.argument_kinds() == &kinds
-            })
+    pub fn find(&self, member: bool, kinds: &[Kind]) -> Option<&FunctionKindOverload<T>> {
+        self.0
+            .iter()
+            .find(|overload| overload.member() == member && overload.argument_kinds() == kinds)
     }
 
     /// Finds a mutable reference to a function overload by member flag and argument kinds.
@@ -87,10 +85,9 @@ impl<T: FunctionTypeOverload> FunctionOverloads<T> {
     where
         T: Send + Sync,
     {
-        self.0.iter_mut()
-            .find(|overload| {
-                overload.member() == member && overload.argument_kinds() == &kinds
-            })
+        self.0
+            .iter_mut()
+            .find(|overload| overload.member() == member && overload.argument_kinds() == kinds)
     }
 
     /// Returns an iterator over all function overloads.
@@ -135,19 +132,22 @@ impl<T: FunctionTypeOverload> FunctionOverloads<T> {
         K: Into<Kind>,
     {
         let kinds = args.into_iter().map(|k| k.into()).collect::<Vec<_>>();
-        if let Some(index) = self.0.iter()
-            .position(|overload| {
-                overload.member() == member && overload.argument_kinds() == &kinds
-            }) {
+        if let Some(index) = self
+            .0
+            .iter()
+            .position(|overload| overload.member() == member && overload.argument_kinds() == &kinds)
+        {
             self.0.remove(index);
         } else {
-            return Err(Error::not_found(
-                format!(
-                    "Overload [{}] ({}) not found",
-                    if member { "member" } else { "global" },
-                    kinds.iter().map(|k| k.to_string()).collect::<Vec<_>>().join(", "),
-                )
-            ));
+            return Err(Error::not_found(format!(
+                "Overload [{}] ({}) not found",
+                if member { "member" } else { "global" },
+                kinds
+                    .iter()
+                    .map(|k| k.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )));
         }
         Ok(())
     }
@@ -172,7 +172,8 @@ impl<'f> FunctionOverloads<FunctionDeclOrImpl<'f>> {
     ///
     /// Returns error if the function signature conflicts with existing registrations.
     pub fn add_impl(&mut self, member: bool, f: Function<'f>) -> Result<&mut Self, Error> {
-        let kinds = f.arguments()
+        let kinds = f
+            .arguments()
             .into_iter()
             .map(|t| t.kind())
             .collect::<Vec<_>>();
@@ -204,12 +205,8 @@ impl<'f> FunctionOverloads<FunctionDeclOrImpl<'f>> {
     /// # Errors
     ///
     /// Returns error if the function signature conflicts with existing registrations.
-    pub fn add_decl(&mut self, member: bool, f: FunctionType) -> Result<&mut Self, Error>
-    {
-        let kinds = f.arguments()
-            .into_iter()
-            .map(|t| t.kind())
-            .collect::<Vec<_>>();
+    pub fn add_decl(&mut self, member: bool, f: FunctionType) -> Result<&mut Self, Error> {
+        let kinds = f.arguments().iter().map(|t| t.kind()).collect::<Vec<_>>();
         if let Some(overload) = self.find_mut(member, &kinds) {
             overload.add_decl(f)?;
         } else {
@@ -241,7 +238,8 @@ impl<'f> FunctionOverloads<Function<'f>> {
     ///
     /// Returns error if the function signature conflicts with existing registrations.
     pub fn add(&mut self, member: bool, f: Function<'f>) -> Result<&mut Self, Error> {
-        let kinds = f.arguments()
+        let kinds = f
+            .arguments()
             .into_iter()
             .map(|t| t.kind())
             .collect::<Vec<_>>();
@@ -277,9 +275,7 @@ pub trait FunctionTypeOverload {
 
 impl FunctionTypeOverload for FunctionDeclOrImpl<'_> {
     fn arguments(&self) -> Vec<ValueType> {
-        self.decl()
-            .arguments()
-            .to_vec()
+        self.decl().arguments().to_vec()
     }
 }
 
@@ -288,7 +284,6 @@ impl FunctionTypeOverload for Function<'_> {
         self.arguments()
     }
 }
-
 
 /// Function overload for a specific argument kind signature.
 ///
@@ -307,7 +302,7 @@ impl FunctionTypeOverload for Function<'_> {
 ///
 /// // Create overload for member function taking (string, int)
 /// let overload = FunctionKindOverload::<Function<'_>>::new(
-///     true, 
+///     true,
 ///     vec![Kind::String, Kind::Int]
 /// );
 /// ```
@@ -365,8 +360,7 @@ impl<T: FunctionTypeOverload> FunctionKindOverload<T> {
     ///
     /// Reference to the matching function, or `None` if not found
     pub fn find(&self, args: &[ValueType]) -> Option<&T> {
-        self.entries.iter()
-            .find(|entry| &entry.arguments() == args)
+        self.entries.iter().find(|entry| entry.arguments() == args)
     }
 
     /// Returns an iterator over all functions in this overload.
@@ -402,16 +396,21 @@ impl<T: FunctionTypeOverload> FunctionKindOverload<T> {
     ///
     /// `Ok(())` if removal was successful, `Err(Error)` if not found
     pub fn remove(&mut self, args: &[ValueType]) -> Result<(), Error> {
-        if let Some(index) = self.entries.iter()
-            .position(|entry| &entry.arguments() == args) {
+        if let Some(index) = self
+            .entries
+            .iter()
+            .position(|entry| entry.arguments() == args)
+        {
             self.entries.remove(index);
         } else {
-            return Err(Error::not_found(
-                format!("Overload [{}] ({}) not found",
-                    if self.member { "member" } else { "global" },
-                    args.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", "),
-                )
-            ));
+            return Err(Error::not_found(format!(
+                "Overload [{}] ({}) not found",
+                if self.member { "member" } else { "global" },
+                args.iter()
+                    .map(|t| t.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )));
         }
         Ok(())
     }
@@ -459,7 +458,7 @@ impl<'f> FunctionKindOverload<FunctionDeclOrImpl<'f>> {
     ///
     /// Returns an error if a function with the same exact signature already exists.
     pub fn add_decl(&mut self, r#type: FunctionType) -> Result<&mut Self, Error> {
-        if let Some(_entry) = self.find(&r#type.arguments()) {
+        if let Some(_entry) = self.find(r#type.arguments()) {
             return Err(Error::invalid_argument("Function already exists"));
         }
         self.entries.push(FunctionDeclOrImpl::new(r#type));
@@ -488,8 +487,7 @@ impl<'f> FunctionKindOverload<Function<'f>> {
     /// # Returns
     ///
     /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add(&mut self, f: Function<'f>) -> Result<&mut Self, Error>
-    {
+    pub fn add(&mut self, f: Function<'f>) -> Result<&mut Self, Error> {
         if let Some(_entry) = self.find(&f.arguments()) {
             return Err(Error::invalid_argument("Function already exists"));
         }
