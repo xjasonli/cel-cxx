@@ -12,7 +12,7 @@ license = "Apache-2.0"
 repository = "https://github.com/xjasonli/cel-cxx"
 rust-version = "1.80"
 homepage = "https://github.com/xjasonli/cel-cxx"
-keywords = ["cel", "expression", "language", "ffi", "cxx", "google"]
+keywords = ["cel", "expression", "language", "ffi", "cxx"]
 
 [workspace.dependencies]
 cel-cxx = { path = "." }
