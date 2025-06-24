@@ -1,7 +1,7 @@
 [package]
 name = "cel-cxx-ffi"
 description = "FFI bindings for the cel-cxx crate"
-categories = ["api-bindings", "ffi"]
+categories = ["api-bindings"]
 documentation = "https://docs.rs/cel-cxx-ffi"
 readme = "README.md"
 version.workspace = true

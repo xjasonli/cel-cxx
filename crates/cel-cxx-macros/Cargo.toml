@@ -1,7 +1,7 @@
 [package]
 name = "cel-cxx-macros"
 description = "Macros for the cel-cxx crate"
-categories = ["api-bindings", "parser-implementations"]
+categories = ["api-bindings"]
 documentation = "https://docs.rs/cel-cxx-macros"
 readme = "README.md"
 version.workspace = true

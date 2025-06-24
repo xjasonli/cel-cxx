@@ -51,7 +51,7 @@ arc-slice = { version = "0.1", features = ["default-layout-any-buffer"] }
 [package]
 name = "cel-cxx"
 description = "A Rust-native interface for Common Expression Language (CEL), implemented as a high-level idiomatic Rust wrapper around google/cel-cpp"
-categories = ["api-bindings", "parser-implementations", "ffi", "embedded"]
+categories = ["api-bindings"]
 documentation = "https://docs.rs/cel-cxx"
 readme = "README.md"
 version.workspace = true
