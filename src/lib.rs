@@ -33,42 +33,20 @@
 //! 
 //! ### Core Design Principles
 //! 
-//! 1. **Dual Function Architecture**: Separates compile-time type checking from runtime execution
-//! 2. **Smart Reference Management**: Automatic lifetime erasure for safe borrowing patterns
-//! 3. **Zero-Cost Abstractions**: No runtime overhead for type conversions and function calls
-//! 4. **Memory Safety**: Rust's ownership system prevents common CEL integration bugs
+//! - **Type Safety**: Compile-time verification of CEL expressions and function signatures
+//! - **Zero-Cost Abstractions**: Direct FFI calls to CEL-CPP with minimal overhead
+//! - **Memory Safety**: Rust ownership system prevents common integration bugs
+//! - **Ergonomic API**: Builder patterns and automatic type inference reduce boilerplate
+//! - **Extensibility**: Support for custom types and async operations
 //! 
-//! ### System Components
+//! ### Integration Architecture
 //! 
-//! ```text
-//! ┌─────────────────────────────────────────────────────────────┐
-//! │                    CEL-CXX Architecture                     │
-//! ├─────────────────────────────────────────────────────────────┤
-//! │  Rust Application Layer                                     │
-//! │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
-//! │  │ Environment │ │ Activation  │ │ Custom Types        │   │
-//! │  │ Builder     │ │ & Variables │ │ (#[derive(Opaque)]) │   │
-//! │  └─────────────┘ └─────────────┘ └─────────────────────┘   │
-//! ├─────────────────────────────────────────────────────────────┤
-//! │  Type System & Function Registry                            │
-//! │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
-//! │  │ Value       │ │ Function    │ │ Variable            │   │
-//! │  │ Conversions │ │ Overloads   │ │ Bindings            │   │
-//! │  └─────────────┘ └─────────────┘ └─────────────────────┘   │
-//! ├─────────────────────────────────────────────────────────────┤
-//! │  Zero-Cost FFI Layer (cxx)                                 │
-//! │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
-//! │  │ Compiler    │ │ Runtime     │ │ Type Checker        │   │
-//! │  │ Bindings    │ │ Evaluation  │ │ Integration         │   │
-//! │  └─────────────┘ └─────────────┘ └─────────────────────┘   │
-//! ├─────────────────────────────────────────────────────────────┤
-//! │  Google CEL-CPP (C++)                                      │
-//! │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
-//! │  │ Parser      │ │ Type System │ │ Expression          │   │
-//! │  │ & Compiler  │ │ & Runtime   │ │ Evaluator           │   │
-//! │  └─────────────┘ └─────────────┘ └─────────────────────┘   │
-//! └─────────────────────────────────────────────────────────────┘
-//! ```
+//! The library provides a layered architecture that bridges Rust and CEL-CPP:
+//! 
+//! - **Application Layer**: High-level APIs for environment building and expression evaluation
+//! - **Type System Layer**: Automatic conversions between Rust and CEL types
+//! - **FFI Layer**: Zero-cost bindings to CEL-CPP via the `cxx` crate
+//! - **CEL-CPP Layer**: Google's reference implementation for parsing and evaluation
 //! 
 //! ## 🚀 Quick Start
 //!
@@ -169,6 +147,36 @@
 //! # Ok(())
 //! # }
 //! ```
+//! 
+//! #### Async Architecture Design
+//! 
+//! Supporting Rust async functions in CEL presents unique challenges since CEL-CPP doesn't
+//! natively support asynchronous or callback-based user-defined functions and variable providers.
+//! When a Rust async function returns a `Future`, it has already exited the current stack frame,
+//! and the C++ CEL evaluation engine cannot schedule or await Rust futures.
+//! 
+//! **cel-cxx** solves this through an innovative dual-threading architecture:
+//! 
+//! 1. **Async-to-Blocking Bridge**: When async functions or variable providers are registered,
+//!    the entire program evaluation is moved to a blocking thread using `Runtime::spawn_blocking()`.
+//!    The main async context receives a future that resolves when evaluation completes.
+//! 
+//! 2. **Blocking-to-Async Bridge**: When async callbacks are invoked within the blocking thread,
+//!    the returned futures are dispatched back to the async runtime for execution, while the
+//!    blocking thread waits for completion using `Runtime::block_on()`.
+//! 
+//! #### Implementation Details
+//! 
+//! - **Lifetime Management**: Since user-provided functions and variable providers can be capturing
+//!   closures with complex lifetimes, cel-cxx uses the [`async-scoped`](https://crates.io/crates/async-scoped) 
+//!   crate to safely manage these lifetimes across thread boundaries.
+//! 
+//! - **Multi-threaded Runtime Requirement**: When using Tokio, the runtime must be multi-threaded
+//!   because the implementation relies on [`tokio::task::block_in_place()`](https://docs.rs/tokio/latest/tokio/task/fn.block_in_place.html),
+//!   which panics in single-threaded runtimes.
+//! 
+//! This design enables seamless integration of async Rust code with the synchronous CEL-CPP
+//! evaluation engine, maintaining both performance and correctness across runtime boundaries.
 //! 
 //! ### Function Overloads
 //! 
@@ -294,12 +302,49 @@
 //! cargo run --example tokio --features="async,tokio"
 //! ```
 //! 
+//! ## 🖥️ Platform Support
+//! 
+//! | Platform | Status | Notes |
+//! |----------|--------|-------|
+//! | **Linux** | ✅ Supported | Fully tested and supported |
+//! | **macOS** | ⚠️ Untested | Should work but not regularly tested |
+//! | **Windows** | ❌ Not Supported | CEL-CPP Bazel build scripts don't support Windows |
+//! 
+//! ## 📋 CEL Feature Support
+//! 
+//! ### ✅ Supported Features
+//! 
+//! | Feature | Status | Description |
+//! |---------|--------|-------------|
+//! | **Basic Types** | ✅ | `null`, `bool`, `int`, `uint`, `double`, `string`, `bytes` |
+//! | **Collections** | ✅ | `list<T>`, `map<K,V>` with full indexing and comprehensions |
+//! | **Time Types** | ✅ | `duration`, `timestamp` with full arithmetic support |
+//! | **Operators** | ✅ | Arithmetic, logical, comparison, and membership operators |
+//! | **Functions** | ✅ | Built-in functions and custom function registration |
+//! | **Variables** | ✅ | Variable binding and scoping |
+//! | **Conditionals** | ✅ | Ternary operator and logical short-circuiting |
+//! | **Comprehensions** | ✅ | List and map comprehensions with filtering |
+//! | **Optional Types** | ✅ | `optional<T>` with safe navigation |
+//! | **Custom Types** | ✅ | Opaque types via `#[derive(Opaque)]` |
+//! | **Extensions** | ✅ | CEL language extensions and custom operators |
+//! | **Macros** | ✅ | CEL macro expansion support |
+//! | **Async Support** | ✅ | Async function calls and evaluation |
+//! | **Function Overloads** | ✅ | Multiple function signatures with automatic resolution |
+//! | **Type Checking** | ✅ | Compile-time type validation |
+//! 
+//! ### 🚧 Planned Features
+//! 
+//! | Feature | Status | Description |
+//! |---------|--------|-------------|
+//! | **Protocol Buffer Integration** | 🚧 Planned | Direct support for protobuf messages and enums as native CEL types |
+//! | **Windows Support** | 🚧 Planned | Requires CEL-CPP Windows build support |
+//! 
 //! ## 🔗 Related Crates
 //! 
-//! - [`cel-cxx-macros`]: Derive macros for custom types (re-exported when `derive` feature is enabled)
+//! - [`async-scoped`]: Scoped async execution for safe lifetime management across thread boundaries
 //! - [`cxx`]: Safe interop between Rust and C++ (used internally)
 //! 
-//! [`cel-cxx-macros`]: https://docs.rs/cel-cxx-macros
+//! [`async-scoped`]: https://crates.io/crates/async-scoped
 //! [`cxx`]: https://docs.rs/cxx
 
 #![cfg_attr(docsrs, feature(doc_cfg))]

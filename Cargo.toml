@@ -33,11 +33,6 @@ async-scoped = { version = "0.9" }
 itertools = { version = "0.14" }
 chrono = { version = "0.4" }
 dyn-clone = "1"
-prost = { version = "0.13" }
-prost-types = { version = "0.13" }
-prost-reflect = { version = "0.15" }
-pbjson = { version = "0.7" }
-pbjson-types = { version = "0.7" }
 paste = "1"
 futures = { version = "0.3" }
 pin-project-lite = "0.2"
@@ -95,8 +90,6 @@ tokio = { workspace = true, optional = true, features = ["rt"] }
 async-std = { workspace = true, optional = true }
 async-scoped = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
-prost = { workspace = true }
-prost-reflect = { workspace = true }
 arc-slice = { workspace = true }
 
 [dev-dependencies]

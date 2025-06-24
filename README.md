@@ -20,6 +20,43 @@ A modern, high-performance Rust interface for [Common Expression Language (CEL)]
 - **🎯 Type-Safe**: Compile-time type checking for variables, functions, and expressions
 - **🔧 Ergonomic API**: Intuitive builder patterns and derive macros
 
+## 🖥️ Platform Support
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **Linux** | ✅ Supported | Fully tested and supported |
+| **macOS** | ⚠️ Untested | Should work but not regularly tested |
+| **Windows** | ❌ Not Supported | CEL-CPP Bazel build scripts don't support Windows |
+
+## 📋 CEL Feature Support
+
+### ✅ Supported Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Basic Types** | ✅ | `null`, `bool`, `int`, `uint`, `double`, `string`, `bytes` |
+| **Collections** | ✅ | `list<T>`, `map<K,V>` with full indexing and comprehensions |
+| **Time Types** | ✅ | `duration`, `timestamp` with full arithmetic support |
+| **Operators** | ✅ | Arithmetic, logical, comparison, and membership operators |
+| **Functions** | ✅ | Built-in functions and custom function registration |
+| **Variables** | ✅ | Variable binding and scoping |
+| **Conditionals** | ✅ | Ternary operator and logical short-circuiting |
+| **Comprehensions** | ✅ | List and map comprehensions with filtering |
+| **Optional Types** | ✅ | `optional<T>` with safe navigation |
+| **Custom Types** | ✅ | Opaque types via `#[derive(Opaque)]` |
+| **Extensions** | ✅ | CEL language extensions and custom operators |
+| **Macros** | ✅ | CEL macro expansion support |
+| **Async Support** | ✅ | Async function calls and evaluation |
+| **Function Overloads** | ✅ | Multiple function signatures with automatic resolution |
+| **Type Checking** | ✅ | Compile-time type validation |
+
+### 🚧 Planned Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Protocol Buffer Integration** | 🚧 Planned | Direct support for protobuf messages and enums as native CEL types |
+| **Windows Support** | 🚧 Planned | Requires CEL-CPP Windows build support |
+
 ## 🎯 Key Design Features
 
 ### 1. Zero-Annotation Function System
@@ -564,13 +601,43 @@ async fn main() -> Result<(), Error> {
 }
 ```
 
+#### Async Architecture Design
+
+Supporting Rust async functions in CEL presents unique challenges since CEL-CPP doesn't
+natively support asynchronous or callback-based user-defined functions and variable providers.
+When a Rust async function returns a `Future`, it has already exited the current stack frame,
+and the C++ CEL evaluation engine cannot schedule or await Rust futures.
+
+**cel-cxx** solves this through an innovative dual-threading architecture:
+
+1. **Async-to-Blocking Bridge**: When async functions or variable providers are registered,
+   the entire program evaluation is moved to a blocking thread using `Runtime::spawn_blocking()`.
+   The main async context receives a future that resolves when evaluation completes.
+
+2. **Blocking-to-Async Bridge**: When async callbacks are invoked within the blocking thread,
+   the returned futures are dispatched back to the async runtime for execution, while the
+   blocking thread waits for completion using `Runtime::block_on()`.
+
+#### Implementation Details
+
+- **Lifetime Management**: Since user-provided functions and variable providers can be capturing
+  closures with complex lifetimes, cel-cxx uses the [async-scoped](https://crates.io/crates/async-scoped) 
+  crate to safely manage these lifetimes across thread boundaries.
+
+- **Multi-threaded Runtime Requirement**: When using Tokio, the runtime must be multi-threaded
+  because the implementation relies on [`tokio::task::block_in_place()`](https://docs.rs/tokio/latest/tokio/task/fn.block_in_place.html),
+  which panics in single-threaded runtimes.
+
+This design enables seamless integration of async Rust code with the synchronous CEL-CPP
+evaluation engine, maintaining both performance and correctness across runtime boundaries.
+
 ## 🔧 Advanced Features
 
 ### Feature Flags
 
 | Feature | Description | Dependencies |
 |---------|-------------|--------------|
-| `async` | Async/await support for expressions and functions | - |
+| `async` | Async/await support for expressions and functions | `async-scoped`, `futures` |
 | `derive` | Derive macros for custom types (`#[derive(Opaque)]`) | `cel-cxx-macros` |
 | `tokio` | Tokio async runtime integration | `tokio`, `async` |
 | `async-std` | async-std runtime integration | `async-std`, `async` |
