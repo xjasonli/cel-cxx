@@ -8,11 +8,14 @@ module(
 bazel_dep(name = "cel-cpp")
 git_override(
     module_name = "cel-cpp",
+
     #remote = "https://github.com/google/cel-cpp.git",
     #branch = "master",
     
+    # We need some patches
     remote = "https://github.com/xjasonli/cel-cpp.git",
-    branch = "modified-for-cel-cxx"
+    commit = "5fa85ed85ea091e495fc494a173671ced18a7604",
+    #branch = "modified-for-cel-cxx"
 )
 
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)

@@ -15,12 +15,54 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// Check if we're building for documentation
+/// Check if we're building for documentation or analysis tools
 fn skip_building() -> bool {
     // Check for docs.rs environment
     if std::env::var("DOCS_RS").is_ok() {
+        println!("cargo:warning=Skipping C++ build for docs.rs");
         return true;
     }
+
+    // Check for rust-analyzer environment variables
+    if is_rust_analyzer() {
+        println!("cargo:warning=Skipping C++ build for rust-analyzer");
+        return true;
+    }
+
+    // Check for CEL_CXX_FFI_SKIP_BUILD environment variable
+    // This is useful when c++ build is not necessary, e.g. when used with cargo check
+    //
+    // example:
+    // CEL_CXX_FFI_SKIP_BUILD=1 cargo check
+    if std::env::var("CEL_CXX_FFI_SKIP_BUILD").is_ok() {
+        println!("cargo:warning=Skipping C++ build due to CEL_CXX_FFI_SKIP_BUILD");
+        return true;
+    }
+    
+    false
+}
+
+/// Detect if the build is being triggered by rust-analyzer
+fn is_rust_analyzer() -> bool {
+    // Check for rust-analyzer specific environment variables
+    if std::env::var("RA_RUSTC_WRAPPER").is_ok() {
+        return true;
+    }
+
+    // Check if RUSTC_WRAPPER contains rust-analyzer
+    if let Ok(wrapper) = std::env::var("RUSTC_WRAPPER") {
+        if wrapper.contains("rust-analyzer") {
+            return true;
+        }
+    }
+
+    // Check if RUSTC contains rust-analyzer
+    if let Ok(rustc) = std::env::var("RUSTC") {
+        if rustc.contains("rust-analyzer") {
+            return true;
+        }
+    }
+
     false
 }
 
