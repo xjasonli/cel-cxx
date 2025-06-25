@@ -63,7 +63,9 @@ mod ffi {
         include!("absl/strings/string_view.h");
         #[allow(unused, non_camel_case_types)]
         type string_view<'a> = super::StringView<'a>;
-
+        #[rust_name = "len"]
+        fn size(self: &string_view) -> usize;
+        fn data(self: &string_view) -> *const c_char;
     }
 
     #[namespace = "absl::time_internal"]
@@ -78,6 +80,8 @@ mod ffi {
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
         include!("cel-cxx-ffi/include/absl.h");
+
+        fn StringView_new<'a>(bytes: &'a [u8]) -> string_view<'a>;
 
         fn StatusCode_to_string(code: StatusCode) -> String;
 
@@ -504,11 +508,7 @@ pub trait SpanElement: crate::SizedExternType {
 // absl::string_view
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct StringView<'a> {
-    len: usize,
-    ptr: *const u8,
-    _marker: std::marker::PhantomData<&'a u8>,
-}
+pub struct StringView<'a>(Rep<'a, usize, 2>);
 
 unsafe impl<'a> cxx::ExternType for StringView<'a> {
     type Id = cxx::type_id!("absl::string_view");
@@ -523,27 +523,19 @@ impl<'a> SpanElement for StringView<'a> {
 
 impl<'a> StringView<'a> {
     pub fn new(bytes: &'a [u8]) -> Self {
-        Self {
-            len: bytes.len(),
-            ptr: bytes.as_ptr(),
-            _marker: std::marker::PhantomData,
-        }
+        ffi::StringView_new(bytes)
     }
 
     pub fn new_str(s: &'a str) -> Self {
         Self::new(s.as_bytes())
     }
 
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
     pub fn is_empty(&self) -> bool {
-        self.len == 0
+        self.len() == 0
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        unsafe { std::slice::from_raw_parts(self.ptr, self.len) }
+        unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
     }
 
     pub fn to_str(&self) -> Result<&str, std::str::Utf8Error> {
@@ -555,6 +547,6 @@ impl<'a> StringView<'a> {
     }
 
     pub fn as_ptr(&self) -> *const u8 {
-        self.ptr
+        self.data() as *const u8
     }
 }

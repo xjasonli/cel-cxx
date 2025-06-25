@@ -56,12 +56,12 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
 
     cxx_build::bridges(rs_srcs)
         .include(artifacts.include_dir())
-        .flag("-Wno-missing-requires")
-        .flag("-Wno-deprecated-declarations")
-        .flag("-Wno-unused-parameter")
-        .flag("-Wno-class-memaccess")
-        .flag("-Wno-return-type")
-        .flag("-Wno-sign-compare")
+        .flag_if_supported("-Wno-missing-requires")
+        .flag_if_supported("-Wno-deprecated-declarations")
+        .flag_if_supported("-Wno-unused-parameter")
+        .flag_if_supported("-Wno-class-memaccess")
+        .flag_if_supported("-Wno-return-type")
+        .flag_if_supported("-Wno-sign-compare")
         .files(cc_srcs)
         .std("c++17")
         .compile("cel-cxx");

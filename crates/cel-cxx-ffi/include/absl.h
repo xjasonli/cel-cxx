@@ -10,8 +10,13 @@ template <> struct IsRelocatable<::absl::Status> : std::true_type {};
 
 namespace rust::cel_cxx {
 
+using StringView = absl::string_view;
 using StatusCode = absl::StatusCode;
 using Status = absl::Status;
+
+inline StringView StringView_new(Slice<const uint8_t> bytes) {
+    return StringView((const char*)bytes.data(), bytes.size());
+}
 
 inline String StatusCode_to_string(StatusCode code) {
     return String(absl::StatusCodeToString(code));
