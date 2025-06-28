@@ -11,6 +11,14 @@
 A high-performance, type-safe Rust interface for [Common Expression Language (CEL)](https://github.com/google/cel-spec),
 built on top of [google/cel-cpp](https://github.com/google/cel-cpp) with zero-cost FFI bindings via [cxx](https://github.com/dtolnay/cxx).
 
+## 🖥️ Platform Support
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **Linux** | ✅ Supported | Fully tested and supported |
+| **macOS** | ✅ Supported | Fully tested and supported |
+| **Windows** | ❌ Not Supported | CEL-CPP Bazel build scripts don't support Windows |
+
 ## 🏗️ Architecture Overview
 
 ### Core Design Principles
@@ -529,13 +537,7 @@ cargo run --example comprehensive
 cargo run --example tokio --features="async,tokio"
 ```
 
-## 🖥️ Platform Support
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| **Linux** | ✅ Supported | Fully tested and supported |
-| **macOS** | ⚠️ Untested | Should work but not regularly tested |
-| **Windows** | ❌ Not Supported | CEL-CPP Bazel build scripts don't support Windows |
 
 ## 📋 CEL Feature Support
 
