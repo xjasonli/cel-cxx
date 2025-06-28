@@ -53,7 +53,6 @@ impl<'f> FfiFunction for FfiFunctionImpl<'f> {
             let result = overload.call(rust_args);
 
             #[cfg(feature = "async")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
             let result = result.expect_result("should not be a future");
 
             let value = result
@@ -69,8 +68,6 @@ impl<'f> FfiFunction for FfiFunctionImpl<'f> {
     }
 }
 
-// Activation 运行时使用, 包含运行时用到的变量和函数, 由 program.evaluate 调用时传入;
-// function_registry 在编译时使用, 可能是 Decl, 也可能是 Impl; Impl 一定有 Decl;
 pub(crate) struct FfiActivationImpl<'f> {
     variables: HashMap<String, rust::variable::VariableBinding<'f>>,
     functions: HashMap<String, Vec<FunctionOverload<'f>>>,
@@ -108,7 +105,6 @@ impl<'f> FfiActivationImpl<'f> {
             }
             functions.insert(name.to_string(), ols);
 
-            // 使用 function_registry 中的注册信息, 过滤掉 function_bindings 中未注册的函数
             let binding = function_bindings.find(name);
             if let Some(binding) = binding {
                 let mut ols = Vec::new();
@@ -129,8 +125,6 @@ impl<'f> FfiActivationImpl<'f> {
         }
 
         let mut variables = HashMap::new();
-        // variable_registry 中的变量不需要处理, 因为已经在编译期处理过
-        // 使用 variable_registry 中的注册信息, 过滤掉 variable_bindings 中未注册的变量
         for (name, _) in variable_registry.entries() {
             let binding = variable_bindings.find(name);
             if let Some(binding) = binding {
@@ -160,54 +154,22 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
                 value_from_rust(value, arena, descriptor_pool, message_factory),
             )),
             Some(rust::variable::VariableBinding::Provider(provider)) => {
-                // 运行时获取同步 provider 的值
                 let res = provider.call(vec![]);
 
-                #[cfg(not(feature = "async"))]
-                {
-                    match res {
-                        Ok(ref value) => Ok(Some(value_from_rust(
-                            value,
-                            arena,
-                            descriptor_pool,
-                            message_factory,
-                        ))),
-                        Err(e) => {
-                            return Err(Status::new(
-                                StatusCode::Internal,
-                                format!("Failed to call provider: {}", e).as_str(),
-                            ));
-                        }
-                    }
-                }
-
                 #[cfg(feature = "async")]
-                #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+                let res = res.expect_result("should not be a future");
+
                 match res {
-                    rust::MaybeFuture::Result(res) => {
-                        match res {
-                            Ok(ref value) => {
-                                // provider 成功
-                                Ok(Some(value_from_rust(
-                                    value,
-                                    arena,
-                                    descriptor_pool,
-                                    message_factory,
-                                )))
-                            }
-                            Err(e) => {
-                                // provider 报错
-                                Err(Status::new(
-                                    StatusCode::Internal,
-                                    format!("Failed to call provider: {}", e).as_str(),
-                                ))
-                            }
-                        }
-                    }
-                    _ => {
-                        // 同步 activation 不应该返回 future
-                        panic!("Should not be a future");
-                    }
+                    Ok(ref value) => Ok(Some(value_from_rust(
+                        value,
+                        arena,
+                        descriptor_pool,
+                        message_factory,
+                    ))),
+                    Err(e) => Err(Status::new(
+                        StatusCode::Internal,
+                        format!("Failed to call provider: {}", e).as_str(),
+                    )),
                 }
             }
         }
@@ -389,7 +351,6 @@ pub(crate) mod async_activation {
             }
 
             let mut variables = HashMap::new();
-            // 过滤掉在编译斯未注册的变量, variable_registry 中的变量不需要处理, 因为已经在编译期处理过
             for (name, _) in variable_registry.entries() {
                 let binding = variable_bindings.find(name);
                 if let Some(binding) = binding {

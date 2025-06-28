@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2025-06-28
+
+### Fixed
+- Fixed macOS compatibility issues
+
 ## [0.1.0] - 2025-06-24
 
 ### Added
@@ -66,5 +71,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite and examples
 - CI/CD pipeline for automated testing
 
-[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/xjasonli/cel-cxx/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/xjasonli/cel-cxx/releases/tag/v0.1.0 
