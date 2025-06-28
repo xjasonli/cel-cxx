@@ -141,6 +141,7 @@ mod imp {
 }
 
 #[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 mod imp {
     use futures::future::{BoxFuture, Future};
     use std::pin::Pin;

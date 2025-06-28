@@ -3,11 +3,12 @@ use std::convert::Infallible;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[async_std::main]
-async fn main() -> Result<()> {
-    exercise1().await?;
-    exercise2().await?;
-    Ok(())
+fn main() -> Result<()> {
+    smol::block_on(async {
+        exercise1().await?;
+        exercise2().await?;
+        Ok(())
+    })
 }
 
 #[derive(Opaque, Debug, Clone, PartialEq)]
@@ -29,7 +30,7 @@ impl Student {
     }
 
     async fn get_age(&self) -> i32 {
-        async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+        smol::Timer::after(std::time::Duration::from_secs(1)).await;
         self.age
     }
 }
@@ -41,7 +42,7 @@ async fn exercise1() -> Result<(), Error> {
         // ✨ Register struct methods directly using RustType::method_name syntax
         .register_member_function("get_name", Student::get_name)?
         .register_member_function("get_age", Student::get_age)?
-        .use_async_std()
+        .use_smol()
         .build()?;
 
     let activation = Activation::new().bind_variable(
@@ -70,10 +71,10 @@ async fn exercise2() -> Result<()> {
         .declare_variable::<i64>("a")?
         .declare_variable::<i64>("b")?
         .register_global_function("get_const", async move || -> Result<i64, Infallible> {
-            async_std::task::sleep(std::time::Duration::from_secs(1)).await;
+            smol::Timer::after(std::time::Duration::from_secs(1)).await;
             Ok(1)
         })?
-        .use_async_std()
+        .use_smol()
         .build()?;
     let program = env.compile("a + b + get_const()")?;
 

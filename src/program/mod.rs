@@ -308,6 +308,33 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Program<'f, Fm, Rm> {
 const _: () = {
     use crate::r#async::*;
 
+    impl<'f, Rm: RuntimeMarker> Program<'f, (), Rm> {
+        /// Forces conversion to an async program.
+        ///
+        /// This method converts a synchronous program to an asynchronous one,
+        /// allowing it to work with async functions and evaluation.
+        ///
+        /// # Examples
+        ///
+        /// ```rust,no_run
+        /// # #[cfg(feature = "async")]
+        /// # {
+        /// use cel_cxx::*;
+        ///
+        /// let sync_program = Env::builder().build()?.compile("42")?;
+        /// let async_program = sync_program.force_async();
+        /// # }
+        /// # Ok::<(), cel_cxx::Error>(())
+        /// ```
+        pub fn force_async(self) -> Program<'f, Async, Rm> {
+            Program {
+                inner: self.inner,
+                _fn_marker: std::marker::PhantomData,
+                _rt_marker: std::marker::PhantomData,
+            }
+        }
+    }
+
     impl<'f, Fm: FnMarker> Program<'f, Fm, ()> {
         /// Configures this program to use a specific async runtime.
         ///
@@ -388,6 +415,30 @@ const _: () = {
         pub fn use_async_std(self) -> Program<'f, Fm, AsyncStd> {
             self.use_runtime::<AsyncStd>()
         }
+
+        /// Configures this program to use the smol runtime.
+        ///
+        /// This is a convenience method equivalent to `use_runtime::<Smol>()`.
+        ///
+        /// # Examples
+        ///
+        /// ```rust,no_run
+        /// # #[cfg(feature = "smol")]
+        /// # fn example() -> Result<(), cel_cxx::Error> {
+        /// use cel_cxx::*;
+        ///
+        /// let env = Env::builder().build()?;
+        /// let program = env.compile("42")?;
+        ///
+        /// let smol_program = program.use_smol();
+        /// # Ok::<(), cel_cxx::Error>(())
+        /// # }
+        /// ```
+        #[cfg(feature = "smol")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "smol")))]
+        pub fn use_smol(self) -> Program<'f, Fm, Smol> {
+            self.use_runtime::<Smol>()
+        }
     }
 };
 
@@ -421,7 +472,6 @@ mod test {
     }
 
     #[cfg(feature = "async")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
     const _: () = {
         use crate::r#async::Tokio;
         use crate::Async;

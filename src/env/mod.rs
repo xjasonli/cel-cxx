@@ -831,6 +831,28 @@ const _: () = {
         pub fn use_async_std(self) -> Env<'f, Fm, AsyncStd> {
             self.use_runtime::<AsyncStd>()
         }
+
+        /// Configures the environment to use the smol runtime.
+        ///
+        /// This is a convenience method for setting the runtime to smol.
+        /// Requires the `smol` feature to be enabled.
+        ///
+        /// # Examples
+        ///
+        /// ```rust,no_run
+        /// # #[cfg(feature = "async")]
+        /// # {
+        /// use cel_cxx::*;
+        ///
+        /// let env = Env::builder().use_smol();
+        /// # }
+        /// # Ok::<(), cel_cxx::Error>(())
+        /// ```
+        #[cfg(feature = "smol")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "smol")))]
+        pub fn use_smol(self) -> Env<'f, Fm, Smol> {
+            self.use_runtime::<Smol>()
+        }
     }
 
     impl<'f, Fm: FnMarker> EnvBuilder<'f, Fm, ()> {
@@ -902,6 +924,27 @@ const _: () = {
         #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
         pub fn use_async_std(self) -> EnvBuilder<'f, Fm, AsyncStd> {
             self.use_runtime::<AsyncStd>()
+        }
+
+        /// Configures the builder to use the smol runtime.
+        ///
+        /// This is a convenience method for setting the runtime to smol.
+        /// Requires the `smol` feature to be enabled.
+        ///
+        /// # Examples
+        ///
+        /// ```rust,no_run
+        /// # #[cfg(feature = "async")]
+        /// # {
+        /// use cel_cxx::*;
+        ///
+        /// let builder = Env::builder().use_smol();
+        /// # }
+        /// ```
+        #[cfg(feature = "smol")]
+        #[cfg_attr(docsrs, doc(cfg(feature = "smol")))]
+        pub fn use_smol(self) -> EnvBuilder<'f, Fm, Smol> {
+            self.use_runtime::<Smol>()
         }
     }
 };

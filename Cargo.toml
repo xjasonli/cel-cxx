@@ -5,7 +5,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Jason Li <xjason.li@gmail.com>"]
 license = "Apache-2.0"
@@ -28,6 +28,7 @@ glob = "0.3"
 tonic = { version = "0.13" }
 tokio = { version = "1"}
 async-std = { version = "1" }
+smol = { version = "2" }
 async-scoped = { version = "0.9" }
 itertools = { version = "0.14" }
 chrono = { version = "0.4" }
@@ -73,6 +74,7 @@ derive = ["dep:cel-cxx-macros"]
 async = ["dep:async-scoped", "dep:futures", "dep:pin-project-lite"]
 tokio = ["async", "dep:tokio", "async-scoped/use-tokio"]
 async-std = ["async", "dep:async-std", "async-scoped/use-async-std"]
+smol = ["async", "dep:smol"]
 
 [dependencies]
 cel-cxx-ffi = { workspace = true }
@@ -87,12 +89,13 @@ ouroboros = { workspace = true }
 futures = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["rt"] }
 async-std = { workspace = true, optional = true }
+smol = { workspace = true, optional = true }
 async-scoped = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
 arc-slice = { workspace = true }
 
 [dev-dependencies]
-cel-cxx = { workspace = true, features = ["async", "tokio", "async-std"] }
+cel-cxx = { workspace = true, features = ["async", "tokio", "async-std", "smol"] }
 tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros"] }
 async-std = { workspace = true, features = ["attributes"] }
 anyhow = { workspace = true }
@@ -115,3 +118,8 @@ required-features = ["tokio"]
 name = "async-std"
 path = "examples/async-std.rs"
 required-features = ["async-std"]
+
+[[example]]
+name = "smol"
+path = "examples/smol.rs"
+required-features = ["smol"]
