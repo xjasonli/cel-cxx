@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2025-06-29
+
+### Added
+- **Android platform support** with NDK integration
+  - ARM64 (`aarch64-linux-android`)
+  - ARMv7 (`armv7-linux-androideabi`) 
+  - x86_64 (`x86_64-linux-android`)
+  - x86 (`i686-linux-android`)
+- **iOS platform support** for device and simulator
+  - iOS device (`aarch64-apple-ios`)
+  - iOS Simulator ARM64 (`aarch64-apple-ios-sim`)
+  - iOS Simulator x86_64 (`x86_64-apple-ios`)
+
+### Changed
+- **Platform-separated build architecture** to isolate platform-specific dependencies
+  - `build-linux/` - Pure Linux builds without Android/Apple dependencies
+  - `build-apple/` - macOS and iOS builds with Apple toolchain
+  - `build-android/` - Android builds with NDK integration
+  - `build-windows/` - Windows builds (placeholder)
+- **Improved target detection** and automatic build directory selection
+- **Enhanced platform-specific configurations** in `.bazelrc` files
+
 ## [0.1.2] - 2025-06-28
 
 ### Added
@@ -76,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite and examples
 - CI/CD pipeline for automated testing
 
-[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/xjasonli/cel-cxx/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/xjasonli/cel-cxx/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/xjasonli/cel-cxx/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/xjasonli/cel-cxx/releases/tag/v0.1.0 
