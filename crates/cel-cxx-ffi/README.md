@@ -34,12 +34,6 @@ If you need to use the low-level bindings directly:
 cel-cxx-ffi = "0.1.0"
 ```
 
-## Platform Support
-
-- **Linux**: ✅ Supported
-- **macOS**: ⚠️ Untested but should work
-- **Windows**: ❌ Not supported (CEL-CPP build limitations)
-
 ## Build Requirements
 
 - **C++17 compatible compiler**

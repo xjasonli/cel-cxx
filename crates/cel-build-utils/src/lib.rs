@@ -13,8 +13,31 @@ use std::process::Command;
 const BAZEL_MINIMAL_VERSION: &str = "8.0.0";
 const BAZEL_DOWNLOAD_VERSION: Option<&str> = Some("8.2.1");
 
-pub fn cel_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("build")
+fn build_dir(target: &str) -> Result<PathBuf> {
+    let kind = if target.contains("windows") {
+        "windows"
+    } else if target.contains("android") {
+        // Checks if ANDROID_NDK_HOME is set
+        let ndk_home = std::env::var("ANDROID_NDK_HOME").unwrap_or_default();
+        if ndk_home.is_empty() {
+            return Err(anyhow!("ANDROID_NDK_HOME is not set"));
+        }
+        if std::fs::read_dir(&ndk_home).is_err() {
+            return Err(anyhow!(
+                "ANDROID_NDK_HOME is not a valid directory: {}",
+                ndk_home
+            ));
+        }
+
+        "android"
+    } else if target.contains("linux") {
+        "linux"
+    } else if target.contains("apple") {
+        "apple"
+    } else {
+        return Err(anyhow!("Unsupported target: {}", target));
+    };
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("build-{}", kind)))
 }
 
 pub fn version() -> &'static str {
@@ -77,26 +100,31 @@ impl Build {
             fs::create_dir_all(out_dir)
                 .context(format!("failed to create out_dir: {}", out_dir.display()))?;
         }
-        let cel_dir = cel_dir();
+        let work_dir = build_dir(target)?;
         let install_dir = out_dir.join("install");
 
         let install_library_dir = install_dir.join("lib");
         let install_include_dir = install_dir.join("include");
         let libs = vec!["cel".to_owned()];
 
-        let install_library_file = install_library_dir.join("libcel.a");
+        //let install_library_file = install_library_dir.join("libcel.a");
 
-        if let Ok(true) = install_library_file.try_exists() {
-            return Ok(Artifacts {
-                lib_dir: install_library_dir,
-                include_dir: install_include_dir,
-                libs,
-                target: target.to_owned(),
-            });
-        }
+        //if let Ok(true) = install_library_file.try_exists() {
+        //    return Ok(Artifacts {
+        //        lib_dir: install_library_dir,
+        //        include_dir: install_include_dir,
+        //        libs,
+        //        target: target.to_owned(),
+        //    });
+        //}
 
-        let bazel = Bazel::new(BAZEL_MINIMAL_VERSION, out_dir, BAZEL_DOWNLOAD_VERSION)?
-            .with_work_dir(&cel_dir);
+        let bazel = Bazel::new(
+            target.clone(),
+            BAZEL_MINIMAL_VERSION,
+            out_dir,
+            BAZEL_DOWNLOAD_VERSION,
+        )?
+        .with_work_dir(&work_dir);
 
         let _ = self
             .run_command(bazel.build([":cel"]), "building cel")
@@ -146,28 +174,16 @@ impl Build {
         ];
 
         for (f, t) in include_mapping {
-            let f = cel_dir.join(f);
+            let f = work_dir.join(f);
             let t = install_include_dir.join(t);
             cp_r(&f, &t).context(format!("failed to copy include file: {}", t.display()))?;
         }
 
         std::fs::copy(
-            cel_dir.join("bazel-bin").join("libcel.a"),
+            work_dir.join("bazel-bin").join("libcel.a"),
             install_library_dir.join("libcel.a"),
         )
         .context("failed to copy libcel.a")?;
-
-        if std::env::var("PROFILE").unwrap() == "debug" {
-            let compile_commands = cel_dir.join("compile_commands.json");
-            match compile_commands.try_exists() {
-                Ok(true) => (),
-                _ => {
-                    let _ = self
-                        .run_command(bazel.run([":refresh_compile_commands"]), "running cel")
-                        .map_err(|e| anyhow!(e))?;
-                }
-            }
-        }
 
         Ok(Artifacts {
             lib_dir: install_library_dir,

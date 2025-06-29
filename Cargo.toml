@@ -5,7 +5,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 authors = ["Jason Li <xjason.li@gmail.com>"]
 license = "Apache-2.0"
@@ -16,9 +16,9 @@ keywords = ["cel", "expression", "language", "ffi", "cxx"]
 
 [workspace.dependencies]
 cel-cxx = { path = "." }
-cel-cxx-ffi = { path = "crates/cel-cxx-ffi", version = "0.1.1" }
+cel-cxx-ffi = { path = "crates/cel-cxx-ffi", version = "0.1.2" }
+cel-build-utils = { path = "crates/cel-build-utils", version = "0.1.2" }
 cel-cxx-macros = { path = "crates/cel-cxx-macros", version = "0.1.1" }
-cel-build-utils = { path = "crates/cel-build-utils", version = "0.1.1" }
 
 cxx = { version = "1.0", features = ["c++17"] }
 cxx-build = { version = "1.0", features = ["parallel"] }
@@ -51,7 +51,7 @@ arc-slice = { version = "0.1", features = ["default-layout-any-buffer"] }
 
 [package]
 name = "cel-cxx"
-description = "A Rust-native interface for Common Expression Language (CEL), implemented as a high-level idiomatic Rust wrapper around google/cel-cpp"
+description = "A high-performance, type-safe Rust interface for Common Expression Language (CEL), build on top of cel-cpp with zero-cost FFI bindings via cxx"
 categories = ["api-bindings"]
 documentation = "https://docs.rs/cel-cxx"
 readme = "README.md"

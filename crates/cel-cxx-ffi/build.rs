@@ -2,7 +2,6 @@ use anyhow::Result;
 use cel_build_utils::{Artifacts, Build};
 use std::path::Path;
 
-#[allow(unreachable_code)]
 fn main() -> Result<()> {
     if skip_building() {
         return Ok(());
@@ -62,6 +61,7 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         .flag_if_supported("-Wno-class-memaccess")
         .flag_if_supported("-Wno-return-type")
         .flag_if_supported("-Wno-sign-compare")
+        .flag_if_supported("-Wno-nullability-completeness")
         .files(cc_srcs)
         .std("c++17")
         .compile("cel-cxx");

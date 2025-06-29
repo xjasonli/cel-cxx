@@ -37,12 +37,6 @@ Add to your `Cargo.toml`:
 cel-build-utils = "0.1.0"
 ```
 
-## Platform Support
-
-- **Linux**: ✅ Supported
-- **macOS**: ⚠️ Untested but should work  
-- **Windows**: ❌ Not supported (CEL-CPP Bazel build limitations)
-
 ## License
 
 Licensed under the Apache License 2.0. See the [LICENSE](../../LICENSE) file for details. 

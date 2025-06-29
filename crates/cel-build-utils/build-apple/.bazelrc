@@ -1,0 +1,33 @@
+# ============================================================================
+# Apple Platform Build Configuration
+# ============================================================================
+
+build --experimental_cc_static_library
+build --java_runtime_version=remotejdk_11
+
+build --enable_bzlmod
+build --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
+build --cxxopt=-fsized-deallocation
+build --cxxopt=-Wno-deprecated-declarations
+build --cxxopt=-Wno-unused-function
+build --define absl=1
+
+# ============================================================================
+# macOS Configuration
+# ============================================================================
+
+# macOS builds use system Xcode toolchain
+# CPU architecture is automatically detected or specified via --cpu
+build:macos --apple_platform_type=macos
+build:macos --macos_minimum_os=10.13
+
+# ============================================================================
+# iOS Configuration (for both device and simulator)
+# ============================================================================
+
+# iOS builds (device and simulator share the same build configuration)
+# Platform selection (device vs simulator) is handled by --platforms:
+#   Device:    --platforms=//:aarch64-apple-ios
+#   Simulator: --platforms=//:aarch64-apple-ios-sim or --platforms=//:x86_64-apple-ios
+build:ios --apple_platform_type=ios
+build:ios --ios_minimum_os=12.0

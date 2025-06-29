@@ -1,0 +1,10 @@
+# ============================================================================
+# Linux Build Configuration
+# ============================================================================
+
+build --experimental_cc_static_library
+build --java_runtime_version=remotejdk_11
+
+# Linux-specific optimizations
+build --copt=-O2
+build --cxxopt=-O2 

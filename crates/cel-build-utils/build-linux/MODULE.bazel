@@ -1,0 +1,17 @@
+"""Bazel module definition for cel-cxx (Linux platforms)."""
+module(
+    name = "cel-cxx-libcel-linux",
+)
+
+# Core dependencies
+bazel_dep(name = "rules_cc", version = "0.1.1")
+bazel_dep(name = "platforms", version = "1.0.0")
+
+# CEL-CPP dependency
+bazel_dep(name = "cel-cpp")
+git_override(
+    module_name = "cel-cpp",
+    # We need some patches
+    remote = "https://github.com/xjasonli/cel-cpp.git",
+    commit = "5fa85ed85ea091e495fc494a173671ced18a7604",
+)

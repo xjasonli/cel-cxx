@@ -2,29 +2,41 @@ use anyhow::Context as _;
 use anyhow::Result;
 use std::{
     ffi::OsStr,
-    io::BufRead as _,
     path::{Path, PathBuf},
     process::Command,
 };
 
+/// Supported target triples - must match BUILD.bazel platform definitions
+const SUPPORTED_TARGETS: &[&str] = &[
+    // Linux
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    // Windows
+    "x86_64-pc-windows-msvc",
+    // Android
+    "aarch64-linux-android",
+    "armv7-linux-androideabi",
+    "x86_64-linux-android",
+    "i686-linux-android",
+    // macOS
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    // iOS
+    "aarch64-apple-ios",
+    "aarch64-apple-ios-sim",
+    "x86_64-apple-ios",
+];
+
 pub struct Bazel {
     pub path: PathBuf,
-    pub arch: String,
-    pub os: String,
     pub mode: String,
     pub wdir: Option<PathBuf>,
+    pub target: String,
 }
 
-impl Default for Bazel {
-    fn default() -> Self {
-        Self {
-            path: PathBuf::from("bazelisk"),
-            arch: std::env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
-            os: std::env::var("CARGO_CFG_TARGET_OS").unwrap(),
-            mode: mode_from_profile(),
-            wdir: None,
-        }
-    }
+/// Check if target triple is supported
+fn is_supported_target(target: &str) -> bool {
+    SUPPORTED_TARGETS.contains(&target)
 }
 
 fn mode_from_profile() -> String {
@@ -39,20 +51,47 @@ fn mode_from_profile() -> String {
 
 impl Bazel {
     pub fn new(
+        target: String,
         minimal_version: &str,
         download_dir: &Path,
         download_version: Option<&str>,
     ) -> Result<Self> {
         let path = bazel_path(minimal_version, download_dir, download_version)?;
+
+        // Check if target is supported
+        if !is_supported_target(&target) {
+            return Err(anyhow::anyhow!("Unsupported target: {}", target));
+        }
+
         Ok(Self {
             path,
-            ..Default::default()
+            mode: mode_from_profile(),
+            wdir: None,
+            target,
         })
     }
 
     pub fn with_work_dir<P: AsRef<Path>>(mut self, dir: P) -> Self {
         self.wdir = Some(dir.as_ref().to_owned());
         self
+    }
+
+    /// Get Bazel platform for the target - must match BUILD.bazel platform definitions
+    pub fn target_platform(&self) -> String {
+        format!("//:{}", self.target)
+    }
+
+    pub fn config(&self) -> Option<String> {
+        if self.target.contains("apple") {
+            if self.target.contains("darwin") {
+                return Some("macos".to_string());
+            } else if self.target.contains("ios") {
+                return Some("ios".to_string());
+            }
+            return None;
+        }
+
+        None
     }
 
     pub fn build<I, S>(&self, targets: I) -> Command
@@ -95,62 +134,12 @@ impl Bazel {
     }
 
     fn common_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
+        cmd.arg(format!("--compilation_mode={}", self.mode));
+        cmd.arg(format!("--platforms={}", self.target_platform()));
+        if let Some(config) = self.config() {
+            cmd.arg(format!("--config={}", config));
+        }
         cmd
-            //.arg(format!("--cpu={}", self.arch))
-            .arg(format!("--compilation_mode={}", self.mode))
-    }
-
-    pub fn bin_dir(&self) -> Result<String> {
-        let cpu = match (self.os.as_str(), self.arch.as_str()) {
-            ("linux", "x86_64") => "k8",
-            ("windows", "x86_64") => "x64_windows",
-            ("macos", "x86_64") => "darwin",
-            _ => return Err(anyhow::anyhow!("Unsupported architecture")),
-        };
-        Ok(format!("{}-{}", cpu, self.mode))
-    }
-
-    pub fn parse_output_libraries(&self, stdout: &[u8]) -> Result<Vec<PathBuf>> {
-        let prefix = format!("bazel-out/{}", self.bin_dir()?);
-
-        Ok(stdout
-            .lines()
-            .map_while(Result::ok)
-            .filter_map(|line| {
-                let s = Path::new(line.trim());
-                if !s.starts_with(&prefix) {
-                    return None;
-                }
-                if s.extension() != Some(OsStr::new("a")) {
-                    return None;
-                }
-                Some(s.to_owned())
-            })
-            .collect::<Vec<_>>())
-    }
-    //pub fn parse_output_pb_headers(&self, stdout: &[u8]) -> Vec<PathBuf> {
-    //    let prefix = format!("bazel-out/{}", self.bin_dir());
-    //    stdout.lines()
-    //        .filter_map(|line| line.ok())
-    //        .filter_map(|line| {
-    //            let s = Path::new(line.trim());
-    //            if !s.starts_with(&prefix) {
-    //                return None;
-    //            }
-    //            if !s.file_name().to_string_lossy().ends_with(".pb.h") {
-    //                return None;
-    //            }
-    //            Some(s.to_owned())
-    //        })
-    //        .collect::<Vec<_>>()
-    //}
-
-    pub fn parse_targets(&self, stdout: &[u8]) -> Vec<String> {
-        stdout
-            .lines()
-            .map_while(Result::ok)
-            .filter_map(|line| line.rsplitn(2, " ").last().map(|s| s.to_owned()))
-            .collect::<Vec<_>>()
     }
 }
 
@@ -334,75 +323,3 @@ impl Drop for DownloadGuard {
         }
     }
 }
-
-/*
-#[tokio::main(flavor = "current_thread")]
-async fn install_bazelisk<P: AsRef<Path>>(dir: P) -> Result<PathBuf, anyhow::Error> {
-    let releases = octocrab::instance()
-        .repos("bazelbuild", "bazelisk")
-        .releases()
-        .list()
-        .per_page(10)
-        .page(1u32)
-        .send()
-        .await
-        .context("Failed to get releases")?
-        .items;
-    let release = releases.first().ok_or(anyhow::anyhow!("No release found"))?;
-
-    let pattern = {
-        let os = match std::env::consts::OS {
-            "macos" => "darwin",
-            "linux" => "linux",
-            "windows" => "windows",
-            _ => return Err(anyhow::anyhow!("Unsupported OS")),
-        };
-        let arch = match std::env::consts::ARCH {
-            "x86_64" => "amd64",
-            "aarch64" => "arm64",
-            _ => return Err(anyhow::anyhow!("Unsupported architecture")),
-        };
-        format!("bazelisk-{}-{}", os, arch)
-    };
-    let asset = release.assets
-        .iter()
-        .find(|asset| asset.name.starts_with(&pattern))
-        .ok_or(anyhow::anyhow!("No asset found"))?;
-
-    let mut stream = octocrab::instance()
-        .repos("bazelbuild", "bazelisk")
-        .release_assets()
-        .stream(asset.id.0)
-        .await
-        .context("Failed to stream asset")?
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
-    //let mut reader = stream.into_async_read();
-
-    let (dst_path, tmp_path) = {
-        let mut dst = dir.as_ref().join("bazelisk");
-        if std::env::consts::OS == "windows" {
-            dst = dst.with_extension("exe");
-        }
-        let tmp = dst.with_extension("tmp");
-        (dst, tmp)
-    };
-    let mut file = std::fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(&tmp_path)
-        .context("Failed to open file")?;
-
-    while let Some(chunk) = stream.try_next().await.context("Failed to read asset")? {
-        use std::io::Write as _;
-        file.write_all(&chunk)?;
-    }
-
-    std::fs::set_permissions(&tmp_path, std::fs::Permissions::from_mode(0o755))
-        .context("Failed to set permissions")?;
-    std::fs::rename(&tmp_path, &dst_path)
-        .context("Failed to rename file")?;
-
-    Ok(dst_path)
-}
-
-*/

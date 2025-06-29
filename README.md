@@ -13,11 +13,97 @@ built on top of [google/cel-cpp](https://github.com/google/cel-cpp) with zero-co
 
 ## 🖥️ Platform Support
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| **Linux** | ✅ Supported | Fully tested and supported |
-| **macOS** | ✅ Supported | Fully tested and supported |
-| **Windows** | ❌ Not Supported | CEL-CPP Bazel build scripts don't support Windows |
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Architecture</th>
+<th>Target Triple</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td rowspan="2"><strong>Linux</strong></td>
+<td>x86_64</td>
+<td><code>x86_64-unknown-linux-gnu</code></td>
+<td>✅ Supported</td>
+<td></td>
+</tr>
+<tr>
+<td>ARM64</td>
+<td><code>aarch64-unknown-linux-gnu</code></td>
+<td>✅ Supported</td>
+<td></td>
+</tr>
+<tr>
+<td rowspan="2"><strong>macOS</strong></td>
+<td>Intel</td>
+<td><code>x86_64-apple-darwin</code></td>
+<td>✅ Supported</td>
+<td></td>
+</tr>
+<tr>
+<td>Apple Silicon</td>
+<td><code>aarch64-apple-darwin</code></td>
+<td>✅ Supported</td>
+<td></td>
+</tr>
+<tr>
+<td><strong>iOS</strong></td>
+<td>ARM64</td>
+<td><code>aarch64-apple-ios</code></td>
+<td>✅ Supported</td>
+<td></td>
+</tr>
+<tr>
+<td rowspan="2"><strong>iOS Simulator</strong></td>
+<td>ARM64</td>
+<td><code>aarch64-apple-ios-sim</code></td>
+<td>✅ Supported</td>
+<td></td>
+</tr>
+<tr>
+<td>x86_64</td>
+<td><code>x86_64-apple-ios</code></td>
+<td>✅ Supported</td>
+<td></td>
+</tr>
+<tr>
+<td rowspan="4"><strong>Android</strong></td>
+<td>ARM64</td>
+<td><code>aarch64-linux-android</code></td>
+<td>✅ Supported</td>
+<td>Requires ANDROID_NDK_HOME</td>
+</tr>
+<tr>
+<td>ARMv7</td>
+<td><code>armv7-linux-androideabi</code></td>
+<td>✅ Supported</td>
+<td>Requires ANDROID_NDK_HOME</td>
+</tr>
+<tr>
+<td>x86_64</td>
+<td><code>x86_64-linux-android</code></td>
+<td>✅ Supported</td>
+<td>Requires ANDROID_NDK_HOME</td>
+</tr>
+<tr>
+<td>x86</td>
+<td><code>i686-linux-android</code></td>
+<td>✅ Supported</td>
+<td>Requires ANDROID_NDK_HOME</td>
+</tr>
+<tr>
+<td><strong>Windows</strong></td>
+<td>x86_64</td>
+<td><code>x86_64-pc-windows-msvc</code></td>
+<td>❌ Not Supported</td>
+<td>CEL-CPP Bazel build scripts don't support Windows</td>
+</tr>
+</tbody>
+</table>
 
 ## 🏗️ Architecture Overview
 

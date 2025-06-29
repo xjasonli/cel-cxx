@@ -1,0 +1,35 @@
+# ============================================================================
+# Windows Build Configuration
+# ============================================================================
+
+build --experimental_cc_static_library
+build --java_runtime_version=remotejdk_11
+
+# ============================================================================
+# MSVC Configuration
+# ============================================================================
+
+# MSVC-specific flags (use /flag format instead of -flag)
+build:msvc --copt=/O2
+build:msvc --cxxopt=/O2
+build:msvc --copt=/MT  # Static runtime linking
+build:msvc --cxxopt=/MT
+
+# Enable exception handling
+build:msvc --copt=/EHsc
+build:msvc --cxxopt=/EHsc
+
+# Disable specific warnings that are common in large C++ projects
+build:msvc --copt=/wd4244  # conversion warnings
+build:msvc --cxxopt=/wd4244
+build:msvc --copt=/wd4267  # size_t conversion warnings  
+build:msvc --cxxopt=/wd4267
+
+# ============================================================================
+# MinGW Configuration (alternative)
+# ============================================================================
+
+build:mingw --copt=-O2
+build:mingw --cxxopt=-O2
+build:mingw --copt=-static
+build:mingw --cxxopt=-static 
