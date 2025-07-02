@@ -448,6 +448,146 @@ impl ValueType {
     pub fn is<T: TypedValue>(&self) -> bool {
         T::value_type() == *self
     }
+
+    /// Checks if this type is a null type.
+    pub fn is_null(&self) -> bool {
+        matches!(self, ValueType::Null)
+    }
+
+    /// Checks if this type is a boolean type.
+    pub fn is_bool(&self) -> bool {
+        matches!(self, ValueType::Bool)
+    }
+
+    /// Checks if this type is a signed integer type.
+    pub fn is_int(&self) -> bool {
+        matches!(self, ValueType::Int)
+    }
+
+    /// Checks if this type is an unsigned integer type.
+    pub fn is_uint(&self) -> bool {
+        matches!(self, ValueType::Uint)
+    }
+
+    /// Checks if this type is a double type.
+    pub fn is_double(&self) -> bool {
+        matches!(self, ValueType::Double)
+    }
+
+    /// Checks if this type is a string type.
+    pub fn is_string(&self) -> bool {
+        matches!(self, ValueType::String)
+    }
+
+    /// Checks if this type is a bytes type.
+    pub fn is_bytes(&self) -> bool {
+        matches!(self, ValueType::Bytes)
+    }
+
+    /// Checks if this type is a struct type.
+    pub fn is_struct(&self) -> bool {
+        matches!(self, ValueType::Struct(_))
+    }
+
+    /// Checks if this type is a duration type.
+    pub fn is_duration(&self) -> bool {
+        matches!(self, ValueType::Duration)
+    }
+
+    /// Checks if this type is a timestamp type.
+    pub fn is_timestamp(&self) -> bool {
+        matches!(self, ValueType::Timestamp)
+    }
+
+    /// Checks if this type is a list type.
+    pub fn is_list(&self) -> bool {
+        matches!(self, ValueType::List(_))
+    }
+
+    /// Checks if this type is a map type.
+    pub fn is_map(&self) -> bool {
+        matches!(self, ValueType::Map(_))
+    }
+
+    /// Checks if this type is a unknown type.
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, ValueType::Unknown)
+    }
+
+    /// Checks if this type is a type type.
+    pub fn is_type(&self) -> bool {
+        matches!(self, ValueType::Type(_))
+    }
+
+    /// Checks if this type is a error type.
+    pub fn is_error(&self) -> bool {
+        matches!(self, ValueType::Error)
+    }
+
+    /// Checks if this type is a any type.
+    pub fn is_any(&self) -> bool {
+        matches!(self, ValueType::Any)
+    }
+
+    /// Checks if this type is a dyn type.
+    pub fn is_dyn(&self) -> bool {
+        matches!(self, ValueType::Dyn)
+    }
+
+    /// Checks if this type is a opaque type.
+    pub fn is_opaque(&self) -> bool {
+        matches!(self, ValueType::Opaque(_))
+    }
+
+    /// Checks if this type is a optional type.
+    pub fn is_optional(&self) -> bool {
+        matches!(self, ValueType::Optional(_))
+    }
+
+    /// Checks if this type is a bool wrapper type.
+    pub fn is_bool_wrapper(&self) -> bool {
+        matches!(self, ValueType::BoolWrapper)
+    }
+
+    /// Checks if this type is a int wrapper type.
+    pub fn is_int_wrapper(&self) -> bool {
+        matches!(self, ValueType::IntWrapper)
+    }
+
+    /// Checks if this type is a uint wrapper type.
+    pub fn is_uint_wrapper(&self) -> bool {
+        matches!(self, ValueType::UintWrapper)
+    }
+
+    /// Checks if this type is a double wrapper type.
+    pub fn is_double_wrapper(&self) -> bool {
+        matches!(self, ValueType::DoubleWrapper)
+    }
+
+    /// Checks if this type is a string wrapper type.
+    pub fn is_string_wrapper(&self) -> bool {
+        matches!(self, ValueType::StringWrapper)
+    }
+
+    /// Checks if this type is a bytes wrapper type.
+    pub fn is_bytes_wrapper(&self) -> bool {
+        matches!(self, ValueType::BytesWrapper)
+    }
+
+    /// Checks if this type is a type param type.
+    pub fn is_type_param(&self) -> bool {
+        matches!(self, ValueType::TypeParam(_))
+    }
+
+    /// Checks if this type is a function type.
+    pub fn is_function(&self) -> bool {
+        matches!(self, ValueType::Function(_))
+    }
+
+    /// Checks if this type is a enum type.
+    pub fn is_enum(&self) -> bool {
+        matches!(self, ValueType::Enum(_))
+    }
 }
 
 /// Struct type for Protocol Buffer messages.

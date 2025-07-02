@@ -439,6 +439,806 @@ impl Value {
             Value::Error(_e) => ValueType::Error,
         }
     }
+
+    /// Returns true if this value is a null value.
+    pub fn is_null(&self) -> bool {
+        matches!(self, Value::Null)
+    }
+
+    /// Returns true if this value is a boolean value.
+    pub fn is_bool(&self) -> bool {
+        matches!(self, Value::Bool(_))
+    }
+
+    /// Returns true if this value is a signed integer value.
+    pub fn is_int(&self) -> bool {
+        matches!(self, Value::Int(_))
+    }
+
+    /// Returns true if this value is an unsigned integer value.
+    pub fn is_uint(&self) -> bool {
+        matches!(self, Value::Uint(_))
+    }
+
+    /// Returns true if this value is a double value.
+    pub fn is_double(&self) -> bool {
+        matches!(self, Value::Double(_))
+    }
+
+    /// Returns true if this value is a string value.
+    pub fn is_string(&self) -> bool {
+        matches!(self, Value::String(_))
+    }
+
+    /// Returns true if this value is a byte array value.
+    pub fn is_bytes(&self) -> bool {
+        matches!(self, Value::Bytes(_))
+    }
+
+    /// Returns true if this value is a struct value.
+    pub fn is_struct(&self) -> bool {
+        matches!(self, Value::Struct(_))
+    }
+
+    /// Returns true if this value is a duration value.
+    pub fn is_duration(&self) -> bool {
+        matches!(self, Value::Duration(_))
+    }
+
+    /// Returns true if this value is a timestamp value.
+    pub fn is_timestamp(&self) -> bool {
+        matches!(self, Value::Timestamp(_))
+    }
+
+    /// Returns true if this value is a list value.
+    pub fn is_list(&self) -> bool {
+        matches!(self, Value::List(_))
+    }
+
+    /// Returns true if this value is a map value.
+    pub fn is_map(&self) -> bool {
+        matches!(self, Value::Map(_))
+    }
+
+    /// Returns true if this value is an unknown value.
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, Value::Unknown(_))
+    }
+
+    /// Returns true if this value is a type value.
+    pub fn is_type(&self) -> bool {
+        matches!(self, Value::Type(_))
+    }
+
+    /// Returns true if this value is an error value.
+    pub fn is_error(&self) -> bool {
+        matches!(self, Value::Error(_))
+    }
+
+    /// Returns true if this value is an opaque value.
+    pub fn is_opaque(&self) -> bool {
+        matches!(self, Value::Opaque(_))
+    }
+
+    /// Returns true if this value is an optional value.
+    pub fn is_optional(&self) -> bool {
+        matches!(self, Value::Optional(_))
+    }
+
+    /// Returns the boolean value if this value is a boolean value.
+    pub fn as_bool(&self) -> Option<&bool> {
+        match self {
+            Value::Bool(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// Returns the signed integer value if this value is a signed integer value.
+    pub fn as_int(&self) -> Option<&i64> {
+        match self {
+            Value::Int(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Returns the unsigned integer value if this value is an unsigned integer value.
+    pub fn as_uint(&self) -> Option<&u64> {
+        match self {
+            Value::Uint(u) => Some(u),
+            _ => None,
+        }
+    }
+
+    /// Returns the double value if this value is a double value.
+    pub fn as_double(&self) -> Option<&f64> {
+        match self {
+            Value::Double(d) => Some(d),
+            _ => None,
+        }
+    }
+
+    /// Returns the string value if this value is a string value.
+    pub fn as_string(&self) -> Option<&ArcStr> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Returns the byte array value if this value is a byte array value.
+    pub fn as_bytes(&self) -> Option<&ArcBytes> {
+        match self {
+            Value::Bytes(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// Returns the struct value if this value is a struct value.
+    pub fn as_struct(&self) -> Option<&()> {
+        match self {
+            Value::Struct(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Returns the duration value if this value is a duration value.
+    pub fn as_duration(&self) -> Option<&Duration> {
+        match self {
+            Value::Duration(d) => Some(d),
+            _ => None,
+        }
+    }
+
+    /// Returns the timestamp value if this value is a timestamp value.
+    pub fn as_timestamp(&self) -> Option<&Timestamp> {
+        match self {
+            Value::Timestamp(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Returns the list value if this value is a list value.
+    pub fn as_list(&self) -> Option<&ListValue> {
+        match self {
+            Value::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    /// Returns the map value if this value is a map value.
+    pub fn as_map(&self) -> Option<&MapValue> {
+        match self {
+            Value::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    /// Returns the unknown value if this value is an unknown value.
+    pub fn as_unknown(&self) -> Option<&()> {
+        match self {
+            Value::Unknown(u) => Some(u),
+            _ => None,
+        }
+    }
+
+    /// Returns the type value if this value is a type value.
+    pub fn as_type(&self) -> Option<&ValueType> {
+        match self {
+            Value::Type(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Returns the error value if this value is an error value.
+    pub fn as_error(&self) -> Option<&Error> {
+        match self {
+            Value::Error(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Returns the opaque value if this value is an opaque value.
+    pub fn as_opaque(&self) -> Option<&OpaqueValue> {
+        match self {
+            Value::Opaque(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Returns the optional value if this value is an optional value.
+    pub fn as_optional(&self) -> Option<&OptionalValue> {
+        match self {
+            Value::Optional(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the boolean value if this value is a boolean value.
+    pub fn as_bool_mut(&mut self) -> Option<&mut bool> {
+        match self {
+            Value::Bool(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the signed integer value if this value is a signed integer value.
+    pub fn as_int_mut(&mut self) -> Option<&mut i64> {
+        match self {
+            Value::Int(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the unsigned integer value if this value is an unsigned integer value.
+    pub fn as_uint_mut(&mut self) -> Option<&mut u64> {
+        match self {
+            Value::Uint(u) => Some(u),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the double value if this value is a double value.
+    pub fn as_double_mut(&mut self) -> Option<&mut f64> {
+        match self {
+            Value::Double(d) => Some(d),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the string value if this value is a string value.
+    pub fn as_string_mut(&mut self) -> Option<&mut ArcStr> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the byte array value if this value is a byte array value.
+    pub fn as_bytes_mut(&mut self) -> Option<&mut ArcBytes> {
+        match self {
+            Value::Bytes(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the struct value if this value is a struct value.
+    pub fn as_struct_mut(&mut self) -> Option<&mut ()> {
+        match self {
+            Value::Struct(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the duration value if this value is a duration value.
+    pub fn as_duration_mut(&mut self) -> Option<&mut Duration> {
+        match self {
+            Value::Duration(d) => Some(d),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the timestamp value if this value is a timestamp value.
+    pub fn as_timestamp_mut(&mut self) -> Option<&mut Timestamp> {
+        match self {
+            Value::Timestamp(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the list value if this value is a list value.
+    pub fn as_list_mut(&mut self) -> Option<&mut ListValue> {
+        match self {
+            Value::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the map value if this value is a map value.
+    pub fn as_map_mut(&mut self) -> Option<&mut MapValue> {
+        match self {
+            Value::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the unknown value if this value is an unknown value.
+    pub fn as_unknown_mut(&mut self) -> Option<&mut ()> {
+        match self {
+            Value::Unknown(u) => Some(u),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the type value if this value is a type value.
+    pub fn as_type_mut(&mut self) -> Option<&mut ValueType> {
+        match self {
+            Value::Type(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the error value if this value is an error value.
+    pub fn as_error_mut(&mut self) -> Option<&mut Error> {
+        match self {
+            Value::Error(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the opaque value if this value is an opaque value.
+    pub fn as_opaque_mut(&mut self) -> Option<&mut OpaqueValue> {
+        match self {
+            Value::Opaque(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Returns a mutable reference to the optional value if this value is an optional value.
+    pub fn as_optional_mut(&mut self) -> Option<&mut OptionalValue> {
+        match self {
+            Value::Optional(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a null value.
+    pub fn into_null(self) -> Option<()> {
+        match self {
+            Value::Null => Some(()),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a boolean value.
+    pub fn into_bool(self) -> Option<bool> {
+        match self {
+            Value::Bool(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a signed integer value.
+    pub fn into_int(self) -> Option<i64> {
+        match self {
+            Value::Int(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to an unsigned integer value.
+    pub fn into_uint(self) -> Option<u64> {
+        match self {
+            Value::Uint(u) => Some(u),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a double value.
+    pub fn into_double(self) -> Option<f64> {
+        match self {
+            Value::Double(d) => Some(d),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a string value.
+    pub fn into_string(self) -> Option<ArcStr> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a byte array value.
+    pub fn into_bytes(self) -> Option<ArcBytes> {
+        match self {
+            Value::Bytes(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a struct value.
+    pub fn into_struct(self) -> Option<()> {
+        match self {
+            Value::Struct(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a duration value.
+    pub fn into_duration(self) -> Option<Duration> {
+        match self {
+            Value::Duration(d) => Some(d),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a timestamp value.
+    pub fn into_timestamp(self) -> Option<Timestamp> {
+        match self {
+            Value::Timestamp(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a list value.
+    pub fn into_list(self) -> Option<ListValue> {
+        match self {
+            Value::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a map value.
+    pub fn into_map(self) -> Option<MapValue> {
+        match self {
+            Value::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to an unknown value.
+    pub fn into_unknown(self) -> Option<()> {
+        match self {
+            Value::Unknown(u) => Some(u),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a type value.
+    pub fn into_type(self) -> Option<ValueType> {
+        match self {
+            Value::Type(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to an error value.
+    pub fn into_error(self) -> Option<Error> {
+        match self {
+            Value::Error(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to an opaque value.
+    pub fn into_opaque(self) -> Option<OpaqueValue> {
+        match self {
+            Value::Opaque(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to an optional value.
+    pub fn into_optional(self) -> Option<OptionalValue> {
+        match self {
+            Value::Optional(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Converts the value to a null value and panics if the value is not a null value.
+    pub fn unwrap_null(self) {
+        match self {
+            Value::Null => (),
+            _ => panic!(
+                "called `Value::unwrap_null()` on a non-null value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a boolean value and panics if the value is not a boolean value.
+    pub fn unwrap_bool(self) -> bool {
+        match self {
+            Value::Bool(b) => b,
+            _ => panic!(
+                "called `Value::unwrap_bool()` on a non-bool value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a signed integer value and panics if the value is not a signed integer value.
+    pub fn unwrap_int(self) -> i64 {
+        match self {
+            Value::Int(i) => i,
+            _ => panic!(
+                "called `Value::unwrap_int()` on a non-int value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to an unsigned integer value and panics if the value is not an unsigned integer value.
+    pub fn unwrap_uint(self) -> u64 {
+        match self {
+            Value::Uint(u) => u,
+            _ => panic!(
+                "called `Value::unwrap_uint()` on a non-uint value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a double value and panics if the value is not a double value.
+    pub fn unwrap_double(self) -> f64 {
+        match self {
+            Value::Double(d) => d,
+            _ => panic!(
+                "called `Value::unwrap_double()` on a non-double value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a string value and panics if the value is not a string value.
+    pub fn unwrap_string(self) -> ArcStr {
+        match self {
+            Value::String(s) => s,
+            _ => panic!(
+                "called `Value::unwrap_string()` on a non-string value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a byte array value and panics if the value is not a byte array value.
+    pub fn unwrap_bytes(self) -> ArcBytes {
+        match self {
+            Value::Bytes(b) => b,
+            _ => panic!(
+                "called `Value::unwrap_bytes()` on a non-bytes value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a struct value and panics if the value is not a struct value.
+    pub fn unwrap_struct(self) {
+        match self {
+            Value::Struct(s) => s,
+            _ => panic!(
+                "called `Value::unwrap_struct()` on a non-struct value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a duration value and panics if the value is not a duration value.
+    pub fn unwrap_duration(self) -> Duration {
+        match self {
+            Value::Duration(d) => d,
+            _ => panic!(
+                "called `Value::unwrap_duration()` on a non-duration value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a timestamp value and panics if the value is not a timestamp value.
+    pub fn unwrap_timestamp(self) -> Timestamp {
+        match self {
+            Value::Timestamp(t) => t,
+            _ => panic!(
+                "called `Value::unwrap_timestamp()` on a non-timestamp value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a list value and panics if the value is not a list value.
+    pub fn unwrap_list(self) -> ListValue {
+        match self {
+            Value::List(l) => l,
+            _ => panic!(
+                "called `Value::unwrap_list()` on a non-list value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a map value and panics if the value is not a map value.
+    pub fn unwrap_map(self) -> MapValue {
+        match self {
+            Value::Map(m) => m,
+            _ => panic!(
+                "called `Value::unwrap_map()` on a non-map value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to an unknown value and panics if the value is not an unknown value.
+    pub fn unwrap_unknown(self) {
+        match self {
+            Value::Unknown(u) => u,
+            _ => panic!(
+                "called `Value::unwrap_unknown()` on a non-unknown value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a type value and panics if the value is not a type value.
+    pub fn unwrap_type(self) -> ValueType {
+        match self {
+            Value::Type(t) => t,
+            _ => panic!(
+                "called `Value::unwrap_type()` on a non-type value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to an error value and panics if the value is not an error value.
+    pub fn unwrap_error(self) -> Error {
+        match self {
+            Value::Error(e) => e,
+            _ => panic!(
+                "called `Value::unwrap_error()` on a non-error value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to an opaque value and panics if the value is not an opaque value.
+    pub fn unwrap_opaque(self) -> OpaqueValue {
+        match self {
+            Value::Opaque(o) => o,
+            _ => panic!(
+                "called `Value::unwrap_opaque()` on a non-opaque value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to an optional value and panics if the value is not an optional value.
+    pub fn unwrap_optional(self) -> OptionalValue {
+        match self {
+            Value::Optional(o) => o,
+            _ => panic!(
+                "called `Value::unwrap_optional()` on a non-optional value: {:?}",
+                self
+            ),
+        }
+    }
+
+    /// Converts the value to a null value and panics if the value is not a null value.
+    pub fn expect_null(self, msg: &str) {
+        match self {
+            Value::Null => (),
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a boolean value and panics if the value is not a boolean value.
+    pub fn expect_bool(self, msg: &str) -> bool {
+        match self {
+            Value::Bool(b) => b,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a signed integer value and panics if the value is not a signed integer value.
+    pub fn expect_int(self, msg: &str) -> i64 {
+        match self {
+            Value::Int(i) => i,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to an unsigned integer value and panics if the value is not an unsigned integer value.
+    pub fn expect_uint(self, msg: &str) -> u64 {
+        match self {
+            Value::Uint(u) => u,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a double value and panics if the value is not a double value.
+    pub fn expect_double(self, msg: &str) -> f64 {
+        match self {
+            Value::Double(d) => d,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a string value and panics if the value is not a string value.
+    pub fn expect_string(self, msg: &str) -> ArcStr {
+        match self {
+            Value::String(s) => s,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a byte array value and panics if the value is not a byte array value.
+    pub fn expect_bytes(self, msg: &str) -> ArcBytes {
+        match self {
+            Value::Bytes(b) => b,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a struct value and panics if the value is not a struct value.
+    pub fn expect_struct(self, msg: &str) {
+        match self {
+            Value::Struct(s) => s,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a duration value and panics if the value is not a duration value.
+    pub fn expect_duration(self, msg: &str) -> Duration {
+        match self {
+            Value::Duration(d) => d,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a timestamp value and panics if the value is not a timestamp value.
+    pub fn expect_timestamp(self, msg: &str) -> Timestamp {
+        match self {
+            Value::Timestamp(t) => t,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a list value and panics if the value is not a list value.
+    pub fn expect_list(self, msg: &str) -> ListValue {
+        match self {
+            Value::List(l) => l,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a map value and panics if the value is not a map value.
+    pub fn expect_map(self, msg: &str) -> MapValue {
+        match self {
+            Value::Map(m) => m,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to an unknown value and panics if the value is not an unknown value.
+    pub fn expect_unknown(self, msg: &str) {
+        match self {
+            Value::Unknown(u) => u,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to a type value and panics if the value is not a type value.
+    pub fn expect_type(self, msg: &str) -> ValueType {
+        match self {
+            Value::Type(t) => t,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to an error value and panics if the value is not an error value.
+    pub fn expect_error(self, msg: &str) -> Error {
+        match self {
+            Value::Error(e) => e,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to an opaque value and panics if the value is not an opaque value.
+    pub fn expect_opaque(self, msg: &str) -> OpaqueValue {
+        match self {
+            Value::Opaque(o) => o,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
+
+    /// Converts the value to an optional value and panics if the value is not an optional value.
+    pub fn expect_optional(self, msg: &str) -> OptionalValue {
+        match self {
+            Value::Optional(o) => o,
+            _ => panic!("{}: {:?}", msg, self),
+        }
+    }
 }
 
 impl From<MapKey> for Value {
