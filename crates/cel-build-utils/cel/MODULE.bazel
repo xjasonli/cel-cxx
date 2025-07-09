@@ -26,15 +26,11 @@ register_toolchains("@androidndk//:all")
 
 # Cross-compilation support
 bazel_dep(name = "rules_cross_rs", version = "0.1.0")
-local_path_override(
+git_override(
     module_name = "rules_cross_rs",
-    path = "../../../rules_cross_rs",
+    remote = "https://github.com/xjasonli/rules_cross_rs.git",
+    commit = "234adc1401b8fd43d8fd4837c09cefef5e3c672c",
 )
-#git_override(
-#    module_name = "rules_cross_rs",
-#    remote = "https://github.com/xjasonli/rules_cross_rs.git",
-#    commit = "727a9d38dcc6464ea0d2bf58bc791a243092610b",
-#)
 
 # CEL-CPP dependency
 bazel_dep(name = "cel-cpp")
