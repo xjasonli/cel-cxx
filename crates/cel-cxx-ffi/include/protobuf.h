@@ -30,7 +30,7 @@ inline std::shared_ptr<DescriptorPool> generated_pool() {
 inline std::shared_ptr<DescriptorPool> NewDescriptorPool(Slice<const uint8_t> file_descriptor_set) {
     google::protobuf::FileDescriptorSet fds;
     if (!fds.ParseFromArray(file_descriptor_set.data(), file_descriptor_set.size())) {
-        throw std::invalid_argument("Failed to parse file descriptor set");
+        return nullptr;
     }
     google::protobuf::SimpleDescriptorDatabase db;
     for (const auto& file : fds.file()) {

@@ -1,3 +1,4 @@
+#![cfg(feature = "tokio")]
 use cel_cxx::*;
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;

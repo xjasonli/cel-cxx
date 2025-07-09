@@ -1,16 +1,16 @@
 # ============================================================================
-# Apple Platform Build Configuration
+# Linux Build Configuration
 # ============================================================================
 
 build --experimental_cc_static_library
-build --java_runtime_version=remotejdk_11
-
+build --tool_java_runtime_version=remotejdk_21
 build --enable_bzlmod
+
+build --define absl=1
 build --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
 build --cxxopt=-fsized-deallocation
 build --cxxopt=-Wno-deprecated-declarations
 build --cxxopt=-Wno-unused-function
-build --define absl=1
 
 # ============================================================================
 # macOS Configuration

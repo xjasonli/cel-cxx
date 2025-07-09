@@ -1,10 +1,10 @@
-"""Bazel module definition for cel-cxx (Linux platforms)."""
+"""Bazel module definition for cel-cxx (Windows platforms)."""
 module(
-    name = "cel-cxx-libcel-linux",
+    name = "cel",
 )
 
 # Core dependencies
-bazel_dep(name = "rules_cc", version = "0.1.1")
+bazel_dep(name = "rules_cc", version = "0.1.2")
 bazel_dep(name = "platforms", version = "1.0.0")
 
 # CEL-CPP dependency

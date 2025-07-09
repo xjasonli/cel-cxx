@@ -1,0 +1,213 @@
+package(default_visibility = ["//visibility:public"])
+
+# ============================================================================
+# Platform Definitions
+# ============================================================================
+
+# Linux platforms
+platform(
+    name = "x86_64-unknown-linux-gnu",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "aarch64-unknown-linux-gnu",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "armv7-unknown-linux-gnueabi",
+    constraint_values = [
+        "@platforms//cpu:armv7",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "i686-unknown-linux-gnu",
+    constraint_values = [
+        "@platforms//cpu:x86_32",
+        "@platforms//os:linux",
+    ],
+)
+
+#platform(
+#    name = "x86_64-unknown-linux-musl",
+#    constraint_values = [
+#        "@platforms//cpu:x86_64",
+#        "@platforms//os:linux",
+#        "@rules_cross_rs//:musl_target",
+#    ],
+#)
+#
+#platform(
+#    name = "aarch64-unknown-linux-musl",
+#    constraint_values = [
+#        "@platforms//cpu:aarch64",
+#        "@platforms//os:linux",
+#        "@rules_cross_rs//:musl_target",
+#    ],
+#)
+#
+#platform(
+#    name = "armv7-unknown-linux-musleabihf",
+#    constraint_values = [
+#        "@platforms//cpu:armv7",
+#        "@platforms//os:linux",
+#        "@rules_cross_rs//:musl_target",
+#    ],
+#)
+#
+#platform(
+#    name = "i686-unknown-linux-musl",
+#    constraint_values = [
+#        "@platforms//cpu:x86_32",
+#        "@platforms//os:linux",
+#        "@rules_cross_rs//:musl_target",
+#    ],
+#)
+
+# Android platforms
+platform(
+    name = "aarch64-linux-android",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:android",
+    ],
+)
+
+platform(
+    name = "armv7-linux-androideabi",
+    constraint_values = [
+        "@platforms//cpu:armv7",
+        "@platforms//os:android",
+    ],
+)
+
+platform(
+    name = "x86_64-linux-android",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:android",
+    ],
+)
+
+platform(
+    name = "i686-linux-android",
+    constraint_values = [
+        "@platforms//cpu:x86_32",
+        "@platforms//os:android",
+    ],
+)
+
+# Apple platforms - using aliases to apple_support's predefined platforms
+# This ensures we use the complete and correct constraint sets
+
+# Mapping from Rust target names to apple_support platform names
+_APPLE_PLATFORM_MAPPING = {
+    # macOS platforms
+    "x86_64-apple-darwin": "darwin_x86_64",
+    "aarch64-apple-darwin": "darwin_arm64",
+    "arm64e-apple-darwin": "darwin_arm64e",
+    
+    # iOS platforms
+    "aarch64-apple-ios": "ios_arm64",
+    "aarch64-apple-ios-sim": "ios_sim_arm64",
+    "x86_64-apple-ios": "ios_x86_64",
+    "arm64e-apple-ios": "ios_arm64e",
+    
+    # tvOS platforms
+    "aarch64-apple-tvos": "tvos_arm64",
+    "aarch64-apple-tvos-sim": "tvos_sim_arm64",
+    "x86_64-apple-tvos": "tvos_x86_64",
+    
+    # watchOS platforms
+    "aarch64-apple-watchos": "watchos_device_arm64",
+    "aarch64-apple-watchos-sim": "watchos_arm64",
+    "x86_64-apple-watchos-sim": "watchos_x86_64",
+    "arm64_32-apple-watchos": "watchos_arm64_32",
+    "armv7k-apple-watchos": "watchos_armv7k",
+    
+    # visionOS platforms
+    "aarch64-apple-visionos": "visionos_arm64",
+    "aarch64-apple-visionos-sim": "visionos_sim_arm64",
+}
+
+# Generate aliases for all Apple platforms
+[
+    alias(
+        name = rust_target,
+        actual = "@apple_support//platforms:" + apple_platform,
+    )
+    for rust_target, apple_platform in _APPLE_PLATFORM_MAPPING.items()
+]
+
+# Windows platforms
+platform(
+    name = "x86_64-pc-windows-msvc",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+)
+
+# WebAssembly platforms
+platform(
+    name = "wasm32-unknown-emscripten",
+    constraint_values = [
+        "@platforms//cpu:wasm32",
+        "@platforms//os:emscripten",
+    ],
+)
+
+# ============================================================================
+# CEL Static Library
+# ============================================================================
+
+# This cc_static_library rule aims to create a "fat" static library
+# by archiving object files from its direct and transitive dependencies.
+# The list of dependencies is based on the direct_targets previously
+# used in the cel-cc-src/src/lib.rs build script.
+#
+# IMPORTANT: This rule is experimental and requires the
+# --experimental_cc_static_library Bazel flag to be enabled during the build.
+cc_static_library(
+    name = "cel",  # This target will produce libcel.a
+    deps = [
+        "@cel-cpp//compiler:compiler",
+        "@cel-cpp//compiler:compiler_factory",
+        "@cel-cpp//compiler:optional",
+        "@cel-cpp//compiler:standard_library",
+        "@cel-cpp//compiler:compiler_library_subset_factory",
+
+        "@cel-cpp//runtime:runtime",
+        "@cel-cpp//runtime:standard_runtime_builder_factory",
+        "@cel-cpp//runtime:regex_precompilation",
+        "@cel-cpp//runtime:comprehension_vulnerability_check",
+        "@cel-cpp//runtime:constant_folding",
+
+        "@cel-cpp//extensions:encoders",
+        "@cel-cpp//extensions:proto_ext",
+        "@cel-cpp//extensions:math_ext",
+        "@cel-cpp//extensions:math_ext_macros",
+        "@cel-cpp//extensions:math_ext_decls",
+        "@cel-cpp//extensions:regex_functions",
+        "@cel-cpp//extensions:bindings_ext",
+        "@cel-cpp//extensions:select_optimization",
+        "@cel-cpp//extensions:lists_functions",
+        "@cel-cpp//extensions:sets_functions",
+        "@cel-cpp//extensions:strings",
+        "@cel-cpp//extensions:comprehensions_v2_functions",
+        "@cel-cpp//extensions:comprehensions_v2_macros",
+        "@cel-cpp//extensions:formatting",
+    ],
+    # Features like "symbol_check" are typically enabled by default for this rule.
+    # You can disable it if needed:
+    # features = ["-symbol_check"],
+)

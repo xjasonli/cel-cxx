@@ -1,0 +1,32 @@
+[package]
+name = "examples-async"
+edition = "2021"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+publish = false
+description = "Async examples for cel-cxx demonstrating tokio, async-std, and smol integrations"
+
+[dependencies]
+cel-cxx = { workspace = true, features = ["async-std", "tokio", "smol"] }
+tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros"] }
+async-std = { workspace = true, features = ["attributes"] }
+smol = { workspace = true }
+anyhow = { workspace = true }
+futures = { workspace = true }
+
+[[bin]]
+name = "tokio"
+path = "src/tokio.rs"
+
+[[bin]]
+name = "async-std"
+path = "src/async-std.rs"
+
+[[bin]]
+name = "smol"
+path = "src/smol.rs"

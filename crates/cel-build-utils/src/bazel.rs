@@ -1,42 +1,17 @@
 use anyhow::Context as _;
 use anyhow::Result;
 use std::{
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     path::{Path, PathBuf},
     process::Command,
 };
-
-/// Supported target triples - must match BUILD.bazel platform definitions
-const SUPPORTED_TARGETS: &[&str] = &[
-    // Linux
-    "x86_64-unknown-linux-gnu",
-    "aarch64-unknown-linux-gnu",
-    // Windows
-    "x86_64-pc-windows-msvc",
-    // Android
-    "aarch64-linux-android",
-    "armv7-linux-androideabi",
-    "x86_64-linux-android",
-    "i686-linux-android",
-    // macOS
-    "aarch64-apple-darwin",
-    "x86_64-apple-darwin",
-    // iOS
-    "aarch64-apple-ios",
-    "aarch64-apple-ios-sim",
-    "x86_64-apple-ios",
-];
 
 pub struct Bazel {
     pub path: PathBuf,
     pub mode: String,
     pub wdir: Option<PathBuf>,
     pub target: String,
-}
-
-/// Check if target triple is supported
-fn is_supported_target(target: &str) -> bool {
-    SUPPORTED_TARGETS.contains(&target)
+    pub options: Vec<OsString>,
 }
 
 fn mode_from_profile() -> String {
@@ -57,17 +32,12 @@ impl Bazel {
         download_version: Option<&str>,
     ) -> Result<Self> {
         let path = bazel_path(minimal_version, download_dir, download_version)?;
-
-        // Check if target is supported
-        if !is_supported_target(&target) {
-            return Err(anyhow::anyhow!("Unsupported target: {}", target));
-        }
-
         Ok(Self {
             path,
             mode: mode_from_profile(),
             wdir: None,
             target,
+            options: vec![],
         })
     }
 
@@ -76,22 +46,18 @@ impl Bazel {
         self
     }
 
-    /// Get Bazel platform for the target - must match BUILD.bazel platform definitions
-    pub fn target_platform(&self) -> String {
-        format!("//:{}", self.target)
+    pub fn with_option(mut self, option: impl Into<OsString>) -> Self {
+        self.options.push(option.into());
+        self
     }
 
-    pub fn config(&self) -> Option<String> {
-        if self.target.contains("apple") {
-            if self.target.contains("darwin") {
-                return Some("macos".to_string());
-            } else if self.target.contains("ios") {
-                return Some("ios".to_string());
-            }
-            return None;
-        }
-
-        None
+    pub fn with_options<I, S>(mut self, options: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        self.options.extend(options.into_iter().map(|s| s.as_ref().to_owned()));
+        self
     }
 
     pub fn build<I, S>(&self, targets: I) -> Command
@@ -128,6 +94,7 @@ impl Bazel {
         if let Some(work_dir) = &self.wdir {
             cmd.current_dir(work_dir);
         }
+        cmd.args(self.options.iter().map(|s| s.as_os_str()));
         cmd.arg(command);
         self.common_args(&mut cmd);
         cmd
@@ -135,10 +102,9 @@ impl Bazel {
 
     fn common_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         cmd.arg(format!("--compilation_mode={}", self.mode));
-        cmd.arg(format!("--platforms={}", self.target_platform()));
-        if let Some(config) = self.config() {
-            cmd.arg(format!("--config={}", config));
-        }
+        cmd.arg("--verbose_failures");
+        cmd.arg("--sandbox_debug");
+        cmd.arg("--experimental_writable_outputs");
         cmd
     }
 }

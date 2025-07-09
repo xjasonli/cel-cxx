@@ -13,31 +13,92 @@ use std::process::Command;
 const BAZEL_MINIMAL_VERSION: &str = "8.0.0";
 const BAZEL_DOWNLOAD_VERSION: Option<&str> = Some("8.2.1");
 
-fn build_dir(target: &str) -> Result<PathBuf> {
-    let kind = if target.contains("windows") {
-        "windows"
-    } else if target.contains("android") {
-        // Checks if ANDROID_NDK_HOME is set
-        let ndk_home = std::env::var("ANDROID_NDK_HOME").unwrap_or_default();
-        if ndk_home.is_empty() {
-            return Err(anyhow!("ANDROID_NDK_HOME is not set"));
-        }
-        if std::fs::read_dir(&ndk_home).is_err() {
-            return Err(anyhow!(
-                "ANDROID_NDK_HOME is not a valid directory: {}",
-                ndk_home
-            ));
-        }
+/// Supported target triples - must match platform definitions in build/BUILD.bazel
+const SUPPORTED_TARGETS: &[&str] = &[
+    // Linux
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "armv7-unknown-linux-gnueabi",
+    "i686-unknown-linux-gnu",
+    //"x86_64-unknown-linux-musl",
+    //"aarch64-unknown-linux-musl",
+    //"armv7-unknown-linux-musleabihf",
+    //"i686-unknown-linux-musl",
+    // Android
+    "aarch64-linux-android",
+    "armv7-linux-androideabi",
+    "x86_64-linux-android",
+    "i686-linux-android",
+    // Apple macOS
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "arm64e-apple-darwin",
+    // Apple iOS
+    "aarch64-apple-ios",
+    "aarch64-apple-ios-sim",
+    "x86_64-apple-ios",
+    "arm64e-apple-ios",
+    // Apple tvOS
+    "aarch64-apple-tvos",
+    "aarch64-apple-tvos-sim",
+    "x86_64-apple-tvos",
+    // Apple watchOS
+    "aarch64-apple-watchos",
+    "aarch64-apple-watchos-sim",
+    "x86_64-apple-watchos-sim",
+    "arm64_32-apple-watchos",
+    "armv7k-apple-watchos",
+    // Apple visionOS
+    "aarch64-apple-visionos",
+    "aarch64-apple-visionos-sim",
+    // Windows
+    "x86_64-pc-windows-msvc",
+    // WebAssembly
+    "wasm32-unknown-emscripten",
+];
 
-        "android"
-    } else if target.contains("linux") {
-        "linux"
-    } else if target.contains("apple") {
-        "apple"
+/// Check if target triple is supported for non-cross builds
+fn is_supported_target(target: &str) -> bool {
+    SUPPORTED_TARGETS.contains(&target)
+}
+
+fn is_cross_rs() -> bool {
+    env::var("CROSS_SYSROOT").is_ok() && env::var("CROSS_TOOLCHAIN_PREFIX").is_ok()
+}
+
+fn is_windows(target: &str) -> bool {
+    target.contains("windows")
+}
+
+fn target_config(target: &str) -> Option<&'static str> {
+    if target.contains("apple") {
+        if target.contains("darwin") {
+            return Some("macos");
+        } else if target.contains("ios") {
+            return Some("ios");
+        }
+    }
+    if target.contains("windows") {
+        return Some("msvc");
+    }
+    None
+}
+
+fn work_dir(target: &str) -> Result<PathBuf> {
+    if !is_supported_target(target) {
+        return Err(anyhow::anyhow!(
+            "Unsupported target for cel-build-utils: {}. See SUPPORTED_TARGETS in cel-build-utils/src/lib.rs",
+            target
+        ));
+    }
+
+    let dir = if is_windows(target) {
+        "cel-windows"
     } else {
-        return Err(anyhow!("Unsupported target: {}", target));
+        "cel"
     };
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("build-{}", kind)))
+
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join(dir))
 }
 
 pub fn version() -> &'static str {
@@ -66,7 +127,7 @@ pub struct Artifacts {
 impl Build {
     pub fn new() -> Build {
         Build {
-            out_dir: env::var_os("OUT_DIR").map(|s| PathBuf::from(s).join("cel-build")),
+            out_dir: env::var_os("OUT_DIR").map(|s| PathBuf::from(s).join("cel")),
             target: env::var("TARGET").ok(),
         }
     }
@@ -98,9 +159,9 @@ impl Build {
         let out_dir = self.out_dir.as_ref().context("OUT_DIR not set")?;
         if !out_dir.exists() {
             fs::create_dir_all(out_dir)
-                .context(format!("failed to create out_dir: {}", out_dir.display()))?;
+                .context(format!("failed_to create out_dir: {}", out_dir.display()))?;
         }
-        let work_dir = build_dir(target)?;
+        let work_dir = work_dir(target)?;
         let install_dir = out_dir.join("install");
 
         let install_library_dir = install_dir.join("lib");
@@ -118,7 +179,7 @@ impl Build {
         //    });
         //}
 
-        let bazel = Bazel::new(
+        let mut bazel = Bazel::new(
             target.clone(),
             BAZEL_MINIMAL_VERSION,
             out_dir,
@@ -126,8 +187,19 @@ impl Build {
         )?
         .with_work_dir(&work_dir);
 
-        let _ = self
-            .run_command(bazel.build([":cel"]), "building cel")
+        if is_cross_rs() {
+            bazel = bazel.with_option("--output_user_root=/tmp/bazel");
+        }
+
+        let mut build_command = bazel.build(["//:cel"]);
+
+        build_command.arg(format!("--platforms=//:{}", target));
+
+        if let Some(config) = target_config(target) {
+            build_command.arg(format!("--config={}", config));
+        }
+
+        self.run_command(build_command, "building cel")
             .map_err(|e| anyhow!(e))?;
 
         if install_dir.exists() {
@@ -204,8 +276,10 @@ impl Build {
                 if status.success() {
                     return Ok(output.stdout);
                 }
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
                 format!(
-                    "'{exe}' reported failure with {status}",
+                    "'{exe}' reported failure with {status}\nstdout: {stdout}\nstderr: {stderr}",
                     exe = command.get_program().to_string_lossy()
                 )
             }

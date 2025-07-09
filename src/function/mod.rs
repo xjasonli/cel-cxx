@@ -1012,6 +1012,7 @@ mod tests {
 
         // Test function invocation
         let result = func.call(vec!["hello".into()]);
+        #[cfg(feature = "async")]
         let result = result.expect_result("test_reference_return_functions");
         assert_eq!(result.unwrap(), "hello".into());
     }
@@ -1029,6 +1030,7 @@ mod tests {
 
         // Test function invocation
         let result = func.call(vec!["world".into()]);
+        #[cfg(feature = "async")]
         let result = result.expect_result("test_closure_with_captured_data");
         assert_eq!(result.unwrap(), "Hello, world".into());
     }
@@ -1046,6 +1048,7 @@ mod tests {
 
         // Test function invocation
         let result = func.call(vec![]);
+        #[cfg(feature = "async")]
         let result = result.expect_result("test_zero_parameter_function");
         assert_eq!(result.unwrap(), 42i64.into());
     }
@@ -1066,6 +1069,7 @@ mod tests {
 
         // Test function invocation
         let result = func.call(vec![1i64.into(), 2i64.into(), 3i64.into()]);
+        #[cfg(feature = "async")]
         let result = result.expect_result("test_multiple_parameter_function");
         assert_eq!(result.unwrap(), 6i64.into());
     }
@@ -1091,11 +1095,13 @@ mod tests {
 
         // Test successful case
         let result = func.call(vec![10i64.into(), 2i64.into()]);
+        #[cfg(feature = "async")]
         let result = result.expect_result("test_result_error_handling_success");
         assert_eq!(result.unwrap(), 5i64.into());
 
         // Test error case
         let result = func.call(vec![10i64.into(), 0i64.into()]);
+        #[cfg(feature = "async")]
         let result = result.expect_result("test_result_error_handling_error");
         assert!(result.is_err());
     }

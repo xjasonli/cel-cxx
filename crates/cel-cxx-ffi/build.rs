@@ -53,18 +53,21 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         .filter(|path| !rs_excludes.contains(&path.as_path()))
         .collect::<Vec<_>>();
 
-    cxx_build::bridges(rs_srcs)
+    let mut build = cxx_build::bridges(rs_srcs);
+    build
         .include(artifacts.include_dir())
-        .flag_if_supported("-Wno-missing-requires")
+        .flag_if_supported("-Wno-attributes")
         .flag_if_supported("-Wno-deprecated-declarations")
         .flag_if_supported("-Wno-unused-parameter")
         .flag_if_supported("-Wno-class-memaccess")
         .flag_if_supported("-Wno-return-type")
         .flag_if_supported("-Wno-sign-compare")
-        .flag_if_supported("-Wno-nullability-completeness")
+        //.flag_if_supported("-Wno-missing-requires")
+        //.flag_if_supported("-Wno-nullability-completeness")
         .files(cc_srcs)
-        .std("c++17")
-        .compile("cel-cxx");
+        .std("c++17");
+
+    build.compile("cel-cxx");
 
     println!("cargo:rustc-link-lib=static=cel-cxx");
     Ok(())

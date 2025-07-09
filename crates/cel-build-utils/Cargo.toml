@@ -4,7 +4,7 @@ description = "Build utils for google/cel-cpp"
 categories = ["development-tools::build-utils"]
 documentation = "https://docs.rs/cel-build-utils"
 readme = "README.md"
-version = "0.1.2"
+version = "0.1.3"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
@@ -15,8 +15,8 @@ keywords.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-downloader = { workspace = true, default-features = false, features = ["rustls-tls", "verify"] }
-reqwest = { workspace = true, features = ["blocking"] }
+downloader = { workspace = true }
+reqwest = { workspace = true }
 regex = { workspace = true }
 semver = { workspace = true }
 sha2 = { workspace = true }

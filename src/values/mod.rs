@@ -185,12 +185,17 @@ mod traits;
 
 use crate::types::*;
 use crate::{Error, Kind};
-use arc_slice::{ArcBytes, ArcStr};
 use std::collections::HashMap;
 
 pub use opaque::*;
 pub use optional::*;
 pub use traits::*;
+
+/// CEL string value type.
+pub type StringValue = arc_slice::ArcStr;
+
+/// CEL bytes value type.
+pub type BytesValue = arc_slice::ArcBytes;
 
 /// CEL duration type.
 pub type Duration = chrono::Duration;
@@ -273,10 +278,10 @@ pub enum Value {
     Double(f64),
 
     /// UTF-8 string
-    String(ArcStr),
+    String(StringValue),
 
     /// Byte array
-    Bytes(ArcBytes),
+    Bytes(BytesValue),
 
     /// Struct (not yet implemented)
     Struct(()),
@@ -558,7 +563,7 @@ impl Value {
     }
 
     /// Returns the string value if this value is a string value.
-    pub fn as_string(&self) -> Option<&ArcStr> {
+    pub fn as_string(&self) -> Option<&StringValue> {
         match self {
             Value::String(s) => Some(s),
             _ => None,
@@ -566,7 +571,7 @@ impl Value {
     }
 
     /// Returns the byte array value if this value is a byte array value.
-    pub fn as_bytes(&self) -> Option<&ArcBytes> {
+    pub fn as_bytes(&self) -> Option<&BytesValue> {
         match self {
             Value::Bytes(b) => Some(b),
             _ => None,
@@ -686,7 +691,7 @@ impl Value {
     }
 
     /// Returns a mutable reference to the string value if this value is a string value.
-    pub fn as_string_mut(&mut self) -> Option<&mut ArcStr> {
+    pub fn as_string_mut(&mut self) -> Option<&mut StringValue> {
         match self {
             Value::String(s) => Some(s),
             _ => None,
@@ -694,7 +699,7 @@ impl Value {
     }
 
     /// Returns a mutable reference to the byte array value if this value is a byte array value.
-    pub fn as_bytes_mut(&mut self) -> Option<&mut ArcBytes> {
+    pub fn as_bytes_mut(&mut self) -> Option<&mut BytesValue> {
         match self {
             Value::Bytes(b) => Some(b),
             _ => None,
@@ -822,7 +827,7 @@ impl Value {
     }
 
     /// Converts the value to a string value.
-    pub fn into_string(self) -> Option<ArcStr> {
+    pub fn into_string(self) -> Option<StringValue> {
         match self {
             Value::String(s) => Some(s),
             _ => None,
@@ -830,7 +835,7 @@ impl Value {
     }
 
     /// Converts the value to a byte array value.
-    pub fn into_bytes(self) -> Option<ArcBytes> {
+    pub fn into_bytes(self) -> Option<BytesValue> {
         match self {
             Value::Bytes(b) => Some(b),
             _ => None,
@@ -973,7 +978,7 @@ impl Value {
     }
 
     /// Converts the value to a string value and panics if the value is not a string value.
-    pub fn unwrap_string(self) -> ArcStr {
+    pub fn unwrap_string(self) -> StringValue {
         match self {
             Value::String(s) => s,
             _ => panic!(
@@ -984,7 +989,7 @@ impl Value {
     }
 
     /// Converts the value to a byte array value and panics if the value is not a byte array value.
-    pub fn unwrap_bytes(self) -> ArcBytes {
+    pub fn unwrap_bytes(self) -> BytesValue {
         match self {
             Value::Bytes(b) => b,
             _ => panic!(
@@ -1145,7 +1150,7 @@ impl Value {
     }
 
     /// Converts the value to a string value and panics if the value is not a string value.
-    pub fn expect_string(self, msg: &str) -> ArcStr {
+    pub fn expect_string(self, msg: &str) -> StringValue {
         match self {
             Value::String(s) => s,
             _ => panic!("{}: {:?}", msg, self),
@@ -1153,7 +1158,7 @@ impl Value {
     }
 
     /// Converts the value to a byte array value and panics if the value is not a byte array value.
-    pub fn expect_bytes(self, msg: &str) -> ArcBytes {
+    pub fn expect_bytes(self, msg: &str) -> BytesValue {
         match self {
             Value::Bytes(b) => b,
             _ => panic!("{}: {:?}", msg, self),
@@ -1302,7 +1307,7 @@ pub enum MapKey {
     /// Unsigned integer key
     Uint(u64),
     /// String key
-    String(ArcStr),
+    String(StringValue),
 }
 
 impl MapKey {
@@ -1431,9 +1436,9 @@ pub enum Constant {
     /// Floating point constant
     Double(f64),
     /// Byte array constant
-    Bytes(ArcBytes),
+    Bytes(BytesValue),
     /// String constant
-    String(ArcStr),
+    String(StringValue),
     /// Duration constant
     Duration(chrono::Duration),
     /// Timestamp constant
