@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2025-07-09
+
+### Added
+- **Cross-compilation support** via [cross-rs](https://github.com/cross-rs/cross)
+  - Automatic toolchain detection and configuration for cross-compilation environments
+  - Support for select targets including ARM Linux, MIPS, PowerPC, and RISC-V
+  - Seamless integration with cross-rs containers and toolchains
+- **Consolidated build system** with unified configuration
+  - Merged platform-specific build directories into `cel/` and `cel-windows/`
+  - Simplified build configuration and reduced duplication
+- **Separate async examples crate** (`examples-async/`)
+  - Extracted async examples into dedicated crate for better organization
+  - Improved documentation and examples for async usage patterns
+
+### Changed
+- **Refactored build system architecture**
+  - Consolidated `build-{android,apple,linux,windows}` directories into unified structure
+  - Improved build configuration management and platform detection
+- **Enhanced Value struct** with additional convenience methods
+- **Improved async examples organization** with dedicated crate and documentation
+
+### Fixed
+- **Fixed test compilation errors** when async features are disabled
+  - Added missing `#[cfg(feature = "async")]` guards to prevent compilation errors
+  - Improved conditional compilation for async-related test code
+
 ## [0.1.3] - 2025-06-29
 
 ### Added
@@ -98,7 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite and examples
 - CI/CD pipeline for automated testing
 
-[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/xjasonli/cel-cxx/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/xjasonli/cel-cxx/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/xjasonli/cel-cxx/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/xjasonli/cel-cxx/compare/v0.1.0...v0.1.1

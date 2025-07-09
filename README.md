@@ -6,92 +6,60 @@
 [crates-io]: https://img.shields.io/badge/crates.io-fc8d62?style=for-the-badge&labelColor=555555&logo=rust
 [docs-rs]: https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
 
-# cel-cxx: Modern Rust Interface for CEL
+# CEL-CXX: Modern Rust Interface for CEL
 
 A high-performance, type-safe Rust interface for [Common Expression Language (CEL)](https://github.com/google/cel-spec),
 built on top of [google/cel-cpp](https://github.com/google/cel-cpp) with zero-cost FFI bindings via [cxx](https://github.com/dtolnay/cxx).
 
-## 🖥️ Platform Support
+- [CEL-CXX: Modern Rust Interface for CEL](#cel-cxx-modern-rust-interface-for-cel)
+  - [Architecture Overview](#architecture-overview)
+    - [Core Design Principles](#core-design-principles)
+    - [Integration Architecture](#integration-architecture)
+  - [Quick Start](#quick-start)
+    - [Installation](#installation)
+    - [Basic Expression Evaluation](#basic-expression-evaluation)
+    - [Custom Types with Derive Macros](#custom-types-with-derive-macros)
+  - [Zero-Annotation Function Registration](#zero-annotation-function-registration)
+    - [Owned Type Parameters](#owned-type-parameters)
+    - [Reference Type Parameters](#reference-type-parameters)
+    - [Reference Type Return Values](#reference-type-return-values)
+    - [Direct Return Values vs Result Types](#direct-return-values-vs-result-types)
+    - [Synchronous vs Asynchronous Functions](#synchronous-vs-asynchronous-functions)
+    - [Function Signature Examples](#function-signature-examples)
+  - [Advanced Features](#advanced-features)
+    - [Async Support](#async-support)
+      - [Async Architecture Design](#async-architecture-design)
+      - [Implementation Details](#implementation-details)
+    - [Function Overloads](#function-overloads)
+    - [Smart Reference Handling](#smart-reference-handling)
+  - [Type System](#type-system)
+    - [Type Conversion Examples](#type-conversion-examples)
+  - [Feature Flags](#feature-flags)
+  - [Performance Characteristics](#performance-characteristics)
+  - [Examples](#examples)
+  - [Platform Support](#platform-support)
+    - [Cross-Compilation Support](#cross-compilation-support)
+    - [Android Build Instructions](#android-build-instructions)
+  - [CEL Feature Support](#cel-feature-support)
+    - [Supported Features](#supported-features)
+    - [Planned Features](#planned-features)
+  - [Prerequisites](#prerequisites)
+    - [System Requirements](#system-requirements)
+    - [Installation Verification](#installation-verification)
+  - [Contributing](#contributing)
+    - [Development Setup](#development-setup)
+    - [Code Style](#code-style)
+  - [Related Crates](#related-crates)
+    - [xjasonli/cel-cxx (This Project)](#xjasonlicel-cxx-this-project)
+    - [clarkmcc/cel-rust](#clarkmcccel-rust)
+    - [1BADragon/rscel](#1badragonrscel)
+    - [thesayyn/cel-rs](#thesayyncel-rs)
+    - [Choosing the Right Implementation](#choosing-the-right-implementation)
+  - [License](#license)
+  - [Acknowledgements](#acknowledgements)
 
-<table>
-<thead>
-<tr>
-<th>Platform</th>
-<th>Target Triple</th>
-<th>Status</th>
-<th>Notes</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td rowspan="2"><strong>Linux</strong></td>
-<td><code>x86_64-unknown-linux-gnu</code></td>
-<td>✅</td>
-<td></td>
-</tr>
-<tr>
-<td><code>aarch64-unknown-linux-gnu</code></td>
-<td>✅</td>
-<td></td>
-</tr>
-<tr>
-<td rowspan="2"><strong>macOS</strong></td>
-<td><code>x86_64-apple-darwin</code></td>
-<td>✅</td>
-<td></td>
-</tr>
-<tr>
-<td><code>aarch64-apple-darwin</code></td>
-<td>✅</td>
-<td></td>
-</tr>
-<tr>
-<td rowspan="3"><strong>iOS</strong></td>
-<td><code>aarch64-apple-ios</code></td>
-<td>✅</td>
-<td></td>
-</tr>
-<tr>
-<td><code>aarch64-apple-ios-sim</code></td>
-<td>✅</td>
-<td></td>
-</tr>
-<tr>
-<td><code>x86_64-apple-ios</code></td>
-<td>✅</td>
-<td></td>
-</tr>
-<tr>
-<td rowspan="4"><strong>Android</strong></td>
-<td><code>aarch64-linux-android</code></td>
-<td>✅</td>
-<td>Requires ANDROID_NDK_HOME</td>
-</tr>
-<tr>
-<td><code>armv7-linux-androideabi</code></td>
-<td>✅</td>
-<td>Requires ANDROID_NDK_HOME</td>
-</tr>
-<tr>
-<td><code>x86_64-linux-android</code></td>
-<td>✅</td>
-<td>Requires ANDROID_NDK_HOME</td>
-</tr>
-<tr>
-<td><code>i686-linux-android</code></td>
-<td>✅</td>
-<td>Requires ANDROID_NDK_HOME</td>
-</tr>
-<tr>
-<td><strong>Windows</strong></td>
-<td><code>x86_64-pc-windows-msvc</code></td>
-<td>❌</td>
-<td>CEL-CPP Bazel build scripts don't support Windows</td>
-</tr>
-</tbody>
-</table>
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ### Core Design Principles
 
@@ -110,7 +78,7 @@ The library provides a layered architecture that bridges Rust and CEL-CPP:
 - **FFI Layer**: Zero-cost bindings to CEL-CPP via the `cxx` crate
 - **CEL-CPP Layer**: Google's reference implementation for parsing and evaluation
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -196,7 +164,7 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 # Ok::<(), cel_cxx::Error>(())
 ```
 
-## 🎯 Zero-Annotation Function Registration
+## Zero-Annotation Function Registration
 
 The library's flagship feature uses **Generic Associated Types (GATs)** to automatically infer function signatures,
 eliminating the need for manual type annotations:
@@ -429,7 +397,7 @@ let env = Env::builder()
 # Ok::<(), cel_cxx::Error>(())
 ```
 
-## 🔧 Advanced Features
+## Advanced Features
 
 ### Async Support
 
@@ -526,7 +494,7 @@ let env = Env::builder()
 # Ok::<(), cel_cxx::Error>(())
 ```
 
-## 📊 Type System
+## Type System
 
 The crate provides comprehensive type support with automatic conversions between CEL and Rust types.
 All types support the three core traits for seamless integration:
@@ -577,7 +545,7 @@ let env = Env::builder()
 # Ok::<(), cel_cxx::Error>(())
 ```
 
-## 🛠️ Feature Flags
+## Feature Flags
 
 | Feature | Description | Default |
 |---------|-------------|---------|
@@ -587,7 +555,7 @@ let env = Env::builder()
 | `smol` | smol runtime integration (requires `async`) | ❌ |
 | `async-std` | async-std runtime integration (requires `async`) | ❌ |
 
-## 🎯 Performance Characteristics
+## Performance Characteristics
 
 - **Zero-cost FFI**: Direct C++ function calls with no marshaling overhead
 - **Compile-time optimization**: Function signatures resolved at compile time  
@@ -595,7 +563,7 @@ let env = Env::builder()
 - **Async overhead**: Only when async features are explicitly used
 - **Type safety**: Compile-time prevention of common integration errors
 
-## 📚 Examples
+## Examples
 
 The crate includes comprehensive examples demonstrating various features:
 
@@ -610,11 +578,237 @@ cargo run --example comprehensive
 cargo run --example tokio --features="async,tokio"
 ```
 
+## Platform Support
+
+<table>
+<thead>
+<tr>
+<th>Platform</th>
+<th>Target Triple</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td rowspan="4"><strong>Linux</strong></td>
+<td><code>x86_64-unknown-linux-gnu</code></td>
+<td>✅</td>
+<td>Tested</td>
+</tr>
+<tr>
+<td><code>aarch64-unknown-linux-gnu</code></td>
+<td>✅</td>
+<td>Tested</td>
+</tr>
+<tr>
+<td><code>armv7-unknown-linux-gnueabi</code></td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
+</tr>
+<tr>
+<td><code>i686-unknown-linux-gnu</code></td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
+</tr>
+<tr>
+<td rowspan="3"><strong>macOS</strong></td>
+<td><code>x86_64-apple-darwin</code></td>
+<td>✅</td>
+<td>Tested</td>
+</tr>
+<tr>
+<td><code>aarch64-apple-darwin</code></td>
+<td>✅</td>
+<td>Tested</td>
+</tr>
+<tr>
+<td><code>arm64e-apple-darwin</code></td>
+<td>✅</td>
+<td>Tested</td>
+</tr>
+<tr>
+<td rowspan="4"><strong>iOS</strong></td>
+<td><code>aarch64-apple-ios</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>aarch64-apple-ios-sim</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>x86_64-apple-ios</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>arm64e-apple-ios</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td rowspan="3"><strong>tvOS</strong></td>
+<td><code>aarch64-apple-tvos</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>aarch64-apple-tvos-sim</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>x86_64-apple-tvos</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td rowspan="5"><strong>watchOS</strong></td>
+<td><code>aarch64-apple-watchos</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>aarch64-apple-watchos-sim</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>x86_64-apple-watchos-sim</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>arm64_32-apple-watchos</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>armv7k-apple-watchos</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td rowspan="2"><strong>visionOS</strong></td>
+<td><code>aarch64-apple-visionos</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td><code>aarch64-apple-visionos-sim</code></td>
+<td>🟡</td>
+<td>Should work, untested</td>
+</tr>
+<tr>
+<td rowspan="4"><strong>Android</strong></td>
+<td><code>aarch64-linux-android</code></td>
+<td>🟡</td>
+<td>Should work, use cargo-ndk</td>
+</tr>
+<tr>
+<td><code>armv7-linux-androideabi</code></td>
+<td>🟡</td>
+<td>Should work, use cargo-ndk</td>
+</tr>
+<tr>
+<td><code>x86_64-linux-android</code></td>
+<td>🟡</td>
+<td>Should work, use cargo-ndk</td>
+</tr>
+<tr>
+<td><code>i686-linux-android</code></td>
+<td>🟡</td>
+<td>Should work, use cargo-ndk</td>
+</tr>
+<tr>
+<td><strong>WebAssembly</strong></td>
+<td><code>wasm32-unknown-emscripten</code></td>
+<td>🟡</td>
+<td>Should work via Emscripten</td>
+</tr>
+<tr>
+<td><strong>Windows</strong></td>
+<td><code>x86_64-pc-windows-msvc</code></td>
+<td>🚧</td>
+<td>Experimental support</td>
+</tr>
+</tbody>
+</table>
+
+**Legend:**
+- ✅ **Tested**: Confirmed working with automated tests
+- 🟡 **Should work**: Build configuration exists but not tested in CI
+- 🚧 **Experimental**: May work but has known limitations
+
+### Cross-Compilation Support
+
+cel-cxx includes built-in support for cross-compilation via [cross-rs](https://github.com/cross-rs/cross). The build system automatically detects cross-compilation environments and configures the appropriate toolchains.
+
+**Additional cross-rs targets** (beyond those listed above):
+- **MIPS**: `mips-unknown-linux-gnu`, `mips64-unknown-linux-gnuabi64`
+- **PowerPC**: `powerpc-unknown-linux-gnu`, `powerpc64-unknown-linux-gnu`
+- **RISC-V**: `riscv64gc-unknown-linux-gnu`
+
+**Usage with cross-rs:**
+```bash
+# Install cross-rs
+cargo install cross --git https://github.com/cross-rs/cross
+
+# Build for RISC-V
+cross build --target riscv64gc-unknown-linux-gnu
+
+# Build for PowerPC
+cross build --target powerpc64-unknown-linux-gnu
+```
+
+**Note**: Not all cross-rs targets are supported due to CEL-CPP's build requirements. musl targets and some embedded targets may not work due to missing C++ standard library support or incompatible toolchains.
+
+### Android Build Instructions
+
+Android builds require additional setup beyond the standard Rust toolchain:
+
+**Prerequisites:**
+1. Install Android NDK and set `ANDROID_NDK_HOME`
+2. Install `cargo-ndk` for simplified Android builds
+
+```bash
+# Install cargo-ndk
+cargo install cargo-ndk
+
+# Add Android targets
+rustup target add aarch64-linux-android
+rustup target add armv7-linux-androideabi
+rustup target add x86_64-linux-android
+rustup target add i686-linux-android
+```
+
+**Building for Android:**
+```bash
+# Build for ARM64 (recommended)
+cargo ndk --target aarch64-linux-android build
+
+# Build for ARMv7
+cargo ndk --target armv7-linux-androideabi build
+
+# Build for x86_64 (emulator)
+cargo ndk --target x86_64-linux-android build
+
+# Build for i686 (emulator)
+cargo ndk --target i686-linux-android build
+```
+
+**Why cargo-ndk is required:**
+- `ANDROID_NDK_HOME` configures Bazel for CEL-CPP compilation
+- `cargo-ndk` automatically sets up `CC_{target}` and `AR_{target}` environment variables needed for the Rust FFI layer
+- This ensures both the C++ (CEL-CPP) and Rust (cel-cxx-ffi) components use compatible toolchains
 
 
-## 📋 CEL Feature Support
 
-### ✅ Supported Features
+## CEL Feature Support
+
+### Supported Features
 
 | Feature | Status | Description |
 |---------|--------|-------------|
@@ -634,14 +828,14 @@ cargo run --example tokio --features="async,tokio"
 | **Function Overloads** | ✅ | Multiple function signatures with automatic resolution |
 | **Type Checking** | ✅ | Compile-time type validation |
 
-### 🚧 Planned Features
+### Planned Features
 
 | Feature | Status | Description |
 |---------|--------|-------------|
 | **Protocol Buffer Integration** | 🚧 Planned | Direct support for protobuf messages and enums as native CEL types |
 | **Windows Support** | 🚧 Planned | Requires CEL-CPP Windows build support |
 
-## 📋 Prerequisites
+## Prerequisites
 
 ### System Requirements
 
@@ -664,7 +858,7 @@ cargo run --example comprehensive
 cargo run --example tokio --features="async,tokio"
 ```
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
@@ -692,7 +886,7 @@ cargo run --example comprehensive
 - Add documentation for public APIs
 - Include examples for new features
 
-## 🔗 Related Crates
+## Related Crates
 
 This project is part of a growing ecosystem of CEL implementations in Rust. Here's how it compares to other notable projects:
 
@@ -733,11 +927,11 @@ This project is part of a growing ecosystem of CEL implementations in Rust. Here
 | **Maximum performance** | cel-cxx (this project) |
 | **Async/await support** | cel-cxx (this project) |
 
-## 📄 License
+## License
 
 Licensed under the Apache License 2.0. See [LICENSE](https://github.com/xjasonli/cel-cxx/blob/master/LICENSE) for details.
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 - [`google/cel-cpp`](https://github.com/google/cel-cpp) - The foundational C++ CEL implementation
 - [`dtolnay/cxx`](https://github.com/dtolnay/cxx) - Safe and efficient Rust-C++ interop
