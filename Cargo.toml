@@ -96,10 +96,8 @@ pin-project-lite = { workspace = true, optional = true }
 arc-slice = { workspace = true }
 
 [dev-dependencies]
-#tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros"] }
-#async-std = { workspace = true, features = ["attributes"] }
-#anyhow = { workspace = true }
-#futures = { workspace = true }
+tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros"] }
+async-std = { workspace = true, features = ["attributes"] }
 
 [[example]]
 name = "basic"
@@ -108,3 +106,18 @@ path = "examples/basic.rs"
 [[example]]
 name = "comprehensive"
 path = "examples/comprehensive.rs"
+
+[[example]]
+name = "tokio"
+path = "examples/async/tokio.rs"
+required-features = ["tokio"]
+
+[[example]]
+name = "async-std"
+path = "examples/async/async-std.rs"
+required-features = ["async-std"]
+
+[[example]]
+name = "smol"
+path = "examples/async/smol.rs"
+required-features = ["smol"]

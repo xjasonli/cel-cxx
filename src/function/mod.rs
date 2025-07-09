@@ -164,8 +164,8 @@
 //! When the `async` feature is enabled, you can register async functions:
 //!
 //! ```rust,no_run
-//! # #[cfg(feature = "async")]
 //! # use cel_cxx::function::*;
+//! # #[cfg(feature = "tokio")]
 //! # async fn example() {
 //! // Async function
 //! async fn fetch_data(url: String) -> String {

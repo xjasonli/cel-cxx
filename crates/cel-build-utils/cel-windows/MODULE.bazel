@@ -13,5 +13,5 @@ git_override(
     module_name = "cel-cpp",
     # We need some patches
     remote = "https://github.com/xjasonli/cel-cpp.git",
-    commit = "5fa85ed85ea091e495fc494a173671ced18a7604",
+    commit = "3540ea522e12c06de4fbd44271a4c90c9c309b97",
 )
