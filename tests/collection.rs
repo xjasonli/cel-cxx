@@ -1,8 +1,4 @@
-use std::collections::HashMap;
-
 use cel_cxx::*;
-
-const MY_NAMESPACE: &str = "testing";
 
 #[test]
 fn test_map_function() -> Result<(), Error> {
@@ -33,8 +29,12 @@ fn test_map_function() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(feature = "derive")]
 #[test]
 fn test_hand_map_function() -> Result<(), Error> {
+    use std::collections::HashMap;
+    const MY_NAMESPACE: &str = "testing";
+
     println!("test map function");
 
     #[derive(Opaque, Debug, Clone, PartialEq)]

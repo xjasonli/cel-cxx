@@ -1,4 +1,3 @@
-use std::ffi::c_int;
 use std::pin::Pin;
 
 use crate::absl::Status;
@@ -22,7 +21,7 @@ mod ffi {
         type VariableDecl<'a> = super::VariableDecl<'a>;
         type FunctionDecl<'a> = super::FunctionDecl<'a>;
 
-        type CheckerOptions = super::CheckerOptions;
+        type CheckerOptions;
         type CheckerLibrary;
 
         type TypeChecker;
@@ -45,7 +44,7 @@ mod ffi {
         ) -> Status;
         #[rust_name = "set_expected_type"]
         fn SetExpectedType<'a>(self: Pin<&mut TypeCheckerBuilder<'a>>, expected_type: &Type<'a>);
-        fn options<'a>(self: &TypeCheckerBuilder<'a>) -> &CheckerOptions;
+        fn options<'this, 'a>(self: &'this TypeCheckerBuilder<'a>) -> &'this CheckerOptions;
 
         type TypeCheckIssue;
         fn severity(self: &TypeCheckIssue) -> Severity;
@@ -66,7 +65,45 @@ mod ffi {
         fn CheckerLibrary_new_standard() -> UniquePtr<CheckerLibrary>;
 
         // CheckerOptions
-        fn CheckerOptions_default() -> CheckerOptions;
+        fn CheckerOptions_new() -> UniquePtr<CheckerOptions>;
+
+        // CheckerOptions getters and setters
+        fn CheckerOptions_enable_cross_numeric_comparisons(
+            checker_options: &CheckerOptions
+        ) -> bool;
+        fn CheckerOptions_enable_cross_numeric_comparisons_mut<'a>(
+            checker_options: Pin<&'a mut CheckerOptions>,
+        ) -> &'a mut bool;
+        fn CheckerOptions_enable_legacy_null_assignment(
+            checker_options: &CheckerOptions
+        ) -> bool;
+        fn CheckerOptions_enable_legacy_null_assignment_mut<'a>(
+            checker_options: Pin<&'a mut CheckerOptions>,
+        ) -> &'a mut bool;
+        fn CheckerOptions_update_struct_type_names(
+            checker_options: &CheckerOptions
+        ) -> bool;
+        fn CheckerOptions_update_struct_type_names_mut<'a>(
+            checker_options: Pin<&'a mut CheckerOptions>,
+        ) -> &'a mut bool;
+        fn CheckerOptions_allow_well_known_type_context_declarations(
+            checker_options: &CheckerOptions
+        ) -> bool;
+        fn CheckerOptions_allow_well_known_type_context_declarations_mut<'a>(
+            checker_options: Pin<&'a mut CheckerOptions>,
+        ) -> &'a mut bool;
+        fn CheckerOptions_max_expression_node_count(
+            checker_options: &CheckerOptions
+        ) -> i32;
+        fn CheckerOptions_max_expression_node_count_mut<'a>(
+            checker_options: Pin<&'a mut CheckerOptions>,
+        ) -> &'a mut i32;
+        fn CheckerOptions_max_error_issues(
+            checker_options: &CheckerOptions
+        ) -> i32;
+        fn CheckerOptions_max_error_issues_mut<'a>(
+            checker_options: Pin<&'a mut CheckerOptions>,
+        ) -> &'a mut i32;
 
         // TypeCheckerBuilder
         fn TypeCheckerBuilder_add_library<'a>(
@@ -107,24 +144,61 @@ impl CheckerLibrary {
     }
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct CheckerOptions {
-    pub enable_cross_numeric_comparisons: bool,
-    pub enable_legacy_null_assignment: bool,
-    pub update_struct_type_names: bool,
-    pub max_expression_node_count: c_int,
-    pub max_error_issues: c_int,
-}
+pub use ffi::CheckerOptions;
+unsafe impl Send for CheckerOptions {}
+unsafe impl Sync for CheckerOptions {}
 
-unsafe impl cxx::ExternType for CheckerOptions {
-    type Id = cxx::type_id!("cel::CheckerOptions");
-    type Kind = cxx::kind::Trivial;
-}
+impl CheckerOptions {
+    pub fn new() -> cxx::UniquePtr<Self> {
+        ffi::CheckerOptions_new()
+    }
 
-impl Default for CheckerOptions {
-    fn default() -> Self {
-        ffi::CheckerOptions_default()
+    pub fn enable_cross_numeric_comparisons(&self) -> bool {
+        ffi::CheckerOptions_enable_cross_numeric_comparisons(self)
+    }
+
+    pub fn enable_cross_numeric_comparisons_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::CheckerOptions_enable_cross_numeric_comparisons_mut(self)
+    }
+
+    pub fn enable_legacy_null_assignment(&self) -> bool {
+        ffi::CheckerOptions_enable_legacy_null_assignment(self)
+    }
+
+    pub fn enable_legacy_null_assignment_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::CheckerOptions_enable_legacy_null_assignment_mut(self)
+    }
+
+    pub fn update_struct_type_names(&self) -> bool {
+        ffi::CheckerOptions_update_struct_type_names(self)
+    }
+
+    pub fn update_struct_type_names_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::CheckerOptions_update_struct_type_names_mut(self)
+    }
+
+    pub fn allow_well_known_type_context_declarations(&self) -> bool {
+        ffi::CheckerOptions_allow_well_known_type_context_declarations(self)
+    }
+
+    pub fn allow_well_known_type_context_declarations_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::CheckerOptions_allow_well_known_type_context_declarations_mut(self)
+    }
+
+    pub fn max_expression_node_count(&self) -> i32 {
+        ffi::CheckerOptions_max_expression_node_count(self)
+    }
+
+    pub fn max_expression_node_count_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::CheckerOptions_max_expression_node_count_mut(self)
+    }
+
+    pub fn max_error_issues(&self) -> i32 {
+        ffi::CheckerOptions_max_error_issues(self)
+    }
+
+    pub fn max_error_issues_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::CheckerOptions_max_error_issues_mut(self)
     }
 }
 

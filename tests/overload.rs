@@ -1,10 +1,11 @@
 use cel_cxx::*;
 use std::collections::HashMap;
 
-const MY_NAMESPACE: &str = "testing";
-
+#[cfg(feature = "derive")]
 #[test]
 fn test_opaque_function_overload() -> Result<(), Error> {
+    const MY_NAMESPACE: &str = "testing";
+
     println!("test opaque function overload");
 
     #[derive(Opaque, Debug, Clone, PartialEq)]

@@ -262,179 +262,179 @@ inline std::unique_ptr<RuntimeOptions> RuntimeOptions_new() {
     return std::make_unique<RuntimeOptions>();
 }
 
-inline Str RuntimeOptions_get_container(const RuntimeOptions& options) {
+inline Str RuntimeOptions_container(const RuntimeOptions& options) {
     return Str(options.container.data(), options.container.size());
 }
-inline void RuntimeOptions_set_container(RuntimeOptions& options, Str container) {
-    options.container = std::string(container);
+inline std::string& RuntimeOptions_container_mut(RuntimeOptions& options) {
+    return options.container;
 }
 
-inline cel::UnknownProcessingOptions RuntimeOptions_get_unknown_processing(const RuntimeOptions& options) {
+inline cel::UnknownProcessingOptions RuntimeOptions_unknown_processing(const RuntimeOptions& options) {
     return options.unknown_processing;
 }
 
-inline void RuntimeOptions_set_unknown_processing(RuntimeOptions& options, cel::UnknownProcessingOptions value) {
-    options.unknown_processing = value;
+inline cel::UnknownProcessingOptions& RuntimeOptions_unknown_processing_mut(RuntimeOptions& options) {
+    return options.unknown_processing;
 }
 
-inline bool RuntimeOptions_get_enable_missing_attribute_errors(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_missing_attribute_errors(const RuntimeOptions& options) {
     return options.enable_missing_attribute_errors;
 }
 
-inline void RuntimeOptions_set_enable_missing_attribute_errors(RuntimeOptions& options, bool value) {
-    options.enable_missing_attribute_errors = value;
+inline bool& RuntimeOptions_enable_missing_attribute_errors_mut(RuntimeOptions& options) {
+    return options.enable_missing_attribute_errors;
 }
 
-inline bool RuntimeOptions_get_enable_timestamp_duration_overflow_errors(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_timestamp_duration_overflow_errors(const RuntimeOptions& options) {
     return options.enable_timestamp_duration_overflow_errors;
 }
 
-inline void RuntimeOptions_set_enable_timestamp_duration_overflow_errors(RuntimeOptions& options, bool value) {
-    options.enable_timestamp_duration_overflow_errors = value;
+inline bool& RuntimeOptions_enable_timestamp_duration_overflow_errors_mut(RuntimeOptions& options) {
+    return options.enable_timestamp_duration_overflow_errors;
 }
 
-inline bool RuntimeOptions_get_short_circuiting(const RuntimeOptions& options) {
+inline bool RuntimeOptions_short_circuiting(const RuntimeOptions& options) {
     return options.short_circuiting;
 }
 
-inline void RuntimeOptions_set_short_circuiting(RuntimeOptions& options, bool value) {
-    options.short_circuiting = value;
+inline bool& RuntimeOptions_short_circuiting_mut(RuntimeOptions& options) {
+    return options.short_circuiting;
 }
 
-inline bool RuntimeOptions_get_enable_comprehension(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_comprehension(const RuntimeOptions& options) {
     return options.enable_comprehension;
 }
 
-inline void RuntimeOptions_set_enable_comprehension(RuntimeOptions& options, bool value) {
-    options.enable_comprehension = value;
+inline bool& RuntimeOptions_enable_comprehension_mut(RuntimeOptions& options) {
+    return options.enable_comprehension;
 }
 
-inline int RuntimeOptions_get_comprehension_max_iterations(const RuntimeOptions& options) {
+inline int RuntimeOptions_comprehension_max_iterations(const RuntimeOptions& options) {
     return options.comprehension_max_iterations;
 }
 
-inline void RuntimeOptions_set_comprehension_max_iterations(RuntimeOptions& options, int value) {
-    options.comprehension_max_iterations = value;
+inline int& RuntimeOptions_comprehension_max_iterations_mut(RuntimeOptions& options) {
+    return options.comprehension_max_iterations;
 }
 
-inline bool RuntimeOptions_get_enable_comprehension_list_append(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_comprehension_list_append(const RuntimeOptions& options) {
     return options.enable_comprehension_list_append;
 }
 
-inline void RuntimeOptions_set_enable_comprehension_list_append(RuntimeOptions& options, bool value) {
-    options.enable_comprehension_list_append = value;
+inline bool& RuntimeOptions_enable_comprehension_list_append_mut(RuntimeOptions& options) {
+    return options.enable_comprehension_list_append;
 }
 
-inline bool RuntimeOptions_get_enable_regex(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_regex(const RuntimeOptions& options) {
     return options.enable_regex;
 }
 
-inline void RuntimeOptions_set_enable_regex(RuntimeOptions& options, bool value) {
-    options.enable_regex = value;
+inline bool& RuntimeOptions_enable_regex_mut(RuntimeOptions& options) {
+    return options.enable_regex;
 }
 
-inline int RuntimeOptions_get_regex_max_program_size(const RuntimeOptions& options) {
+inline int RuntimeOptions_regex_max_program_size(const RuntimeOptions& options) {
     return options.regex_max_program_size;
 }
 
-inline void RuntimeOptions_set_regex_max_program_size(RuntimeOptions& options, int value) {
-    options.regex_max_program_size = value;
+inline int& RuntimeOptions_regex_max_program_size_mut(RuntimeOptions& options) {
+    return options.regex_max_program_size;
 }
 
-inline bool RuntimeOptions_get_enable_string_conversion(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_string_conversion(const RuntimeOptions& options) {
     return options.enable_string_conversion;
 }
 
-inline void RuntimeOptions_set_enable_string_conversion(RuntimeOptions& options, bool value) {
-    options.enable_string_conversion = value;
+inline bool& RuntimeOptions_enable_string_conversion_mut(RuntimeOptions& options) {
+    return options.enable_string_conversion;
 }
 
-inline bool RuntimeOptions_get_enable_string_concat(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_string_concat(const RuntimeOptions& options) {
     return options.enable_string_concat;
 }
 
-inline void RuntimeOptions_set_enable_string_concat(RuntimeOptions& options, bool value) {
-    options.enable_string_concat = value;
+inline bool& RuntimeOptions_enable_string_concat_mut(RuntimeOptions& options) {
+    return options.enable_string_concat;
 }
 
-inline bool RuntimeOptions_get_enable_list_concat(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_list_concat(const RuntimeOptions& options) {
     return options.enable_list_concat;
 }
 
-inline void RuntimeOptions_set_enable_list_concat(RuntimeOptions& options, bool value) {
-    options.enable_list_concat = value;
+inline bool& RuntimeOptions_enable_list_concat_mut(RuntimeOptions& options) {
+    return options.enable_list_concat;
 }
 
-inline bool RuntimeOptions_get_enable_list_contains(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_list_contains(const RuntimeOptions& options) {
     return options.enable_list_contains;
 }
 
-inline void RuntimeOptions_set_enable_list_contains(RuntimeOptions& options, bool value) {
-    options.enable_list_contains = value;
+inline bool& RuntimeOptions_enable_list_contains_mut(RuntimeOptions& options) {
+    return options.enable_list_contains;
 }
 
-inline bool RuntimeOptions_get_fail_on_warnings(const RuntimeOptions& options) {
+inline bool RuntimeOptions_fail_on_warnings(const RuntimeOptions& options) {
     return options.fail_on_warnings;
 }
 
-inline void RuntimeOptions_set_fail_on_warnings(RuntimeOptions& options, bool value) {
-    options.fail_on_warnings = value;
+inline bool& RuntimeOptions_fail_on_warnings_mut(RuntimeOptions& options) {
+    return options.fail_on_warnings;
 }
 
-inline bool RuntimeOptions_get_enable_qualified_type_identifiers(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_qualified_type_identifiers(const RuntimeOptions& options) {
     return options.enable_qualified_type_identifiers;
 }
 
-inline void RuntimeOptions_set_enable_qualified_type_identifiers(RuntimeOptions& options, bool value) {
-    options.enable_qualified_type_identifiers = value;
+inline bool& RuntimeOptions_enable_qualified_type_identifiers_mut(RuntimeOptions& options) {
+    return options.enable_qualified_type_identifiers;
 }
 
-inline bool RuntimeOptions_get_enable_heterogeneous_equality(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_heterogeneous_equality(const RuntimeOptions& options) {
     return options.enable_heterogeneous_equality;
 }
 
-inline void RuntimeOptions_set_enable_heterogeneous_equality(RuntimeOptions& options, bool value) {
-    options.enable_heterogeneous_equality = value;
+inline bool& RuntimeOptions_enable_heterogeneous_equality_mut(RuntimeOptions& options) {
+    return options.enable_heterogeneous_equality;
 }
 
-inline bool RuntimeOptions_get_enable_empty_wrapper_null_unboxing(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_empty_wrapper_null_unboxing(const RuntimeOptions& options) {
     return options.enable_empty_wrapper_null_unboxing;
 }
 
-inline void RuntimeOptions_set_enable_empty_wrapper_null_unboxing(RuntimeOptions& options, bool value) {
-    options.enable_empty_wrapper_null_unboxing = value;
+inline bool& RuntimeOptions_enable_empty_wrapper_null_unboxing_mut(RuntimeOptions& options) {
+    return options.enable_empty_wrapper_null_unboxing;
 }
 
-inline bool RuntimeOptions_get_enable_lazy_bind_initialization(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_lazy_bind_initialization(const RuntimeOptions& options) {
     return options.enable_lazy_bind_initialization;
 }
 
-inline void RuntimeOptions_set_enable_lazy_bind_initialization(RuntimeOptions& options, bool value) {
-    options.enable_lazy_bind_initialization = value;
+inline bool& RuntimeOptions_enable_lazy_bind_initialization_mut(RuntimeOptions& options) {
+    return options.enable_lazy_bind_initialization;
 }
 
-inline int RuntimeOptions_get_max_recursion_depth(const RuntimeOptions& options) {
+inline int RuntimeOptions_max_recursion_depth(const RuntimeOptions& options) {
     return options.max_recursion_depth;
 }
 
-inline void RuntimeOptions_set_max_recursion_depth(RuntimeOptions& options, int value) {
-    options.max_recursion_depth = value;
+inline int& RuntimeOptions_max_recursion_depth_mut(RuntimeOptions& options) {
+    return options.max_recursion_depth;
 }
 
-inline bool RuntimeOptions_get_enable_recursive_tracing(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_recursive_tracing(const RuntimeOptions& options) {
     return options.enable_recursive_tracing;
 }
 
-inline void RuntimeOptions_set_enable_recursive_tracing(RuntimeOptions& options, bool value) {
-    options.enable_recursive_tracing = value;
+inline bool& RuntimeOptions_enable_recursive_tracing_mut(RuntimeOptions& options) {
+    return options.enable_recursive_tracing;
 }
 
-inline bool RuntimeOptions_get_enable_fast_builtins(const RuntimeOptions& options) {
+inline bool RuntimeOptions_enable_fast_builtins(const RuntimeOptions& options) {
     return options.enable_fast_builtins;
 }
 
-inline void RuntimeOptions_set_enable_fast_builtins(RuntimeOptions& options, bool value) {
-    options.enable_fast_builtins = value;
+inline bool& RuntimeOptions_enable_fast_builtins_mut(RuntimeOptions& options) {
+    return options.enable_fast_builtins;
 }
 
 
@@ -442,7 +442,7 @@ inline void RuntimeOptions_set_enable_fast_builtins(RuntimeOptions& options, boo
 inline std::unique_ptr<FunctionDescriptor> FunctionDescriptor_new(
     Str name, bool receiver_style, Slice<const Kind> types, bool is_strict
 ) {
-    auto name_str = std::string_view(name);
+    auto name_str = std::string_view(name.data(), name.size());
     auto types_vec = std::vector<Kind>(types.data(), types.data() + types.size());
     return std::make_unique<FunctionDescriptor>(name_str, receiver_style, types_vec, is_strict);
 }
@@ -450,7 +450,7 @@ inline std::unique_ptr<FunctionDescriptor> FunctionDescriptor_new(
 inline std::shared_ptr<FunctionDescriptor> FunctionDescriptor_new_shared(
     Str name, bool receiver_style, Slice<const Kind> types, bool is_strict
 ) {
-    auto name_str = std::string_view(name);
+    auto name_str = std::string_view(name.data(), name.size());
     auto types_vec = std::vector<Kind>(types.data(), types.data() + types.size());
     return std::make_shared<FunctionDescriptor>(name_str, receiver_style, types_vec, is_strict);
 }

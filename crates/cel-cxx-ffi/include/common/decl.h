@@ -16,7 +16,7 @@ using Constant = cel::Constant;
 
 // VariableDecl
 inline std::unique_ptr<VariableDecl> VariableDecl_new(Str name, const Type& type) {
-    return std::make_unique<VariableDecl>(MakeVariableDecl(std::string_view(name), type));
+    return std::make_unique<VariableDecl>(MakeVariableDecl(std::string_view(name.data(), name.size()), type));
 }
 
 inline std::unique_ptr<VariableDecl> VariableDecl_new_constant(Str name, const Constant& value) {

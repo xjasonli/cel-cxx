@@ -23,8 +23,7 @@ use_repo(android_conditional, "androidndk")
 # This will register empty toolchains if Android NDK is not available
 register_toolchains("@androidndk//:all")
 
-
-# Cross-compilation support
+# Cross-compilation support for cross-rs
 bazel_dep(name = "rules_cross_rs", version = "0.1.0")
 git_override(
     module_name = "rules_cross_rs",

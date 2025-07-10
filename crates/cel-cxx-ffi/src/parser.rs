@@ -1,12 +1,10 @@
-use crate::absl::{Status, StringView};
-use std::ffi::c_int;
+use crate::absl::StringView;
 use std::pin::Pin;
 
 #[cxx::bridge]
 mod ffi {
     #[namespace = "absl"]
     unsafe extern "C++" {
-        type Status = super::Status;
         type string_view<'a> = super::StringView<'a>;
     }
 
@@ -20,19 +18,9 @@ mod ffi {
         fn is_variadic(self: &Macro) -> bool;
         fn key<'a>(self: &Macro) -> string_view<'a>;
 
-        type MacroRegistry;
-        #[rust_name = "register_macro"]
-        fn RegisterMacro(self: Pin<&mut MacroRegistry>, macro_: &Macro) -> Status;
-
-        type ParserOptions = super::ParserOptions;
+        type ParserOptions;
         type ParserBuilder;
         type Parser;
-
-        include!(<parser/standard_macros.h>);
-        fn RegisterStandardMacros(
-            macro_registry: Pin<&mut MacroRegistry>,
-            parser_options: &ParserOptions,
-        ) -> Status;
     }
 
     #[namespace = "rust::cel_cxx"]
@@ -40,11 +28,28 @@ mod ffi {
         include!("cel-cxx-ffi/include/absl.h");
         include!("cel-cxx-ffi/include/parser.h");
 
-        // MacroRegistry
-        fn MacroRegistry_new() -> UniquePtr<MacroRegistry>;
-
         // ParserOptions
-        fn ParserOptions_default() -> ParserOptions;
+        fn ParserOptions_new() -> UniquePtr<ParserOptions>;
+
+        // ParserOptions getters and setters
+        fn ParserOptions_error_recovery_limit(parser_options: &ParserOptions) -> i32;
+        fn ParserOptions_error_recovery_limit_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut i32;
+        fn ParserOptions_max_recursion_depth(parser_options: &ParserOptions) -> i32;
+        fn ParserOptions_max_recursion_depth_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut i32;
+        fn ParserOptions_expression_size_codepoint_limit(parser_options: &ParserOptions) -> i32;
+        fn ParserOptions_expression_size_codepoint_limit_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut i32;
+        fn ParserOptions_error_recovery_token_lookahead_limit(parser_options: &ParserOptions) -> i32;
+        fn ParserOptions_error_recovery_token_lookahead_limit_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut i32;
+        fn ParserOptions_add_macro_calls(parser_options: &ParserOptions) -> bool;
+        fn ParserOptions_add_macro_calls_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut bool;
+        fn ParserOptions_enable_optional_syntax(parser_options: &ParserOptions) -> bool;
+        fn ParserOptions_enable_optional_syntax_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut bool;
+        fn ParserOptions_disable_standard_macros(parser_options: &ParserOptions) -> bool;
+        fn ParserOptions_disable_standard_macros_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut bool;
+        fn ParserOptions_enable_hidden_accumulator_var(parser_options: &ParserOptions) -> bool;
+        fn ParserOptions_enable_hidden_accumulator_var_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut bool;
+        fn ParserOptions_enable_quoted_identifiers(parser_options: &ParserOptions) -> bool;
+        fn ParserOptions_enable_quoted_identifiers_mut<'a>(parser_options: Pin<&'a mut ParserOptions>) -> &'a mut bool;
     }
 }
 
@@ -53,43 +58,85 @@ pub use ffi::Macro;
 unsafe impl Send for Macro {}
 unsafe impl Sync for Macro {}
 
-// MacroRegistry
-pub use ffi::MacroRegistry;
-unsafe impl Send for MacroRegistry {}
-unsafe impl Sync for MacroRegistry {}
+pub use ffi::ParserOptions;
+unsafe impl Send for ParserOptions {}
+unsafe impl Sync for ParserOptions {}
 
-impl MacroRegistry {
+impl ParserOptions {
     pub fn new() -> cxx::UniquePtr<Self> {
-        ffi::MacroRegistry_new()
+        ffi::ParserOptions_new()
     }
 
-    pub fn register_standard(self: Pin<&mut Self>, parser_options: &ParserOptions) -> Status {
-        ffi::RegisterStandardMacros(self, parser_options)
+    pub fn error_recovery_limit(&self) -> i32 {
+        ffi::ParserOptions_error_recovery_limit(self)
     }
-}
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct ParserOptions {
-    pub error_recovery_limit: c_int,
-    pub max_recursion_depth: c_int,
-    pub expression_size_codepoint_limit: c_int,
-    pub error_recovery_token_lookahead_limit: c_int,
-    pub add_macro_calls: bool,
-    pub enable_optional_syntax: bool,
-    pub disable_standard_macros: bool,
-    pub enable_hidden_accumulator_var: bool,
-    pub enable_quoted_identifiers: bool,
-}
+    pub fn error_recovery_limit_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::ParserOptions_error_recovery_limit_mut(self)
+    }
 
-unsafe impl cxx::ExternType for ParserOptions {
-    type Id = cxx::type_id!("cel::ParserOptions");
-    type Kind = cxx::kind::Trivial;
-}
+    pub fn max_recursion_depth(&self) -> i32 {
+        ffi::ParserOptions_max_recursion_depth(self)
+    }
 
-impl Default for ParserOptions {
-    fn default() -> Self {
-        ffi::ParserOptions_default()
+    pub fn max_recursion_depth_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::ParserOptions_max_recursion_depth_mut(self)
+    }
+
+    pub fn expression_size_codepoint_limit(&self) -> i32 {
+        ffi::ParserOptions_expression_size_codepoint_limit(self)
+    }
+
+    pub fn expression_size_codepoint_limit_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::ParserOptions_expression_size_codepoint_limit_mut(self)
+    }
+
+    pub fn error_recovery_token_lookahead_limit(&self) -> i32 {
+        ffi::ParserOptions_error_recovery_token_lookahead_limit(self)
+    }
+
+    pub fn error_recovery_token_lookahead_limit_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::ParserOptions_error_recovery_token_lookahead_limit_mut(self)
+    }
+
+    pub fn add_macro_calls(&self) -> bool {
+        ffi::ParserOptions_add_macro_calls(self)
+    }
+
+    pub fn add_macro_calls_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::ParserOptions_add_macro_calls_mut(self)
+    }
+
+    pub fn enable_optional_syntax(&self) -> bool {
+        ffi::ParserOptions_enable_optional_syntax(self)
+    }
+
+    pub fn enable_optional_syntax_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::ParserOptions_enable_optional_syntax_mut(self)
+    }
+
+    pub fn disable_standard_macros(&self) -> bool {
+        ffi::ParserOptions_disable_standard_macros(self)
+    }
+
+    pub fn disable_standard_macros_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::ParserOptions_disable_standard_macros_mut(self)
+    }
+
+    pub fn enable_hidden_accumulator_var(&self) -> bool {
+        ffi::ParserOptions_enable_hidden_accumulator_var(self)
+    }
+
+    pub fn enable_hidden_accumulator_var_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::ParserOptions_enable_hidden_accumulator_var_mut(self)
+    }
+
+    pub fn enable_quoted_identifiers(&self) -> bool {
+        ffi::ParserOptions_enable_quoted_identifiers(self)
+    }
+
+    pub fn enable_quoted_identifiers_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::ParserOptions_enable_quoted_identifiers_mut(self)
     }
 }
 

@@ -68,18 +68,26 @@ mod ffi {
         fn data(self: &string_view) -> *const c_char;
     }
 
-    #[namespace = "absl::time_internal"]
-    unsafe extern "C++" {
-        fn FromUnixDuration(duration: Duration) -> Time;
-        fn ToUnixDuration(time: Time) -> Duration;
-        fn GetRepHi(duration: Duration) -> i64;
-        fn GetRepLo(duration: Duration) -> u32;
-        fn MakeDuration(hi: i64, lo: u32) -> Duration;
-    }
+    //#[namespace = "absl::time_internal"]
+    //unsafe extern "C++" {
+    //    fn FromUnixDuration(duration: Duration) -> Time;
+    //    fn ToUnixDuration(time: Time) -> Duration;
+    //    fn GetRepHi(duration: Duration) -> i64;
+    //    fn GetRepLo(duration: Duration) -> u32;
+    //    fn MakeDuration(hi: i64, lo: u32) -> Duration;
+    //}
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
         include!("cel-cxx-ffi/include/absl.h");
+
+        fn Duration_new(seconds: i64, nanos: u32) -> Duration;
+        fn Duration_seconds(duration: Duration) -> i64;
+        fn Duration_nanos(duration: Duration) -> u32;
+
+        fn Timestamp_new(seconds: i64, nanos: u32) -> Time;
+        fn Timestamp_seconds(timestamp: Time) -> i64;
+        fn Timestamp_nanos(timestamp: Time) -> u32;
 
         fn StringView_new<'a>(bytes: &'a [u8]) -> string_view<'a>;
 
@@ -103,7 +111,7 @@ unsafe impl cxx::ExternType for Duration {
 
 impl Duration {
     pub fn new(seconds: i64, nanos: u32) -> Self {
-        ffi::MakeDuration(seconds, nanos)
+        ffi::Duration_new(seconds, nanos)
     }
 
     pub fn from_nanos(nanos: i64) -> Self {
@@ -115,11 +123,11 @@ impl Duration {
     }
 
     pub fn seconds(&self) -> i64 {
-        ffi::GetRepHi(*self)
+        ffi::Duration_seconds(*self)
     }
 
     pub fn nanos(&self) -> u32 {
-        ffi::GetRepLo(*self)
+        ffi::Duration_nanos(*self)
     }
 }
 
@@ -146,7 +154,7 @@ unsafe impl cxx::ExternType for Timestamp {
 
 impl Timestamp {
     pub fn new(seconds: i64, nanos: u32) -> Self {
-        ffi::FromUnixDuration(Duration::new(seconds, nanos))
+        ffi::Timestamp_new(seconds, nanos)
     }
 
     pub fn from_unix_nanos(nanos: i64) -> Self {
@@ -158,11 +166,11 @@ impl Timestamp {
     }
 
     pub fn seconds(&self) -> i64 {
-        ffi::GetRepHi(ffi::ToUnixDuration(*self))
+        ffi::Timestamp_seconds(*self)
     }
 
     pub fn nanos(&self) -> u32 {
-        ffi::GetRepLo(ffi::ToUnixDuration(*self))
+        ffi::Timestamp_nanos(*self)
     }
 }
 

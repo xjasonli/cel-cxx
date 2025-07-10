@@ -34,9 +34,10 @@ impl<'f> EnvInner<'f> {
             variable_registry: variable_registry.clone(),
             ffi_ctx: ffi::Ctx::new_generated(),
             ffi_compiler_builder: |ffi_ctx: &ffi::Ctx| {
+                let options = ffi::CompilerOptions::new();
                 let mut builder = ffi::CompilerBuilder::new(
                     ffi::DescriptorPool::generated(),
-                    &ffi::CompilerOptions::default(),
+                    &options,
                 )?;
                 builder
                     .pin_mut()

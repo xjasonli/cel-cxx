@@ -7,11 +7,32 @@ module(
 bazel_dep(name = "rules_cc", version = "0.1.2")
 bazel_dep(name = "platforms", version = "1.0.0")
 
-# CEL-CPP dependency
+# CEL-CPP dependency with patches for bazel build
 bazel_dep(name = "cel-cpp")
 git_override(
     module_name = "cel-cpp",
     # We need some patches
     remote = "https://github.com/xjasonli/cel-cpp.git",
     commit = "3540ea522e12c06de4fbd44271a4c90c9c309b97",
+    patches = [
+        "//:fix_msvc.patch",
+    ],
+    patch_strip = 0,
+)
+
+# antlr4-cpp-runtime with patches for bazel build
+archive_override(
+    module_name = "antlr4-cpp-runtime",
+    url = "https://github.com/antlr/antlr4/archive/refs/tags/4.13.2.tar.gz",
+    integrity = "sha256-nxgnKpsytiKDWjNl+FDdEGPWD1BF+x4Szkda5uGKNbs=",
+    strip_prefix = "antlr4-4.13.2/runtime/Cpp",
+    patches = [
+        "//:antlr4_remove_version_file.patch",
+    ],
+    patch_strip = 0,
+    remote_patches = {
+        "https://github.com/bazelbuild/bazel-central-registry/raw/refs/heads/main/modules/antlr4-cpp-runtime/4.13.2/patches/add_build_file.patch": "sha256-duEX0yg+Uj2SApjAY+y3eqUmQZezBovypV4orucvFx4=",
+        "https://github.com/bazelbuild/bazel-central-registry/raw/refs/heads/main/modules/antlr4-cpp-runtime/4.13.2/patches/module_dot_bazel.patch": "sha256-oxsfhXw7qYCYARAKokDC8zBtP9jFodrNa/PRoFMyVFc=",
+    },
+    remote_patch_strip = 0,
 )

@@ -166,130 +166,100 @@ mod ffi {
         fn RuntimeOptions_new() -> UniquePtr<RuntimeOptions>;
 
         // RuntimeOptions getters and setters
-        fn RuntimeOptions_get_container(runtime_options: &RuntimeOptions) -> &str;
-        fn RuntimeOptions_set_container(runtime_options: Pin<&mut RuntimeOptions>, container: &str);
-        fn RuntimeOptions_get_unknown_processing(
+        fn RuntimeOptions_container(runtime_options: &RuntimeOptions) -> &str;
+        fn RuntimeOptions_container_mut<'a>(runtime_options: Pin<&'a mut RuntimeOptions>) -> Pin<&'a mut CxxString>;
+        fn RuntimeOptions_unknown_processing(
             runtime_options: &RuntimeOptions,
         ) -> UnknownProcessingOptions;
-        fn RuntimeOptions_set_unknown_processing(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            unknown_processing: UnknownProcessingOptions,
-        );
-        fn RuntimeOptions_get_enable_missing_attribute_errors(
+        fn RuntimeOptions_unknown_processing_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut UnknownProcessingOptions;
+        fn RuntimeOptions_enable_missing_attribute_errors(
             runtime_options: &RuntimeOptions,
         ) -> bool;
-        fn RuntimeOptions_set_enable_missing_attribute_errors(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_missing_attribute_errors: bool,
-        );
-        fn RuntimeOptions_get_enable_timestamp_duration_overflow_errors(
+        fn RuntimeOptions_enable_missing_attribute_errors_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_timestamp_duration_overflow_errors(
             runtime_options: &RuntimeOptions,
         ) -> bool;
-        fn RuntimeOptions_set_enable_timestamp_duration_overflow_errors(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_timestamp_duration_overflow_errors: bool,
-        );
-        fn RuntimeOptions_get_short_circuiting(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_short_circuiting(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            short_circuiting: bool,
-        );
-        fn RuntimeOptions_get_enable_comprehension(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_enable_comprehension(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_comprehension: bool,
-        );
-        fn RuntimeOptions_get_comprehension_max_iterations(runtime_options: &RuntimeOptions)
-            -> i32;
-        fn RuntimeOptions_set_comprehension_max_iterations(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            comprehension_max_iterations: i32,
-        );
-        fn RuntimeOptions_get_enable_comprehension_list_append(
+        fn RuntimeOptions_enable_timestamp_duration_overflow_errors_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_short_circuiting(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_short_circuiting_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_comprehension(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_comprehension_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_comprehension_max_iterations(runtime_options: &RuntimeOptions) -> i32;
+        fn RuntimeOptions_comprehension_max_iterations_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut i32;
+        fn RuntimeOptions_enable_comprehension_list_append(
             runtime_options: &RuntimeOptions,
         ) -> bool;
-        fn RuntimeOptions_set_enable_comprehension_list_append(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_comprehension_list_append: bool,
-        );
-        fn RuntimeOptions_get_enable_regex(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_enable_regex(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_regex: bool,
-        );
-        fn RuntimeOptions_get_regex_max_program_size(runtime_options: &RuntimeOptions) -> i32;
-        fn RuntimeOptions_set_regex_max_program_size(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            regex_max_program_size: i32,
-        );
-        fn RuntimeOptions_get_enable_string_conversion(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_enable_string_conversion(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_string_conversion: bool,
-        );
-        fn RuntimeOptions_get_enable_string_concat(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_enable_string_concat(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_string_concat: bool,
-        );
-        fn RuntimeOptions_get_enable_list_concat(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_enable_list_concat(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_list_concat: bool,
-        );
-        fn RuntimeOptions_get_enable_list_contains(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_enable_list_contains(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_list_contains: bool,
-        );
-        fn RuntimeOptions_get_fail_on_warnings(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_fail_on_warnings(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            fail_on_warnings: bool,
-        );
-        fn RuntimeOptions_get_enable_qualified_type_identifiers(
-            runtime_options: &RuntimeOptions,
-        ) -> bool;
-        fn RuntimeOptions_set_enable_qualified_type_identifiers(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_qualified_type_identifiers: bool,
-        );
-        fn RuntimeOptions_get_enable_heterogeneous_equality(
-            runtime_options: &RuntimeOptions,
-        ) -> bool;
-        fn RuntimeOptions_set_enable_heterogeneous_equality(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_heterogeneous_equality: bool,
-        );
-        fn RuntimeOptions_get_enable_empty_wrapper_null_unboxing(
-            runtime_options: &RuntimeOptions,
-        ) -> bool;
-        fn RuntimeOptions_set_enable_empty_wrapper_null_unboxing(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_empty_wrapper_null_unboxing: bool,
-        );
-        fn RuntimeOptions_get_enable_lazy_bind_initialization(
-            runtime_options: &RuntimeOptions,
-        ) -> bool;
-        fn RuntimeOptions_set_enable_lazy_bind_initialization(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_lazy_bind_initialization: bool,
-        );
-        fn RuntimeOptions_get_max_recursion_depth(runtime_options: &RuntimeOptions) -> i32;
-        fn RuntimeOptions_set_max_recursion_depth(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            max_recursion_depth: i32,
-        );
-        fn RuntimeOptions_get_enable_recursive_tracing(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_enable_recursive_tracing(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_recursive_tracing: bool,
-        );
-        fn RuntimeOptions_get_enable_fast_builtins(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_set_enable_fast_builtins(
-            runtime_options: Pin<&mut RuntimeOptions>,
-            enable_fast_builtins: bool,
-        );
+        fn RuntimeOptions_enable_comprehension_list_append_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_regex(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_regex_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_regex_max_program_size(runtime_options: &RuntimeOptions) -> i32;
+        fn RuntimeOptions_regex_max_program_size_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut i32;
+        fn RuntimeOptions_enable_string_conversion(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_string_conversion_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_string_concat(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_string_concat_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_list_concat(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_list_concat_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_list_contains(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_list_contains_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_fail_on_warnings(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_fail_on_warnings_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_qualified_type_identifiers(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_qualified_type_identifiers_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_heterogeneous_equality(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_heterogeneous_equality_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_empty_wrapper_null_unboxing(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_empty_wrapper_null_unboxing_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_lazy_bind_initialization(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_lazy_bind_initialization_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_max_recursion_depth(runtime_options: &RuntimeOptions) -> i32;
+        fn RuntimeOptions_max_recursion_depth_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut i32;
+        fn RuntimeOptions_enable_recursive_tracing(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_recursive_tracing_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_fast_builtins(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_fast_builtins_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> &'a mut bool;
 
         // FunctionDescriptor
         fn FunctionDescriptor_new(
@@ -598,224 +568,189 @@ impl RuntimeOptions {
     }
 
     pub fn container(&self) -> &str {
-        ffi::RuntimeOptions_get_container(self)
+        ffi::RuntimeOptions_container(self)
     }
 
-    pub fn set_container(self: Pin<&mut Self>, container: &str) {
-        ffi::RuntimeOptions_set_container(self, container);
+    pub fn container_mut<'a>(self: Pin<&'a mut Self>) -> Pin<&'a mut cxx::CxxString> {
+        ffi::RuntimeOptions_container_mut(self)
     }
 
     pub fn unknown_processing(&self) -> UnknownProcessingOptions {
-        ffi::RuntimeOptions_get_unknown_processing(self)
+        ffi::RuntimeOptions_unknown_processing(self)
     }
 
-    pub fn set_unknown_processing(
-        self: Pin<&mut Self>,
-        unknown_processing: UnknownProcessingOptions,
-    ) {
-        ffi::RuntimeOptions_set_unknown_processing(self, unknown_processing);
+    pub fn unknown_processing_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut UnknownProcessingOptions {
+        ffi::RuntimeOptions_unknown_processing_mut(self)
     }
 
     pub fn enable_missing_attribute_errors(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_missing_attribute_errors(self)
+        ffi::RuntimeOptions_enable_missing_attribute_errors(self)
     }
 
-    pub fn set_enable_missing_attribute_errors(
-        self: Pin<&mut Self>,
-        enable_missing_attribute_errors: bool,
-    ) {
-        ffi::RuntimeOptions_set_enable_missing_attribute_errors(
-            self,
-            enable_missing_attribute_errors,
-        );
+    pub fn enable_missing_attribute_errors_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_missing_attribute_errors_mut(self)
     }
 
     pub fn enable_timestamp_duration_overflow_errors(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_timestamp_duration_overflow_errors(self)
+        ffi::RuntimeOptions_enable_timestamp_duration_overflow_errors(self)
     }
 
-    pub fn set_enable_timestamp_duration_overflow_errors(
-        self: Pin<&mut Self>,
-        enable_timestamp_duration_overflow_errors: bool,
-    ) {
-        ffi::RuntimeOptions_set_enable_timestamp_duration_overflow_errors(
-            self,
-            enable_timestamp_duration_overflow_errors,
-        );
+    pub fn enable_timestamp_duration_overflow_errors_mut<'a>(
+        self: Pin<&'a mut Self>,
+    ) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_timestamp_duration_overflow_errors_mut(self)
     }
 
     pub fn short_circuiting(&self) -> bool {
-        ffi::RuntimeOptions_get_short_circuiting(self)
+        ffi::RuntimeOptions_short_circuiting(self)
     }
 
-    pub fn set_short_circuiting(self: Pin<&mut Self>, short_circuiting: bool) {
-        ffi::RuntimeOptions_set_short_circuiting(self, short_circuiting);
+    pub fn short_circuiting_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_short_circuiting_mut(self)
     }
 
     pub fn enable_comprehension(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_comprehension(self)
+        ffi::RuntimeOptions_enable_comprehension(self)
     }
 
-    pub fn set_enable_comprehension(self: Pin<&mut Self>, enable_comprehension: bool) {
-        ffi::RuntimeOptions_set_enable_comprehension(self, enable_comprehension);
+    pub fn enable_comprehension_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_comprehension_mut(self)
     }
 
     pub fn comprehension_max_iterations(&self) -> i32 {
-        ffi::RuntimeOptions_get_comprehension_max_iterations(self)
+        ffi::RuntimeOptions_comprehension_max_iterations(self)
     }
 
-    pub fn set_comprehension_max_iterations(
-        self: Pin<&mut Self>,
-        comprehension_max_iterations: i32,
-    ) {
-        ffi::RuntimeOptions_set_comprehension_max_iterations(self, comprehension_max_iterations);
+    pub fn comprehension_max_iterations_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::RuntimeOptions_comprehension_max_iterations_mut(self)
     }
 
     pub fn enable_comprehension_list_append(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_comprehension_list_append(self)
+        ffi::RuntimeOptions_enable_comprehension_list_append(self)
     }
 
-    pub fn set_enable_comprehension_list_append(
-        self: Pin<&mut Self>,
-        enable_comprehension_list_append: bool,
-    ) {
-        ffi::RuntimeOptions_set_enable_comprehension_list_append(
-            self,
-            enable_comprehension_list_append,
-        );
+    pub fn enable_comprehension_list_append_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_comprehension_list_append_mut(self)
     }
 
     pub fn enable_regex(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_regex(self)
+        ffi::RuntimeOptions_enable_regex(self)
     }
 
-    pub fn set_enable_regex(self: Pin<&mut Self>, enable_regex: bool) {
-        ffi::RuntimeOptions_set_enable_regex(self, enable_regex);
+    pub fn enable_regex_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_regex_mut(self)
     }
 
     pub fn regex_max_program_size(&self) -> i32 {
-        ffi::RuntimeOptions_get_regex_max_program_size(self)
+        ffi::RuntimeOptions_regex_max_program_size(self)
     }
 
-    pub fn set_regex_max_program_size(self: Pin<&mut Self>, regex_max_program_size: i32) {
-        ffi::RuntimeOptions_set_regex_max_program_size(self, regex_max_program_size);
+    pub fn regex_max_program_size_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::RuntimeOptions_regex_max_program_size_mut(self)
     }
 
     pub fn enable_string_conversion(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_string_conversion(self)
+        ffi::RuntimeOptions_enable_string_conversion(self)
     }
 
-    pub fn set_enable_string_conversion(self: Pin<&mut Self>, enable_string_conversion: bool) {
-        ffi::RuntimeOptions_set_enable_string_conversion(self, enable_string_conversion);
+    pub fn enable_string_conversion_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_string_conversion_mut(self)
     }
 
     pub fn enable_string_concat(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_string_concat(self)
+        ffi::RuntimeOptions_enable_string_concat(self)
     }
 
-    pub fn set_enable_string_concat(self: Pin<&mut Self>, enable_string_concat: bool) {
-        ffi::RuntimeOptions_set_enable_string_concat(self, enable_string_concat);
+    pub fn enable_string_concat_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_string_concat_mut(self)
     }
 
     pub fn enable_list_concat(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_list_concat(self)
+        ffi::RuntimeOptions_enable_list_concat(self)
     }
 
-    pub fn set_enable_list_concat(self: Pin<&mut Self>, enable_list_concat: bool) {
-        ffi::RuntimeOptions_set_enable_list_concat(self, enable_list_concat);
+    pub fn enable_list_concat_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_list_concat_mut(self)
     }
 
     pub fn enable_list_contains(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_list_contains(self)
+        ffi::RuntimeOptions_enable_list_contains(self)
     }
 
-    pub fn set_enable_list_contains(self: Pin<&mut Self>, enable_list_contains: bool) {
-        ffi::RuntimeOptions_set_enable_list_contains(self, enable_list_contains);
+    pub fn enable_list_contains_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_list_contains_mut(self)
     }
 
     pub fn fail_on_warnings(&self) -> bool {
-        ffi::RuntimeOptions_get_fail_on_warnings(self)
+        ffi::RuntimeOptions_fail_on_warnings(self)
     }
 
-    pub fn set_fail_on_warnings(self: Pin<&mut Self>, fail_on_warnings: bool) {
-        ffi::RuntimeOptions_set_fail_on_warnings(self, fail_on_warnings);
+    pub fn fail_on_warnings_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_fail_on_warnings_mut(self)
     }
 
     pub fn enable_qualified_type_identifiers(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_qualified_type_identifiers(self)
+        ffi::RuntimeOptions_enable_qualified_type_identifiers(self)
     }
 
-    pub fn set_enable_qualified_type_identifiers(
-        self: Pin<&mut Self>,
-        enable_qualified_type_identifiers: bool,
-    ) {
-        ffi::RuntimeOptions_set_enable_qualified_type_identifiers(
-            self,
-            enable_qualified_type_identifiers,
-        );
+    pub fn enable_qualified_type_identifiers_mut<'a>(
+        self: Pin<&'a mut Self>,
+    ) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_qualified_type_identifiers_mut(self)
     }
 
     pub fn enable_heterogeneous_equality(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_heterogeneous_equality(self)
+        ffi::RuntimeOptions_enable_heterogeneous_equality(self)
     }
 
-    pub fn set_enable_heterogeneous_equality(
-        self: Pin<&mut Self>,
-        enable_heterogeneous_equality: bool,
-    ) {
-        ffi::RuntimeOptions_set_enable_heterogeneous_equality(self, enable_heterogeneous_equality);
+    pub fn enable_heterogeneous_equality_mut<'a>(
+        self: Pin<&'a mut Self>,
+    ) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_heterogeneous_equality_mut(self)
     }
 
     pub fn enable_empty_wrapper_null_unboxing(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_empty_wrapper_null_unboxing(self)
+        ffi::RuntimeOptions_enable_empty_wrapper_null_unboxing(self)
     }
 
-    pub fn set_enable_empty_wrapper_null_unboxing(
-        self: Pin<&mut Self>,
-        enable_empty_wrapper_null_unboxing: bool,
-    ) {
-        ffi::RuntimeOptions_set_enable_empty_wrapper_null_unboxing(
-            self,
-            enable_empty_wrapper_null_unboxing,
-        );
+    pub fn enable_empty_wrapper_null_unboxing_mut<'a>(
+        self: Pin<&'a mut Self>,
+    ) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_empty_wrapper_null_unboxing_mut(self)
     }
 
     pub fn enable_lazy_bind_initialization(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_lazy_bind_initialization(self)
+        ffi::RuntimeOptions_enable_lazy_bind_initialization(self)
     }
 
-    pub fn set_enable_lazy_bind_initialization(
-        self: Pin<&mut Self>,
-        enable_lazy_bind_initialization: bool,
-    ) {
-        ffi::RuntimeOptions_set_enable_lazy_bind_initialization(
-            self,
-            enable_lazy_bind_initialization,
-        );
+    pub fn enable_lazy_bind_initialization_mut<'a>(
+        self: Pin<&'a mut Self>,
+    ) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_lazy_bind_initialization_mut(self)
     }
 
     pub fn max_recursion_depth(&self) -> i32 {
-        ffi::RuntimeOptions_get_max_recursion_depth(self)
+        ffi::RuntimeOptions_max_recursion_depth(self)
     }
 
-    pub fn set_max_recursion_depth(self: Pin<&mut Self>, max_recursion_depth: i32) {
-        ffi::RuntimeOptions_set_max_recursion_depth(self, max_recursion_depth);
+    pub fn max_recursion_depth_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut i32 {
+        ffi::RuntimeOptions_max_recursion_depth_mut(self)
     }
 
     pub fn enable_recursive_tracing(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_recursive_tracing(self)
+        ffi::RuntimeOptions_enable_recursive_tracing(self)
     }
 
-    pub fn set_enable_recursive_tracing(self: Pin<&mut Self>, enable_recursive_tracing: bool) {
-        ffi::RuntimeOptions_set_enable_recursive_tracing(self, enable_recursive_tracing);
+    pub fn enable_recursive_tracing_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_recursive_tracing_mut(self)
     }
 
     pub fn enable_fast_builtins(&self) -> bool {
-        ffi::RuntimeOptions_get_enable_fast_builtins(self)
+        ffi::RuntimeOptions_enable_fast_builtins(self)
     }
 
-    pub fn set_enable_fast_builtins(self: Pin<&mut Self>, enable_fast_builtins: bool) {
-        ffi::RuntimeOptions_set_enable_fast_builtins(self, enable_fast_builtins);
+    pub fn enable_fast_builtins_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_fast_builtins_mut(self)
     }
 }
 

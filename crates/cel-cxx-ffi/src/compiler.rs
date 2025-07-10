@@ -23,6 +23,8 @@ mod ffi {
     #[namespace = "cel"]
     unsafe extern "C++" {
         include!(<compiler/compiler.h>);
+        type ParserOptions = super::ParserOptions;
+        type CheckerOptions = super::CheckerOptions;
         type ParserBuilder = super::ParserBuilder;
         type CheckerLibrary = super::CheckerLibrary;
         type TypeChecker = super::TypeChecker;
@@ -45,7 +47,7 @@ mod ffi {
         fn GetParserBuilder<'a>(self: Pin<&mut CompilerBuilder<'a>>) -> Pin<&mut ParserBuilder>;
 
         type CompilerLibrary;
-        type CompilerOptions = super::CompilerOptions;
+        type CompilerOptions;
     }
 
     #[namespace = "rust::cel_cxx"]
@@ -84,6 +86,15 @@ mod ffi {
         fn CompilerLibrary_from_checker_library(
             checker_library: UniquePtr<CheckerLibrary>,
         ) -> UniquePtr<CompilerLibrary>;
+
+        // CompilerOptions
+        fn CompilerOptions_new() -> UniquePtr<CompilerOptions>;
+
+        // CompilerOptions getters and setters
+        fn CompilerOptions_parser_options<'a>(compiler_options: &'a CompilerOptions) -> &'a ParserOptions;
+        fn CompilerOptions_parser_options_mut<'a>(compiler_options: Pin<&'a mut CompilerOptions>) -> Pin<&'a mut ParserOptions>;
+        fn CompilerOptions_checker_options<'a>(compiler_options: &'a CompilerOptions) -> &'a CheckerOptions;
+        fn CompilerOptions_checker_options_mut<'a>(compiler_options: Pin<&'a mut CompilerOptions>) -> Pin<&'a mut CheckerOptions>;
     }
 }
 
@@ -187,14 +198,28 @@ impl CompilerLibrary {
     }
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy, Default)]
-pub struct CompilerOptions {
-    pub parser_options: ParserOptions,
-    pub checker_options: CheckerOptions,
-}
+pub use ffi::CompilerOptions;
+unsafe impl Send for CompilerOptions {}
+unsafe impl Sync for CompilerOptions {}
 
-unsafe impl cxx::ExternType for CompilerOptions {
-    type Id = cxx::type_id!("cel::CompilerOptions");
-    type Kind = cxx::kind::Trivial;
+impl CompilerOptions {
+    pub fn new() -> cxx::UniquePtr<Self> {
+        ffi::CompilerOptions_new()
+    }
+
+    pub fn parser_options(&self) -> &ParserOptions {
+        ffi::CompilerOptions_parser_options(self)
+    }
+
+    pub fn parser_options_mut(self: Pin<&mut Self>) -> Pin<&mut ParserOptions> {
+        ffi::CompilerOptions_parser_options_mut(self)
+    }
+
+    pub fn checker_options(&self) -> &CheckerOptions {
+        ffi::CompilerOptions_checker_options(self)
+    }
+
+    pub fn checker_options_mut(self: Pin<&mut Self>) -> Pin<&mut CheckerOptions> {
+        ffi::CompilerOptions_checker_options_mut(self)
+    }
 }

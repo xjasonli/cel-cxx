@@ -4,8 +4,6 @@ use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, Duration};
 
-const MY_NAMESPACE: &str = "testing";
-
 #[test]
 fn test_simple_asyncfunc() -> Result<(), Error> {
     println!("test simple async function");
@@ -92,8 +90,11 @@ fn test_simple_asyncfunc_timeout() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(feature = "derive")]
 #[test]
 fn test_opaque_asyncfunc() -> Result<(), Error> {
+    const MY_NAMESPACE: &str = "testing";
+
     println!("test opaque async function");
 
     #[derive(Opaque, Debug, Clone, PartialEq)]

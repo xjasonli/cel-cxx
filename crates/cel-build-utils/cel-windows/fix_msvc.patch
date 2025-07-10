@@ -1,0 +1,212 @@
+diff --git MODULE.bazel MODULE.bazel
+index 565d57a9..28db3152 100644
+--- MODULE.bazel
++++ MODULE.bazel
+@@ -2,6 +2,11 @@ module(
+     name = "cel-cpp",
+ )
+ 
++bazel_dep(
++    name = "platforms",
++    version = "1.0.0",
++)
++
+ bazel_dep(
+     name = "bazel_skylib",
+     version = "1.7.1",
+diff --git bazel/antlr.bzl bazel/antlr.bzl
+index 42fa506f..5c55de39 100644
+--- bazel/antlr.bzl
++++ bazel/antlr.bzl
+@@ -42,13 +42,21 @@ def antlr_cc_library(name, src, package):
+ def _antlr_library(ctx):
+     output = ctx.actions.declare_directory(ctx.attr.name)
+ 
++    src_path = ctx.file.src.path
++
++    # Workaround for Antlr4 bug:
++    # https://github.com/antlr/antlr4/issues/3138
++    windows_constraint = ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]
++    if ctx.target_platform_has_constraint(windows_constraint):
++        src_path = src_path.replace('/', '\\')
++
+     antlr_args = ctx.actions.args()
+     antlr_args.add("-Dlanguage=Cpp")
+     antlr_args.add("-no-listener")
+     antlr_args.add("-visitor")
+     antlr_args.add("-o", output.path)
+     antlr_args.add("-package", ctx.attr.package)
+-    antlr_args.add(ctx.file.src)
++    antlr_args.add(src_path)
+ 
+     # Strip ".g4" extension.
+     basename = ctx.file.src.basename[:-3]
+@@ -98,5 +106,8 @@ antlr_library = rule(
+             cfg = "exec",  # buildifier: disable=attr-cfg
+             default = Label("//bazel:antlr4_tool"),
+         ),
++        "_windows_constraint": attr.label(
++            default = "@platforms//os:windows",
++        ),
+     },
+ )
+diff --git bazel/cel_proto_transitive_descriptor_set.bzl bazel/cel_proto_transitive_descriptor_set.bzl
+index e65e0b4a..15ac77fb 100644
+--- bazel/cel_proto_transitive_descriptor_set.bzl
++++ bazel/cel_proto_transitive_descriptor_set.bzl
+@@ -24,13 +24,41 @@ def _cel_proto_transitive_descriptor_set(ctx):
+     args = ctx.actions.args()
+     args.use_param_file(param_file_arg = "%s", use_always = True)
+     args.add_all(transitive_descriptor_sets)
+-    ctx.actions.run_shell(
+-        outputs = [output],
+-        inputs = transitive_descriptor_sets,
+-        progress_message = "Joining descriptors.",
+-        command = ("< \"$1\" xargs cat >{output}".format(output = output.path)),
+-        arguments = [args],
+-    )
++
++    windows_constraint = ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]
++    if ctx.target_platform_has_constraint(windows_constraint):
++        script_content = """
++$paramFile = $args[0]
++$outputFile = "{output}"
++$files = Get-Content $paramFile
++$null > $outputFile
++foreach ($file in $files) {{
++    if (Test-Path $file) {{
++        Get-Content $file -Encoding Byte | Add-Content $outputFile -Encoding Byte
++    }}
++}}
++""".format(output = output.path)
++        script_file = ctx.actions.declare_file(ctx.attr.name + "_join_descriptors.ps1")
++        ctx.actions.write(
++            output = script_file,
++            content = script_content,
++        )
++
++        ctx.actions.run(
++            outputs = [output],
++            inputs = depset([script_file], transitive = [transitive_descriptor_sets]),
++            executable = "PowerShell.exe",
++            arguments = ["-ExecutionPolicy", "Bypass", "-File", script_file.path] + [args],
++            progress_message = "Joining descriptors.",
++        )
++    else:
++        ctx.actions.run_shell(
++            outputs = [output],
++            inputs = transitive_descriptor_sets,
++            progress_message = "Joining descriptors.",
++            command = ("< \"$1\" xargs cat >{output}".format(output = output.path)),
++            arguments = [args],
++        )
+     return DefaultInfo(
+         files = depset([output]),
+         runfiles = ctx.runfiles(files = [output]),
+@@ -39,6 +67,9 @@ def _cel_proto_transitive_descriptor_set(ctx):
+ cel_proto_transitive_descriptor_set = rule(
+     attrs = {
+         "deps": attr.label_list(providers = [[ProtoInfo]]),
++        "_windows_constraint": attr.label(
++            default = "@platforms//os:windows",
++        ),
+     },
+     outputs = {
+         "out": "%{name}.binarypb",
+diff --git common/values/optional_value.cc common/values/optional_value.cc
+index ed593874..5142767d 100644
+--- common/values/optional_value.cc
++++ common/values/optional_value.cc
+@@ -122,7 +122,7 @@ absl::Status OptionalValueEqual(
+   return absl::OkStatus();
+ }
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher
++const OptionalValueDispatcher
+     empty_optional_value_dispatcher = {
+         {
+             .get_type_id = &OptionalValueGetTypeId,
+@@ -149,7 +149,7 @@ ABSL_CONST_INIT const OptionalValueDispatcher
+         },
+ };
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher null_optional_value_dispatcher = {
++const OptionalValueDispatcher null_optional_value_dispatcher = {
+     {
+         .get_type_id = &OptionalValueGetTypeId,
+         .get_arena = [](const OpaqueValueDispatcher* ABSL_NONNULL,
+@@ -171,7 +171,7 @@ ABSL_CONST_INIT const OptionalValueDispatcher null_optional_value_dispatcher = {
+        cel::Value* ABSL_NONNULL result) -> void { *result = NullValue(); },
+ };
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher bool_optional_value_dispatcher = {
++const OptionalValueDispatcher bool_optional_value_dispatcher = {
+     {
+         .get_type_id = &OptionalValueGetTypeId,
+         .get_arena = [](const OpaqueValueDispatcher* ABSL_NONNULL,
+@@ -195,7 +195,7 @@ ABSL_CONST_INIT const OptionalValueDispatcher bool_optional_value_dispatcher = {
+     },
+ };
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher int_optional_value_dispatcher = {
++const OptionalValueDispatcher int_optional_value_dispatcher = {
+     {
+         .get_type_id = &OptionalValueGetTypeId,
+         .get_arena = [](const OpaqueValueDispatcher* ABSL_NONNULL,
+@@ -219,7 +219,7 @@ ABSL_CONST_INIT const OptionalValueDispatcher int_optional_value_dispatcher = {
+     },
+ };
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher uint_optional_value_dispatcher = {
++const OptionalValueDispatcher uint_optional_value_dispatcher = {
+     {
+         .get_type_id = &OptionalValueGetTypeId,
+         .get_arena = [](const OpaqueValueDispatcher* ABSL_NONNULL,
+@@ -243,7 +243,7 @@ ABSL_CONST_INIT const OptionalValueDispatcher uint_optional_value_dispatcher = {
+     },
+ };
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher
++const OptionalValueDispatcher
+     double_optional_value_dispatcher = {
+         {
+             .get_type_id = &OptionalValueGetTypeId,
+@@ -268,7 +268,7 @@ ABSL_CONST_INIT const OptionalValueDispatcher
+         },
+ };
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher
++const OptionalValueDispatcher
+     duration_optional_value_dispatcher = {
+         {
+             .get_type_id = &OptionalValueGetTypeId,
+@@ -293,7 +293,7 @@ ABSL_CONST_INIT const OptionalValueDispatcher
+         },
+ };
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher
++const OptionalValueDispatcher
+     timestamp_optional_value_dispatcher = {
+         {
+             .get_type_id = &OptionalValueGetTypeId,
+@@ -323,7 +323,7 @@ struct OptionalValueContent {
+   google::protobuf::Arena* ABSL_NONNULL arena;
+ };
+ 
+-ABSL_CONST_INIT const OptionalValueDispatcher optional_value_dispatcher = {
++const OptionalValueDispatcher optional_value_dispatcher = {
+     {
+         .get_type_id = &OptionalValueGetTypeId,
+         .get_arena =
+diff --git internal/json.cc internal/json.cc
+index 88a1b2c7..e520c601 100644
+--- internal/json.cc
++++ internal/json.cc
+@@ -864,6 +864,7 @@ class MessageToJsonState {
+       case FieldDescriptor::TYPE_GROUP:
+         ABSL_FALLTHROUGH_INTENDED;
+       case FieldDescriptor::TYPE_MESSAGE:
++#undef GetMessage
+         return ToJson(reflection->GetMessage(message, field), result);
+       case FieldDescriptor::TYPE_BYTES:
+         BytesValueToJson(

@@ -228,9 +228,9 @@ impl Build {
 
         // Copy include files
         let include_mapping = vec![
-            ("bazel-out/../../../external/cel-cpp+", "."),
-            ("bazel-out/../../../external/abseil-cpp+/absl", "absl"),
-            ("bazel-out/../../../external/protobuf+/src/google", "google"),
+            ("bazel-cel/external/cel-cpp+", "."),
+            ("bazel-cel/external/abseil-cpp+/absl", "absl"),
+            ("bazel-cel/external/protobuf+/src/google", "google"),
             (
                 "bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_includes/checked_proto/cel",
                 "cel",
@@ -246,16 +246,28 @@ impl Build {
         ];
 
         for (f, t) in include_mapping {
+            #[cfg(windows)]
+            let f = f.replace("bazel-cel", "bazel-cel-windows");
+            #[cfg(windows)]
+            let f = f.replace("/", "\\");
+            #[cfg(windows)]
+            let t = t.replace("/", "\\");
+
             let f = work_dir.join(f);
             let t = install_include_dir.join(t);
-            cp_r(&f, &t).context(format!("failed to copy include file: {}", t.display()))?;
+            cp_r(&f, &t)?;
         }
 
+        let libcel_name = if is_windows(target) {
+            "cel.lib"
+        } else {
+            "libcel.a"
+        };
         std::fs::copy(
-            work_dir.join("bazel-bin").join("libcel.a"),
-            install_library_dir.join("libcel.a"),
+            work_dir.join("bazel-bin").join(libcel_name),
+            install_library_dir.join(libcel_name),
         )
-        .context("failed to copy libcel.a")?;
+        .context(format!("failed to copy {}", libcel_name))?;
 
         Ok(Artifacts {
             lib_dir: install_library_dir,

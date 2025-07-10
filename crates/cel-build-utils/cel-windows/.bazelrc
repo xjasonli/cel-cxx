@@ -4,18 +4,14 @@
 
 build --experimental_cc_static_library
 build --tool_java_runtime_version=remotejdk_21
+build --enable_bzlmod
 
 # ============================================================================
 # MSVC Configuration
 # ============================================================================
 
 # MSVC-specific flags (use /flag format instead of -flag)
-build:msvc --copt=/O2
-build:msvc --cxxopt=/O2
-
-# ============================================================================
-# MinGW Configuration (alternative)
-# ============================================================================
-
-build:mingw --copt=-O2
-build:mingw --cxxopt=-O2
+build:msvc --define absl=1
+build:msvc --cxxopt=/std:c++20 --host_cxxopt=/std:c++20
+build:msvc --cxxopt=/Zc:sizedDealloc
+build:msvc --cxxopt=/DANTLR4CPP_STATIC --host_cxxopt=/DANTLR4CPP_STATIC

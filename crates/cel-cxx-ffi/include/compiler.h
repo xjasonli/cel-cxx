@@ -10,6 +10,8 @@
 namespace rust::cel_cxx {
 
 using DescriptorPool = google::protobuf::DescriptorPool;
+using ParserOptions = cel::ParserOptions;
+using CheckerOptions = cel::CheckerOptions;
 using CheckerLibrary = cel::CheckerLibrary;
 using Compiler = cel::Compiler;
 using CompilerBuilder = cel::CompilerBuilder;
@@ -75,6 +77,26 @@ inline std::unique_ptr<CompilerLibrary> CompilerLibrary_new_optional() {
 inline std::unique_ptr<CompilerLibrary> CompilerLibrary_from_checker_library(
     std::unique_ptr<CheckerLibrary> checker_library) {
     return std::make_unique<CompilerLibrary>(cel::CompilerLibrary::FromCheckerLibrary(std::move(*checker_library)));
+}
+
+// CompilerOptions
+inline std::unique_ptr<CompilerOptions> CompilerOptions_new() {
+    return std::make_unique<CompilerOptions>();
+}
+
+// CompilerOptions getters and setters
+inline const ParserOptions& CompilerOptions_parser_options(const CompilerOptions& compiler_options) {
+    return compiler_options.parser_options;
+}
+inline ParserOptions& CompilerOptions_parser_options_mut(CompilerOptions& compiler_options) {
+    return compiler_options.parser_options;
+}
+
+inline const CheckerOptions& CompilerOptions_checker_options(const CompilerOptions& compiler_options) {
+    return compiler_options.checker_options;
+}
+inline CheckerOptions& CompilerOptions_checker_options_mut(CompilerOptions& compiler_options) {
+    return compiler_options.checker_options;
 }
 
 } // namespace rust::cel_cxx

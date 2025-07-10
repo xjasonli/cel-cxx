@@ -143,7 +143,7 @@ inline Type Type_new_unknown() {
 
 // ============== EnumType ==============
 inline EnumType EnumType_new(const DescriptorPool& pool, Str name) {
-    auto descriptor = pool.FindEnumTypeByName(std::string_view(name));
+    auto descriptor = pool.FindEnumTypeByName(std::string_view(name.data(), name.size()));
     return cel::EnumType(descriptor);
 }
 
@@ -165,7 +165,7 @@ inline MapType MapType_new(const Arena& arena, const Type& key, const Type& valu
 
 // ============== MessageType ==============
 inline MessageType MessageType_new(const DescriptorPool& pool, Str name) {
-    auto descriptor = pool.FindMessageTypeByName(std::string_view(name));
+    auto descriptor = pool.FindMessageTypeByName(std::string_view(name.data(), name.size()));
     return cel::MessageType(descriptor);
 }
 
@@ -201,7 +201,7 @@ inline StructType StructType_new_message(const MessageType& message_type) {
 }
 
 inline StructType StructType_new_basic(Str name) {
-    auto basic_struct = cel::common_internal::MakeBasicStructType(std::string_view(name));
+    auto basic_struct = cel::common_internal::MakeBasicStructType(std::string_view(name.data(), name.size()));
     return cel::StructType(basic_struct);
 }
 

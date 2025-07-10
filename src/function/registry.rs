@@ -474,16 +474,19 @@ mod test {
         Ok(5)
     }
 
+    #[cfg(feature = "derive")]
     #[derive(Opaque, Debug, Clone, PartialEq)]
     #[cel_cxx(type = "MyOpaque", crate = crate)]
     struct MyOpaque(pub i64);
 
+    #[cfg(feature = "derive")]
     impl std::fmt::Display for MyOpaque {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "MyOpaque({})", self.0)
         }
     }
 
+    #[cfg(feature = "derive")]
     fn f6(a1: String, a2: MyOpaque, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> {
         Ok(5)
     }
@@ -492,10 +495,12 @@ mod test {
         Ok(())
     }
 
+    #[cfg(feature = "derive")]
     fn f8(a1: &MyOpaque) -> &MyOpaque {
         a1
     }
 
+    #[cfg(feature = "derive")]
     fn f9(a1: Optional<&MyOpaque>) -> Result<Option<&MyOpaque>, Error> {
         Ok(a1.into_option())
     }
@@ -527,13 +532,16 @@ mod test {
             .register_member("f4", f4)?
             .register_member("f5", f5)?
             .register_global("lifetime_closure", lifetime_closure)?
-            .register_global("f6", f6)?
             .register_global("f7", f7)?
-            .register_global("f8", f8)?
-            .register_global("f9", f9)?
             .register_global("f_map1", f_map1)?
             .register_global("f_map2", f_map2)?
             .register_global("f_map3", f_map3)?;
+    
+        #[cfg(feature = "derive")]
+        registry
+            .register_global("f6", f6)?
+            .register_global("f8", f8)?
+            .register_global("f9", f9)?;
 
         #[cfg(feature = "async")]
         #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
@@ -544,23 +552,26 @@ mod test {
         //    .build(None);
         //let env = Env::new(function, variable);
 
-        let x = MyOpaque(1);
-        let y: Box<dyn Opaque> = Box::new(x);
+        #[cfg(feature = "derive")]
+        {
+            let x = MyOpaque(1);
+            let y: Box<dyn Opaque> = Box::new(x);
 
-        let value: OpaqueValue = Box::new(MyOpaque(1));
-        assert!(value.is::<MyOpaque>());
-        assert!(value.downcast_ref::<MyOpaque>().is_some());
-        let value2 = value.clone().downcast::<MyOpaque>();
-        assert!(value2.is_ok());
+            let value: OpaqueValue = Box::new(MyOpaque(1));
+            assert!(value.is::<MyOpaque>());
+            assert!(value.downcast_ref::<MyOpaque>().is_some());
+            let value2 = value.clone().downcast::<MyOpaque>();
+            assert!(value2.is_ok());
 
-        let value3 = value.clone();
-        assert!(value3.is::<MyOpaque>());
+            let value3 = value.clone();
+            assert!(value3.is::<MyOpaque>());
 
-        let value4: OpaqueValue = Box::new(MyOpaque(1));
-        assert!(value4.is::<MyOpaque>());
-        assert!(value4.clone().downcast::<MyOpaque>().is_ok());
-        let value5 = value4.downcast::<MyOpaque>();
-        assert!(value5.is_ok());
+            let value4: OpaqueValue = Box::new(MyOpaque(1));
+            assert!(value4.is::<MyOpaque>());
+            assert!(value4.clone().downcast::<MyOpaque>().is_ok());
+            let value5 = value4.downcast::<MyOpaque>();
+            assert!(value5.is_ok());
+        }
 
         Ok(())
     }

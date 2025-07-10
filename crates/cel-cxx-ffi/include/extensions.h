@@ -4,6 +4,7 @@
 #include <rust/cxx.h>
 #include <extensions/bindings_ext.h>
 #include <extensions/encoders.h>
+#include <extensions/lists_functions.h>
 #include <extensions/math_ext_decls.h>
 #include <extensions/proto_ext.h>
 #include <extensions/regex_functions.h>
@@ -16,12 +17,6 @@ namespace cel::extensions {
 
 // bindings_ext.h
 cel::CompilerLibrary BindingsCompilerLibrary();
-
-// lists_functions.h
-cel::CompilerLibrary ListsCompilerLibrary();
-
-// regex_functions.h
-cel::CompilerLibrary RegexCompilerLibrary();
 
 } // namespace cel::extensions
 
@@ -57,7 +52,9 @@ inline std::unique_ptr<cel::CompilerLibrary> ProtoExtCompilerLibrary() {
 
 // regex_functions.h
 inline std::unique_ptr<cel::CompilerLibrary> RegexCompilerLibrary() {
-    return std::make_unique<cel::CompilerLibrary>(cel::extensions::RegexCompilerLibrary());
+    return std::make_unique<cel::CompilerLibrary>(
+        cel::CompilerLibrary::FromCheckerLibrary(
+            cel::extensions::RegexCheckerLibrary()));
 }
 
 // SelectOptimizationOptions

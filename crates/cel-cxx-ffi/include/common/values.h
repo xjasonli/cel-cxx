@@ -372,7 +372,7 @@ inline std::unique_ptr<Value> OptionalValue_get_value(const OptionalValue& optio
 // StringValue
 inline std::unique_ptr<StringValue> StringValue_new(const Arena& arena, Str value) {
     auto string_value = StringValue::From(
-        std::string_view(value),
+        std::string_view(value.data(), value.size()),
         &const_cast<Arena&>(arena));
     return std::make_unique<StringValue>(std::move(string_value));
 }

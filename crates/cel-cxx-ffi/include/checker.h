@@ -30,9 +30,53 @@ inline std::unique_ptr<CheckerLibrary> CheckerLibrary_new_standard() {
 }
 
 // CheckerOptions
-inline CheckerOptions CheckerOptions_default() {
-    return CheckerOptions();
+inline std::unique_ptr<CheckerOptions> CheckerOptions_new() {
+    return std::make_unique<CheckerOptions>();
 }
+
+// CheckerOptions getters and setters
+inline bool CheckerOptions_enable_cross_numeric_comparisons(const CheckerOptions& checker_options) {
+    return checker_options.enable_cross_numeric_comparisons;
+}
+inline bool& CheckerOptions_enable_cross_numeric_comparisons_mut(CheckerOptions& checker_options) {
+    return checker_options.enable_cross_numeric_comparisons;
+}
+
+inline bool CheckerOptions_enable_legacy_null_assignment(const CheckerOptions& checker_options) {
+    return checker_options.enable_legacy_null_assignment;
+}
+inline bool& CheckerOptions_enable_legacy_null_assignment_mut(CheckerOptions& checker_options) {
+    return checker_options.enable_legacy_null_assignment;
+}
+
+inline bool CheckerOptions_update_struct_type_names(const CheckerOptions& checker_options) {
+    return checker_options.update_struct_type_names;
+}
+inline bool& CheckerOptions_update_struct_type_names_mut(CheckerOptions& checker_options) {
+    return checker_options.update_struct_type_names;
+}
+
+inline bool CheckerOptions_allow_well_known_type_context_declarations(const CheckerOptions& checker_options) {
+    return checker_options.allow_well_known_type_context_declarations;
+}
+inline bool& CheckerOptions_allow_well_known_type_context_declarations_mut(CheckerOptions& checker_options) {
+    return checker_options.allow_well_known_type_context_declarations;
+}
+
+inline int CheckerOptions_max_expression_node_count(const CheckerOptions& checker_options) {
+    return checker_options.max_expression_node_count;
+}
+inline int& CheckerOptions_max_expression_node_count_mut(CheckerOptions& checker_options) {
+    return checker_options.max_expression_node_count;
+}
+
+inline int CheckerOptions_max_error_issues(const CheckerOptions& checker_options) {
+    return checker_options.max_error_issues;
+}
+inline int& CheckerOptions_max_error_issues_mut(CheckerOptions& checker_options) {
+    return checker_options.max_error_issues;
+}
+
 
 // TypeCheckerBuilder
 inline absl::Status TypeCheckerBuilder_add_library(

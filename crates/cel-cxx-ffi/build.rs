@@ -62,10 +62,13 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         .flag_if_supported("-Wno-class-memaccess")
         .flag_if_supported("-Wno-return-type")
         .flag_if_supported("-Wno-sign-compare")
-        //.flag_if_supported("-Wno-missing-requires")
-        //.flag_if_supported("-Wno-nullability-completeness")
+        .flag_if_supported("/nologo")
+        .flag_if_supported("/EHsc")
+        .flag_if_supported("/D_CRT_SECURE_NO_DEPRECATE")
+        .flag_if_supported("/D_CRT_SECURE_NO_WARNINGS")
+        .flag_if_supported("/Zc:sizedDealloc")
         .files(cc_srcs)
-        .std("c++17");
+        .std("c++20");
 
     build.compile("cel-cxx");
 

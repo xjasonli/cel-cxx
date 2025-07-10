@@ -3,8 +3,6 @@ use std::convert::Infallible;
 
 use cel_cxx::*;
 
-const MY_NAMESPACE: &str = "testing";
-
 #[test]
 fn test_math() -> Result<(), Error> {
     println!("test math");
@@ -611,8 +609,11 @@ fn test_simplefunc() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(feature = "derive")]
 #[test]
 fn test_opaque_function() -> Result<(), Error> {
+    const MY_NAMESPACE: &str = "testing";
+
     println!("test opaque function");
 
     #[derive(Debug, Clone, PartialEq, Opaque)]
