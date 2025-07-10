@@ -53,6 +53,12 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         .filter(|path| !rs_excludes.contains(&path.as_path()))
         .collect::<Vec<_>>();
 
+    let mut cxx_std = "c++17".to_string();
+    let target = std::env::var("TARGET")?;
+    if target.contains("msvc") {
+        cxx_std = "c++20".to_string();
+    }
+
     let mut build = cxx_build::bridges(rs_srcs);
     build
         .include(artifacts.include_dir())
@@ -62,13 +68,14 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         .flag_if_supported("-Wno-class-memaccess")
         .flag_if_supported("-Wno-return-type")
         .flag_if_supported("-Wno-sign-compare")
+        .flag_if_supported("-Wno-missing-requires")
         .flag_if_supported("/nologo")
         .flag_if_supported("/EHsc")
         .flag_if_supported("/D_CRT_SECURE_NO_DEPRECATE")
         .flag_if_supported("/D_CRT_SECURE_NO_WARNINGS")
         .flag_if_supported("/Zc:sizedDealloc")
         .files(cc_srcs)
-        .std("c++20");
+        .std(cxx_std.as_str());
 
     build.compile("cel-cxx");
 
