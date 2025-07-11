@@ -28,10 +28,16 @@ impl Bazel {
     pub fn new(
         target: String,
         minimal_version: &str,
+        maximal_version: &str,
         download_dir: &Path,
         download_version: Option<&str>,
     ) -> Result<Self> {
-        let path = bazel_path(minimal_version, download_dir, download_version)?;
+        let path = bazel_path(
+            minimal_version,
+            maximal_version,
+            download_dir,
+            download_version,
+        )?;
         Ok(Self {
             path,
             mode: mode_from_profile(),
@@ -56,7 +62,8 @@ impl Bazel {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        self.options.extend(options.into_iter().map(|s| s.as_ref().to_owned()));
+        self.options
+            .extend(options.into_iter().map(|s| s.as_ref().to_owned()));
         self
     }
 
@@ -111,19 +118,16 @@ impl Bazel {
 
 fn bazel_path(
     minimal_version: &str,
+    maximal_version: &str,
     download_dir: &Path,
     download_version: Option<&str>,
 ) -> Result<PathBuf, anyhow::Error> {
-    // detect bazel or bazelisk version
+    // detect bazel version
     let minimal_ver = semver::Version::parse(minimal_version)?;
+    let maximal_ver = semver::Version::parse(maximal_version)?;
     if let Ok(ver) = bazel_command_version("bazel") {
-        if ver >= minimal_ver {
+        if ver >= minimal_ver && ver <= maximal_ver {
             return Ok(PathBuf::from("bazel"));
-        }
-    }
-    if let Ok(version) = bazel_command_version("bazelisk") {
-        if version >= minimal_ver {
-            return Ok(PathBuf::from("bazelisk"));
         }
     }
     let path = download_dir.join(bazel_filename()?);

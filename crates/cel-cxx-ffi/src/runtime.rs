@@ -167,16 +167,17 @@ mod ffi {
 
         // RuntimeOptions getters and setters
         fn RuntimeOptions_container(runtime_options: &RuntimeOptions) -> &str;
-        fn RuntimeOptions_container_mut<'a>(runtime_options: Pin<&'a mut RuntimeOptions>) -> Pin<&'a mut CxxString>;
+        fn RuntimeOptions_container_mut<'a>(
+            runtime_options: Pin<&'a mut RuntimeOptions>,
+        ) -> Pin<&'a mut CxxString>;
         fn RuntimeOptions_unknown_processing(
             runtime_options: &RuntimeOptions,
         ) -> UnknownProcessingOptions;
         fn RuntimeOptions_unknown_processing_mut<'a>(
             runtime_options: Pin<&'a mut RuntimeOptions>,
         ) -> &'a mut UnknownProcessingOptions;
-        fn RuntimeOptions_enable_missing_attribute_errors(
-            runtime_options: &RuntimeOptions,
-        ) -> bool;
+        fn RuntimeOptions_enable_missing_attribute_errors(runtime_options: &RuntimeOptions)
+            -> bool;
         fn RuntimeOptions_enable_missing_attribute_errors_mut<'a>(
             runtime_options: Pin<&'a mut RuntimeOptions>,
         ) -> &'a mut bool;
@@ -232,7 +233,9 @@ mod ffi {
         fn RuntimeOptions_fail_on_warnings_mut<'a>(
             runtime_options: Pin<&'a mut RuntimeOptions>,
         ) -> &'a mut bool;
-        fn RuntimeOptions_enable_qualified_type_identifiers(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_qualified_type_identifiers(
+            runtime_options: &RuntimeOptions,
+        ) -> bool;
         fn RuntimeOptions_enable_qualified_type_identifiers_mut<'a>(
             runtime_options: Pin<&'a mut RuntimeOptions>,
         ) -> &'a mut bool;
@@ -240,11 +243,14 @@ mod ffi {
         fn RuntimeOptions_enable_heterogeneous_equality_mut<'a>(
             runtime_options: Pin<&'a mut RuntimeOptions>,
         ) -> &'a mut bool;
-        fn RuntimeOptions_enable_empty_wrapper_null_unboxing(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_empty_wrapper_null_unboxing(
+            runtime_options: &RuntimeOptions,
+        ) -> bool;
         fn RuntimeOptions_enable_empty_wrapper_null_unboxing_mut<'a>(
             runtime_options: Pin<&'a mut RuntimeOptions>,
         ) -> &'a mut bool;
-        fn RuntimeOptions_enable_lazy_bind_initialization(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_lazy_bind_initialization(runtime_options: &RuntimeOptions)
+            -> bool;
         fn RuntimeOptions_enable_lazy_bind_initialization_mut<'a>(
             runtime_options: Pin<&'a mut RuntimeOptions>,
         ) -> &'a mut bool;
@@ -693,9 +699,7 @@ impl RuntimeOptions {
         ffi::RuntimeOptions_enable_qualified_type_identifiers(self)
     }
 
-    pub fn enable_qualified_type_identifiers_mut<'a>(
-        self: Pin<&'a mut Self>,
-    ) -> &'a mut bool {
+    pub fn enable_qualified_type_identifiers_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
         ffi::RuntimeOptions_enable_qualified_type_identifiers_mut(self)
     }
 
@@ -703,9 +707,7 @@ impl RuntimeOptions {
         ffi::RuntimeOptions_enable_heterogeneous_equality(self)
     }
 
-    pub fn enable_heterogeneous_equality_mut<'a>(
-        self: Pin<&'a mut Self>,
-    ) -> &'a mut bool {
+    pub fn enable_heterogeneous_equality_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
         ffi::RuntimeOptions_enable_heterogeneous_equality_mut(self)
     }
 
@@ -713,9 +715,7 @@ impl RuntimeOptions {
         ffi::RuntimeOptions_enable_empty_wrapper_null_unboxing(self)
     }
 
-    pub fn enable_empty_wrapper_null_unboxing_mut<'a>(
-        self: Pin<&'a mut Self>,
-    ) -> &'a mut bool {
+    pub fn enable_empty_wrapper_null_unboxing_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
         ffi::RuntimeOptions_enable_empty_wrapper_null_unboxing_mut(self)
     }
 
@@ -723,9 +723,7 @@ impl RuntimeOptions {
         ffi::RuntimeOptions_enable_lazy_bind_initialization(self)
     }
 
-    pub fn enable_lazy_bind_initialization_mut<'a>(
-        self: Pin<&'a mut Self>,
-    ) -> &'a mut bool {
+    pub fn enable_lazy_bind_initialization_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
         ffi::RuntimeOptions_enable_lazy_bind_initialization_mut(self)
     }
 

@@ -35,10 +35,8 @@ impl<'f> EnvInner<'f> {
             ffi_ctx: ffi::Ctx::new_generated(),
             ffi_compiler_builder: |ffi_ctx: &ffi::Ctx| {
                 let options = ffi::CompilerOptions::new();
-                let mut builder = ffi::CompilerBuilder::new(
-                    ffi::DescriptorPool::generated(),
-                    &options,
-                )?;
+                let mut builder =
+                    ffi::CompilerBuilder::new(ffi::DescriptorPool::generated(), &options)?;
                 builder
                     .pin_mut()
                     .add_library(ffi::compiler::CompilerLibrary::new_standard())?;

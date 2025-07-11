@@ -6,11 +6,6 @@
 [crates-io]: https://img.shields.io/badge/crates.io-fc8d62?style=for-the-badge&labelColor=555555&logo=rust
 [docs-rs]: https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
 
-# CEL-CXX: Modern Rust Interface for CEL
-
-A high-performance, type-safe Rust interface for [Common Expression Language (CEL)](https://github.com/google/cel-spec),
-built on top of [google/cel-cpp](https://github.com/google/cel-cpp) with zero-cost FFI bindings via [cxx](https://github.com/dtolnay/cxx).
-
 - [CEL-CXX: Modern Rust Interface for CEL](#cel-cxx-modern-rust-interface-for-cel)
   - [Architecture Overview](#architecture-overview)
     - [Core Design Principles](#core-design-principles)
@@ -58,6 +53,11 @@ built on top of [google/cel-cpp](https://github.com/google/cel-cpp) with zero-co
   - [License](#license)
   - [Acknowledgements](#acknowledgements)
 
+
+# CEL-CXX: Modern Rust Interface for CEL
+
+A high-performance, type-safe Rust interface for [Common Expression Language (CEL)](https://github.com/google/cel-spec),
+built on top of [cel-cpp](https://github.com/google/cel-cpp) with zero-cost FFI bindings via [cxx](https://github.com/dtolnay/cxx).
 
 ## Architecture Overview
 
@@ -612,6 +612,12 @@ cargo run --example tokio --features="async,tokio"
 <td>Tested via cross-rs</td>
 </tr>
 <tr>
+<td><strong>Windows</strong></td>
+<td><code>x86_64-pc-windows-msvc</code></td>
+<td>✅</td>
+<td>Tested (Visual Studio 2022+)</td>
+</tr>
+<tr>
 <td rowspan="3"><strong>macOS</strong></td>
 <td><code>x86_64-apple-darwin</code></td>
 <td>✅</td>
@@ -626,6 +632,27 @@ cargo run --example tokio --features="async,tokio"
 <td><code>arm64e-apple-darwin</code></td>
 <td>✅</td>
 <td>Tested</td>
+</tr>
+<tr>
+<td rowspan="4"><strong>Android</strong></td>
+<td><code>aarch64-linux-android</code></td>
+<td>🟡</td>
+<td>Should work, use cargo-ndk</td>
+</tr>
+<tr>
+<td><code>armv7-linux-androideabi</code></td>
+<td>🟡</td>
+<td>Should work, use cargo-ndk</td>
+</tr>
+<tr>
+<td><code>x86_64-linux-android</code></td>
+<td>🟡</td>
+<td>Should work, use cargo-ndk</td>
+</tr>
+<tr>
+<td><code>i686-linux-android</code></td>
+<td>🟡</td>
+<td>Should work, use cargo-ndk</td>
 </tr>
 <tr>
 <td rowspan="4"><strong>iOS</strong></td>
@@ -702,37 +729,10 @@ cargo run --example tokio --features="async,tokio"
 <td>Should work, untested</td>
 </tr>
 <tr>
-<td rowspan="4"><strong>Android</strong></td>
-<td><code>aarch64-linux-android</code></td>
-<td>🟡</td>
-<td>Should work, use cargo-ndk</td>
-</tr>
-<tr>
-<td><code>armv7-linux-androideabi</code></td>
-<td>🟡</td>
-<td>Should work, use cargo-ndk</td>
-</tr>
-<tr>
-<td><code>x86_64-linux-android</code></td>
-<td>🟡</td>
-<td>Should work, use cargo-ndk</td>
-</tr>
-<tr>
-<td><code>i686-linux-android</code></td>
-<td>🟡</td>
-<td>Should work, use cargo-ndk</td>
-</tr>
-<tr>
 <td><strong>WebAssembly</strong></td>
 <td><code>wasm32-unknown-emscripten</code></td>
-<td>🟡</td>
-<td>Should work via Emscripten</td>
-</tr>
-<tr>
-<td><strong>Windows</strong></td>
-<td><code>x86_64-pc-windows-msvc</code></td>
-<td>🚧</td>
-<td>Experimental support</td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
 </tr>
 </tbody>
 </table>
@@ -740,27 +740,18 @@ cargo run --example tokio --features="async,tokio"
 **Legend:**
 - ✅ **Tested**: Confirmed working with automated tests
 - 🟡 **Should work**: Build configuration exists but not tested in CI
-- 🚧 **Experimental**: May work but has known limitations
 
 ### Cross-Compilation Support
 
 cel-cxx includes built-in support for cross-compilation via [cross-rs](https://github.com/cross-rs/cross). The build system automatically detects cross-compilation environments and configures the appropriate toolchains.
-
-**Additional cross-rs targets** (beyond those listed above):
-- **MIPS**: `mips-unknown-linux-gnu`, `mips64-unknown-linux-gnuabi64`
-- **PowerPC**: `powerpc-unknown-linux-gnu`, `powerpc64-unknown-linux-gnu`
-- **RISC-V**: `riscv64gc-unknown-linux-gnu`
 
 **Usage with cross-rs:**
 ```bash
 # Install cross-rs
 cargo install cross --git https://github.com/cross-rs/cross
 
-# Build for RISC-V
-cross build --target riscv64gc-unknown-linux-gnu
-
-# Build for PowerPC
-cross build --target powerpc64-unknown-linux-gnu
+# Build for aarch64
+cross build --target aarch64-unknown-linux-gnu
 ```
 
 **Note**: Not all cross-rs targets are supported due to CEL-CPP's build requirements. musl targets and some embedded targets may not work due to missing C++ standard library support or incompatible toolchains.
@@ -833,7 +824,6 @@ cargo ndk --target i686-linux-android build
 | Feature | Status | Description |
 |---------|--------|-------------|
 | **Protocol Buffer Integration** | 🚧 Planned | Direct support for protobuf messages and enums as native CEL types |
-| **Windows Support** | 🚧 Planned | Requires CEL-CPP Windows build support |
 
 ## Prerequisites
 
@@ -843,7 +833,7 @@ cargo ndk --target i686-linux-android build
 - **C++ Toolchain**: C++17 compatible compiler
   - Linux: GCC 7+ or Clang 6+
   - macOS: Xcode 10+ or Clang 6+
-  - Windows: MSVC 2019+ or Clang 6+
+  - Windows: MSVC 2022+ or Clang 6+
 
 ### Installation Verification
 
@@ -851,11 +841,11 @@ cargo ndk --target i686-linux-android build
 # Clone and test
 git clone https://github.com/xjasonli/cel-cxx.git
 cd cel-cxx
-cargo test
+cargo test --all-targets
 
 # Run examples
 cargo run --example comprehensive
-cargo run --example tokio --features="async,tokio"
+cargo run --example tokio --features="tokio"
 ```
 
 ## Contributing

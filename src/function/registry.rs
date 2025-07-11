@@ -536,7 +536,7 @@ mod test {
             .register_global("f_map1", f_map1)?
             .register_global("f_map2", f_map2)?
             .register_global("f_map3", f_map3)?;
-    
+
         #[cfg(feature = "derive")]
         registry
             .register_global("f6", f6)?

@@ -15,20 +15,22 @@ index 565d57a9..28db3152 100644
      name = "bazel_skylib",
      version = "1.7.1",
 diff --git bazel/antlr.bzl bazel/antlr.bzl
-index 42fa506f..5c55de39 100644
+index 42fa506f..7a980f67 100644
 --- bazel/antlr.bzl
 +++ bazel/antlr.bzl
-@@ -42,13 +42,21 @@ def antlr_cc_library(name, src, package):
+@@ -42,13 +42,23 @@ def antlr_cc_library(name, src, package):
  def _antlr_library(ctx):
      output = ctx.actions.declare_directory(ctx.attr.name)
  
 +    src_path = ctx.file.src.path
 +
++    is_windows = False
 +    # Workaround for Antlr4 bug:
 +    # https://github.com/antlr/antlr4/issues/3138
 +    windows_constraint = ctx.attr._windows_constraint[platform_common.ConstraintValueInfo]
 +    if ctx.target_platform_has_constraint(windows_constraint):
 +        src_path = src_path.replace('/', '\\')
++        is_windows = True
 +
      antlr_args = ctx.actions.args()
      antlr_args.add("-Dlanguage=Cpp")
@@ -41,7 +43,37 @@ index 42fa506f..5c55de39 100644
  
      # Strip ".g4" extension.
      basename = ctx.file.src.basename[:-3]
-@@ -98,5 +106,8 @@ antlr_library = rule(
+@@ -69,17 +79,25 @@ def _antlr_library(ctx):
+         source = ctx.actions.declare_file(basename + suffix + ".cpp")
+         generated = output.path + "/" + ctx.file.src.path[:-3] + suffix
+ 
+-        ctx.actions.run_shell(
++        ctx.actions.run(
+             mnemonic = "CopyHeader" + suffix,
++            executable = "PowerShell.exe" if is_windows else "bash",
+             inputs = [output],
+             outputs = [header],
+-            command = 'cp "{generated}" "{out}"'.format(generated = generated + ".h", out = header.path),
++            arguments = [
++                "-c",
++                'cp "{generated}" "{out}"'.format(generated = generated + ".h", out = header.path),
++            ],
+         )
+-        ctx.actions.run_shell(
++        ctx.actions.run(
+             mnemonic = "CopySource" + suffix,
++            executable = "PowerShell.exe" if is_windows else "bash",
+             inputs = [output],
+             outputs = [source],
+-            command = 'cp "{generated}" "{out}"'.format(generated = generated + ".cpp", out = source.path),
++            arguments = [
++                "-c",
++                'cp "{generated}" "{out}"'.format(generated = generated + ".cpp", out = source.path),
++            ],
+         )
+ 
+         files.append(header)
+@@ -98,5 +116,8 @@ antlr_library = rule(
              cfg = "exec",  # buildifier: disable=attr-cfg
              default = Label("//bazel:antlr4_tool"),
          ),
@@ -50,6 +82,74 @@ index 42fa506f..5c55de39 100644
 +        ),
      },
  )
+diff --git bazel/cel_cc_embed.bzl bazel/cel_cc_embed.bzl
+index cec4d789..159db700 100644
+--- bazel/cel_cc_embed.bzl
++++ bazel/cel_cc_embed.bzl
+@@ -16,12 +16,58 @@
+ Provides the `cel_cc_embed` build rule.
+ """
+ 
++def _cel_cc_embed_impl(ctx):
++    """Implementation of the cel_cc_embed rule."""
++    input_file = ctx.file.src
++    output_file = ctx.outputs.out
++    
++    # Create the action to run the cel_cc_embed tool
++    ctx.actions.run(
++        inputs = [input_file],
++        outputs = [output_file],
++        executable = ctx.executable._cel_cc_embed_tool,
++        arguments = [
++            "--in={}".format(input_file.path),
++            "--out={}".format(output_file.path),
++        ],
++        mnemonic = "CelCcEmbed",
++        progress_message = "Generating embedded C++ code from {}".format(input_file.short_path),
++    )
++    
++    return [DefaultInfo(files = depset([output_file]))]
++
++_cel_cc_embed_rule = rule(
++    implementation = _cel_cc_embed_impl,
++    attrs = {
++        "src": attr.label(
++            allow_single_file = True,
++            mandatory = True,
++            doc = "The input file to embed",
++        ),
++        "_cel_cc_embed_tool": attr.label(
++            default = "//bazel:cel_cc_embed",
++            executable = True,
++            cfg = "exec",
++        ),
++    },
++    outputs = {
++        "out": "%{name}.inc",
++    },
++    doc = "Embeds a text file into C++ code",
++)
++
+ def cel_cc_embed(name, src, testonly = False):
+-    native.genrule(
++    """Generates embedded C++ code from a text file.
++    
++    This rule uses ctx.actions.run instead of genrule to avoid dependency on bash.
++    
++    Args:
++        name: Name of the rule
++        src: Input file to embed
++        testonly: Whether this rule is only for testing
++    """
++    _cel_cc_embed_rule(
+         name = name,
+-        srcs = [src],
+-        outs = ["{}.inc".format(name)],
+-        cmd = "$(location //bazel:cel_cc_embed) --in=$< --out=$@",
+-        tools = ["//bazel:cel_cc_embed"],
++        src = src,
+         testonly = testonly,
+     )
 diff --git bazel/cel_proto_transitive_descriptor_set.bzl bazel/cel_proto_transitive_descriptor_set.bzl
 index e65e0b4a..15ac77fb 100644
 --- bazel/cel_proto_transitive_descriptor_set.bzl

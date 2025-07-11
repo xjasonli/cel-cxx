@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 const BAZEL_MINIMAL_VERSION: &str = "8.0.0";
-const BAZEL_DOWNLOAD_VERSION: Option<&str> = Some("8.2.1");
+const BAZEL_MAXIMAL_VERSION: &str = "8.99.99";
+const BAZEL_DOWNLOAD_VERSION: Option<&str> = Some("8.3.1");
 
 /// Supported target triples - must match platform definitions in build/BUILD.bazel
 const SUPPORTED_TARGETS: &[&str] = &[
@@ -182,6 +183,7 @@ impl Build {
         let mut bazel = Bazel::new(
             target.clone(),
             BAZEL_MINIMAL_VERSION,
+            BAZEL_MAXIMAL_VERSION,
             out_dir,
             BAZEL_DOWNLOAD_VERSION,
         )?
