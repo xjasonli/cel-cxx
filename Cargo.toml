@@ -5,7 +5,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["Jason Li <xjason.li@gmail.com>"]
 license = "Apache-2.0"
@@ -16,8 +16,8 @@ keywords = ["cel", "expression", "language", "ffi", "cxx"]
 
 [workspace.dependencies]
 cel-cxx = { path = "." }
-cel-cxx-ffi = { path = "crates/cel-cxx-ffi", version = "0.1.3" }
-cel-build-utils = { path = "crates/cel-build-utils", version = "0.1.3" }
+cel-cxx-ffi = { path = "crates/cel-cxx-ffi", version = "0.1.4" }
+cel-build-utils = { path = "crates/cel-build-utils", version = "0.1.4" }
 cel-cxx-macros = { path = "crates/cel-cxx-macros", version = "0.1.1" }
 
 cxx = { version = "1.0", features = ["c++17"] }
@@ -25,7 +25,6 @@ cxx-build = { version = "1.0", features = ["parallel"] }
 thiserror = { version = "2.0" }
 anyhow = "1"
 glob = "0.3"
-tonic = { version = "0.13" }
 tokio = { version = "1"}
 async-std = { version = "1" }
 smol = { version = "2" }
@@ -41,12 +40,14 @@ syn = "2"
 quote = "1"
 prettyplease = "0.2"
 proc-macro2 = "1"
+arc-slice = { version = "0.1"}
+
+# dependencies for cel-build-utils
+downloader = { version = "0.2", default-features = false}
+reqwest = { version = "0.12", default-features = false}
 semver = "1"
 sha2 = "0.10"
 regex = "1"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "charset", "http2", "system-proxy", "blocking"] }
-downloader = { version = "0.2", default-features = false, features = ["rustls-tls", "verify"] }
-arc-slice = { version = "0.1", features = ["default-layout-any-buffer"] }
 
 
 [package]
@@ -92,7 +93,7 @@ async-std = { workspace = true, optional = true }
 smol = { workspace = true, optional = true }
 async-scoped = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
-arc-slice = { workspace = true }
+arc-slice = { workspace = true, features = ["default-layout-any-buffer"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros"] }

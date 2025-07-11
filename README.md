@@ -41,15 +41,6 @@
   - [Prerequisites](#prerequisites)
     - [System Requirements](#system-requirements)
     - [Installation Verification](#installation-verification)
-  - [Contributing](#contributing)
-    - [Development Setup](#development-setup)
-    - [Code Style](#code-style)
-  - [Related Crates](#related-crates)
-    - [xjasonli/cel-cxx (This Project)](#xjasonlicel-cxx-this-project)
-    - [clarkmcc/cel-rust](#clarkmcccel-rust)
-    - [1BADragon/rscel](#1badragonrscel)
-    - [thesayyn/cel-rs](#thesayyncel-rs)
-    - [Choosing the Right Implementation](#choosing-the-right-implementation)
   - [License](#license)
   - [Acknowledgements](#acknowledgements)
 
@@ -89,7 +80,7 @@ Add to your `Cargo.toml`:
 cel-cxx = "0.1.0"
 
 # Optional features
-cel-cxx = { version = "0.1.0", features = ["async", "derive", "tokio"] }
+cel-cxx = { version = "0.1.0", features = ["tokio"] }
 ```
 
 ### Basic Expression Evaluation
@@ -575,7 +566,7 @@ The crate includes comprehensive examples demonstrating various features:
 Run examples with:
 ```bash
 cargo run --example comprehensive
-cargo run --example tokio --features="async,tokio"
+cargo run --example tokio --features="tokio"
 ```
 
 ## Platform Support
@@ -829,11 +820,11 @@ cargo ndk --target i686-linux-android build
 
 ### System Requirements
 
-- **Rust**: 1.70+ (for GATs support)
+- **Rust**: 1.80+
 - **C++ Toolchain**: C++17 compatible compiler
-  - Linux: GCC 7+ or Clang 6+
-  - macOS: Xcode 10+ or Clang 6+
-  - Windows: MSVC 2022+ or Clang 6+
+  - Linux: GCC 9+ or Clang 15+
+  - macOS: Xcode 10+ or Clang 15+
+  - Windows: MSVC 2022+
 
 ### Installation Verification
 
@@ -848,75 +839,6 @@ cargo run --example comprehensive
 cargo run --example tokio --features="tokio"
 ```
 
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-# Setup development environment
-git clone https://github.com/xjasonli/cel-cxx.git
-cd cel-cxx
-
-# Install dependencies
-cargo build
-
-# Run tests
-cargo test --all-features
-
-# Run examples
-cargo run --example comprehensive
-```
-
-### Code Style
-
-- Follow standard Rust formatting (`cargo fmt`)
-- Ensure all tests pass (`cargo test`)
-- Add documentation for public APIs
-- Include examples for new features
-
-## Related Crates
-
-This project is part of a growing ecosystem of CEL implementations in Rust. Here's how it compares to other notable projects:
-
-### [xjasonli/cel-cxx](https://github.com/xjasonli/cel-cxx) (This Project)
-- **Approach**: FFI bindings to Google's official CEL-CPP implementation
-- **Performance**: Zero-cost abstractions with direct C++ calls
-- **Type Safety**: Compile-time verification via Rust's type system
-- **Features**: Full CEL spec support, async/await, custom types via derive macros
-- **Best For**: Production applications requiring full CEL compatibility and maximum performance
-
-### [clarkmcc/cel-rust](https://github.com/clarkmcc/cel-rust)
-- **Approach**: Native Rust interpreter with ANTLR-based parser
-- **Performance**: Good performance for pure Rust, no C++ dependencies
-- **Features**: Core CEL features, custom functions, concurrent execution
-- **Best For**: Applications preferring pure Rust solutions or avoiding C++ dependencies
-- **Trade-offs**: May not support all CEL spec features
-
-### [1BADragon/rscel](https://github.com/1BADragon/rscel)
-- **Approach**: Native Rust implementation with custom parser
-- **Features**: Basic CEL evaluation, custom types and functions
-- **Best For**: Lightweight applications with simple CEL expression needs
-- **Trade-offs**: More limited feature set compared to other implementations
-
-### [thesayyn/cel-rs](https://github.com/thesayyn/cel-rs)
-- **Approach**: Native Rust with WebAssembly compilation target
-- **Features**: Basic CEL features, WASM playground, browser compatibility
-- **Best For**: Web applications and browser-based CEL evaluation
-- **Trade-offs**: Focused on web use cases, may have limited server-side features
-
-### Choosing the Right Implementation
-
-| Requirement | Recommendation |
-|-------------|----------------|
-| **Full CEL spec compliance** | cel-cxx (this project) |
-| **Pure Rust, no C++ deps** | clarkmcc/cel-rust |
-| **WebAssembly/Browser support** | thesayyn/cel-rs |
-| **Lightweight, simple use cases** | 1BADragon/rscel |
-| **Maximum performance** | cel-cxx (this project) |
-| **Async/await support** | cel-cxx (this project) |
-
 ## License
 
 Licensed under the Apache License 2.0. See [LICENSE](https://github.com/xjasonli/cel-cxx/blob/master/LICENSE) for details.
@@ -925,5 +847,5 @@ Licensed under the Apache License 2.0. See [LICENSE](https://github.com/xjasonli
 
 - [`google/cel-cpp`](https://github.com/google/cel-cpp) - The foundational C++ CEL implementation
 - [`dtolnay/cxx`](https://github.com/dtolnay/cxx) - Safe and efficient Rust-C++ interop
-- [`rmanoka/async-scoped`](https://crates.io/crates/async-scoped) - Scoped async execution for safe lifetime management
+- [`rmanoka/async-scoped`](https://github.com/rmanoka/async-scoped) - Scoped async execution for safe lifetime management
 - The CEL community and other Rust CEL implementations for inspiration and ecosystem growth 
