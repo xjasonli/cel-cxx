@@ -1,10 +1,12 @@
 [![github]](https://github.com/xjasonli/cel-cxx)
 [![crates-io]](https://crates.io/crates/cel-cxx)
 [![docs-rs]](https://docs.rs/cel-cxx)
+[![deepwiki]](https://deepwiki.com/xjasonli/cel-cxx)
 
-[github]: https://img.shields.io/badge/github-8da0cb?style=for-the-badge&labelColor=555555&logo=github
-[crates-io]: https://img.shields.io/badge/crates.io-fc8d62?style=for-the-badge&labelColor=555555&logo=rust
-[docs-rs]: https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs
+[github]: https://img.shields.io/badge/GitHub-Repository-blue?style=flat&logo=github
+[crates-io]: https://img.shields.io/crates/v/cel-cxx.svg
+[docs-rs]: https://docs.rs/cel-cxx/badge.svg
+[deepwiki]: https://deepwiki.com/badge.svg
 
 - [CEL-CXX: Modern Rust Interface for CEL](#cel-cxx-modern-rust-interface-for-cel)
   - [Architecture Overview](#architecture-overview)

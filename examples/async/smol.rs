@@ -55,11 +55,11 @@ async fn exercise1() -> Result<(), Error> {
 
     let program = env.compile("student.get_name()")?;
     let result = program.evaluate(&activation).await?;
-    println!("exercise1, get_name result: {}", result);
+    println!("exercise1, get_name result: {result}");
 
     let program = env.compile("student.get_age()")?;
     let result = program.evaluate(&activation).await?;
-    println!("exercise1, get_age result: {}", result);
+    println!("exercise1, get_age result: {result}");
 
     Ok(())
 }
@@ -82,6 +82,6 @@ async fn exercise2() -> Result<()> {
         .bind_variable("a", 1)?
         .bind_variable_provider("b", async move || -> Result<i64, Infallible> { Ok(1) })?;
     let result = program.evaluate(&activation).await?;
-    println!("exercise2, result: {}", result);
+    println!("exercise2, result: {result}");
     Ok(())
 }

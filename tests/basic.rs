@@ -33,7 +33,7 @@ fn test_function_return_types() -> Result<(), Error> {
         a + b
     }
     fn concat_direct(a: &str, b: &str) -> String {
-        format!("{}{}", a, b)
+        format!("{a}{b}")
     }
     fn get_length_direct(s: &str) -> i64 {
         s.len() as i64

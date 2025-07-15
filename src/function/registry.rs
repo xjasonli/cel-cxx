@@ -405,7 +405,7 @@ impl<'f> FunctionRegistry<'f> {
     pub fn remove(&mut self, name: &str) -> Result<(), Error> {
         self.entries
             .remove(name)
-            .ok_or_else(|| Error::not_found(format!("Function '{}' not found", name)))?;
+            .ok_or_else(|| Error::not_found(format!("Function '{name}' not found")))?;
         Ok(())
     }
 

@@ -1021,7 +1021,7 @@ mod tests {
     fn test_closure_with_captured_data() {
         // Test closures that capture environment variables
         let prefix = String::from("Hello, ");
-        let with_prefix = move |name: &str| -> String { format!("{}{}", prefix, name) };
+        let with_prefix = move |name: &str| -> String { format!("{prefix}{name}") };
 
         let func = with_prefix.into_function();
 

@@ -183,7 +183,7 @@ fn bazel_url(version: &str) -> Result<(String, String), anyhow::Error> {
     if os == "windows" {
         url += ".exe";
     }
-    let sha256_url = format!("{}.sha256", url);
+    let sha256_url = format!("{url}.sha256");
     Ok((url, sha256_url))
 }
 
@@ -217,7 +217,7 @@ fn decode_hex(s: &str) -> Result<Vec<u8>, std::num::ParseIntError> {
 
 fn download_bazel<P: AsRef<Path>>(dir: P, version: &str) -> Result<PathBuf, anyhow::Error> {
     let filename_dst = bazel_filename()?;
-    let filename_tmp = format!("{}.tmp", filename_dst);
+    let filename_tmp = format!("{filename_dst}.tmp");
     let guard = DownloadGuard::new(
         dir.as_ref().join(&filename_tmp),
         dir.as_ref().join(&filename_dst),

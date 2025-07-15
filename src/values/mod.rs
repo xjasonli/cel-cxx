@@ -927,8 +927,7 @@ impl Value {
         match self {
             Value::Null => (),
             _ => panic!(
-                "called `Value::unwrap_null()` on a non-null value: {:?}",
-                self
+                "called `Value::unwrap_null()` on a non-null value: {self:?}",
             ),
         }
     }
@@ -938,8 +937,7 @@ impl Value {
         match self {
             Value::Bool(b) => b,
             _ => panic!(
-                "called `Value::unwrap_bool()` on a non-bool value: {:?}",
-                self
+                "called `Value::unwrap_bool()` on a non-bool value: {self:?}",
             ),
         }
     }
@@ -949,8 +947,7 @@ impl Value {
         match self {
             Value::Int(i) => i,
             _ => panic!(
-                "called `Value::unwrap_int()` on a non-int value: {:?}",
-                self
+                "called `Value::unwrap_int()` on a non-int value: {self:?}",
             ),
         }
     }
@@ -960,8 +957,7 @@ impl Value {
         match self {
             Value::Uint(u) => u,
             _ => panic!(
-                "called `Value::unwrap_uint()` on a non-uint value: {:?}",
-                self
+                "called `Value::unwrap_uint()` on a non-uint value: {self:?}",
             ),
         }
     }
@@ -971,8 +967,7 @@ impl Value {
         match self {
             Value::Double(d) => d,
             _ => panic!(
-                "called `Value::unwrap_double()` on a non-double value: {:?}",
-                self
+                "called `Value::unwrap_double()` on a non-double value: {self:?}",
             ),
         }
     }
@@ -982,8 +977,7 @@ impl Value {
         match self {
             Value::String(s) => s,
             _ => panic!(
-                "called `Value::unwrap_string()` on a non-string value: {:?}",
-                self
+                "called `Value::unwrap_string()` on a non-string value: {self:?}",
             ),
         }
     }
@@ -993,8 +987,7 @@ impl Value {
         match self {
             Value::Bytes(b) => b,
             _ => panic!(
-                "called `Value::unwrap_bytes()` on a non-bytes value: {:?}",
-                self
+                "called `Value::unwrap_bytes()` on a non-bytes value: {self:?}",
             ),
         }
     }
@@ -1004,8 +997,7 @@ impl Value {
         match self {
             Value::Struct(s) => s,
             _ => panic!(
-                "called `Value::unwrap_struct()` on a non-struct value: {:?}",
-                self
+                "called `Value::unwrap_struct()` on a non-struct value: {self:?}",
             ),
         }
     }
@@ -1015,8 +1007,7 @@ impl Value {
         match self {
             Value::Duration(d) => d,
             _ => panic!(
-                "called `Value::unwrap_duration()` on a non-duration value: {:?}",
-                self
+                "called `Value::unwrap_duration()` on a non-duration value: {self:?}",
             ),
         }
     }
@@ -1026,8 +1017,7 @@ impl Value {
         match self {
             Value::Timestamp(t) => t,
             _ => panic!(
-                "called `Value::unwrap_timestamp()` on a non-timestamp value: {:?}",
-                self
+                "called `Value::unwrap_timestamp()` on a non-timestamp value: {self:?}",
             ),
         }
     }
@@ -1037,8 +1027,7 @@ impl Value {
         match self {
             Value::List(l) => l,
             _ => panic!(
-                "called `Value::unwrap_list()` on a non-list value: {:?}",
-                self
+                "called `Value::unwrap_list()` on a non-list value: {self:?}",
             ),
         }
     }
@@ -1048,8 +1037,7 @@ impl Value {
         match self {
             Value::Map(m) => m,
             _ => panic!(
-                "called `Value::unwrap_map()` on a non-map value: {:?}",
-                self
+                "called `Value::unwrap_map()` on a non-map value: {self:?}",
             ),
         }
     }
@@ -1059,8 +1047,7 @@ impl Value {
         match self {
             Value::Unknown(u) => u,
             _ => panic!(
-                "called `Value::unwrap_unknown()` on a non-unknown value: {:?}",
-                self
+                "called `Value::unwrap_unknown()` on a non-unknown value: {self:?}",
             ),
         }
     }
@@ -1070,8 +1057,7 @@ impl Value {
         match self {
             Value::Type(t) => t,
             _ => panic!(
-                "called `Value::unwrap_type()` on a non-type value: {:?}",
-                self
+                "called `Value::unwrap_type()` on a non-type value: {self:?}",
             ),
         }
     }
@@ -1081,8 +1067,7 @@ impl Value {
         match self {
             Value::Error(e) => e,
             _ => panic!(
-                "called `Value::unwrap_error()` on a non-error value: {:?}",
-                self
+                "called `Value::unwrap_error()` on a non-error value: {self:?}",
             ),
         }
     }
@@ -1092,8 +1077,7 @@ impl Value {
         match self {
             Value::Opaque(o) => o,
             _ => panic!(
-                "called `Value::unwrap_opaque()` on a non-opaque value: {:?}",
-                self
+                "called `Value::unwrap_opaque()` on a non-opaque value: {self:?}",
             ),
         }
     }
@@ -1103,8 +1087,7 @@ impl Value {
         match self {
             Value::Optional(o) => o,
             _ => panic!(
-                "called `Value::unwrap_optional()` on a non-optional value: {:?}",
-                self
+                "called `Value::unwrap_optional()` on a non-optional value: {self:?}",
             ),
         }
     }
@@ -1113,7 +1096,7 @@ impl Value {
     pub fn expect_null(self, msg: &str) {
         match self {
             Value::Null => (),
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1121,7 +1104,7 @@ impl Value {
     pub fn expect_bool(self, msg: &str) -> bool {
         match self {
             Value::Bool(b) => b,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1129,7 +1112,7 @@ impl Value {
     pub fn expect_int(self, msg: &str) -> i64 {
         match self {
             Value::Int(i) => i,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1137,7 +1120,7 @@ impl Value {
     pub fn expect_uint(self, msg: &str) -> u64 {
         match self {
             Value::Uint(u) => u,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1145,7 +1128,7 @@ impl Value {
     pub fn expect_double(self, msg: &str) -> f64 {
         match self {
             Value::Double(d) => d,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1153,7 +1136,7 @@ impl Value {
     pub fn expect_string(self, msg: &str) -> StringValue {
         match self {
             Value::String(s) => s,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1161,7 +1144,7 @@ impl Value {
     pub fn expect_bytes(self, msg: &str) -> BytesValue {
         match self {
             Value::Bytes(b) => b,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1169,7 +1152,7 @@ impl Value {
     pub fn expect_struct(self, msg: &str) {
         match self {
             Value::Struct(s) => s,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1177,7 +1160,7 @@ impl Value {
     pub fn expect_duration(self, msg: &str) -> Duration {
         match self {
             Value::Duration(d) => d,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1185,7 +1168,7 @@ impl Value {
     pub fn expect_timestamp(self, msg: &str) -> Timestamp {
         match self {
             Value::Timestamp(t) => t,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1193,7 +1176,7 @@ impl Value {
     pub fn expect_list(self, msg: &str) -> ListValue {
         match self {
             Value::List(l) => l,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1201,7 +1184,7 @@ impl Value {
     pub fn expect_map(self, msg: &str) -> MapValue {
         match self {
             Value::Map(m) => m,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1209,7 +1192,7 @@ impl Value {
     pub fn expect_unknown(self, msg: &str) {
         match self {
             Value::Unknown(u) => u,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1217,7 +1200,7 @@ impl Value {
     pub fn expect_type(self, msg: &str) -> ValueType {
         match self {
             Value::Type(t) => t,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1225,7 +1208,7 @@ impl Value {
     pub fn expect_error(self, msg: &str) -> Error {
         match self {
             Value::Error(e) => e,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1233,7 +1216,7 @@ impl Value {
     pub fn expect_opaque(self, msg: &str) -> OpaqueValue {
         match self {
             Value::Opaque(o) => o,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 
@@ -1241,7 +1224,7 @@ impl Value {
     pub fn expect_optional(self, msg: &str) -> OptionalValue {
         match self {
             Value::Optional(o) => o,
-            _ => panic!("{}: {:?}", msg, self),
+            _ => panic!("{msg}: {self:?}"),
         }
     }
 }
@@ -1591,7 +1574,7 @@ mod test {
         ];
 
         for (i, (value, expected_type)) in cases.into_iter().enumerate() {
-            assert_eq!(value.value_type(), expected_type, "case {} failed", i);
+            assert_eq!(value.value_type(), expected_type, "case {i} failed");
         }
     }
 }

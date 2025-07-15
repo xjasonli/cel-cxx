@@ -11,7 +11,7 @@ fn main() -> Result<(), Error> {
     let env = Env::builder()
         .declare_variable::<String>("name")?
         .declare_variable::<i64>("age")?
-        .register_global_function("greet", |name: &str| format!("Hello, {}!", name))?
+        .register_global_function("greet", |name: &str| format!("Hello, {name}!"))?
         .register_global_function("is_adult", |age: i64| age >= 18)?
         .build()?;
 
@@ -30,7 +30,7 @@ fn main() -> Result<(), Error> {
     for expr in expressions {
         let program = env.compile(expr)?;
         let result = program.evaluate(&activation)?;
-        println!("{} = {}", expr, result);
+        println!("{expr} = {result}");
     }
 
     println!("\n✅ Basic example completed!");

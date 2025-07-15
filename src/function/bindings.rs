@@ -269,7 +269,7 @@ impl<'f> FunctionBindings<'f> {
     /// Returns `Ok(())` if successfully removed, or an error if the function doesn't exist
     pub fn remove(&mut self, name: &str) -> Result<(), Error> {
         if self.entries.remove(name).is_none() {
-            return Err(Error::not_found(format!("Function {} not found", name)));
+            return Err(Error::not_found(format!("Function {name} not found")));
         }
         Ok(())
     }

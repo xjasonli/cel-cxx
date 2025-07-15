@@ -168,7 +168,7 @@ impl<'f> FfiActivation<'f> for FfiActivationImpl<'f> {
                     ))),
                     Err(e) => Err(Status::new(
                         StatusCode::Internal,
-                        format!("Failed to call provider: {}", e).as_str(),
+                        format!("Failed to call provider: {e}").as_str(),
                     )),
                 }
             }
@@ -411,7 +411,7 @@ pub(crate) mod async_activation {
                     ))),
                     Err(e) => Err(Status::new(
                         StatusCode::Internal,
-                        format!("Failed to call provider: {}", e).as_str(),
+                        format!("Failed to call provider: {e}").as_str(),
                     )),
                 },
             }

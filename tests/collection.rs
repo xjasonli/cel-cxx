@@ -12,7 +12,7 @@ fn test_map_function() -> Result<(), Error> {
     let program = env.compile(expr)?;
 
     let value = program.evaluate(())?;
-    println!("value: {:?}", value);
+    println!("value: {value:?}");
 
     let Value::List(list) = value else {
         return Err(Error::invalid_argument("expected list".to_string()));
@@ -88,7 +88,7 @@ fn test_hand_map_function() -> Result<(), Error> {
         .bind_variable("a", a)?;
 
     let res = program.evaluate(&activation)?;
-    println!("res: {:?}", res);
+    println!("res: {res:?}");
 
     let Value::List(list) = res else {
         return Err(Error::invalid_argument("expected list".to_string()));
@@ -100,7 +100,7 @@ fn test_hand_map_function() -> Result<(), Error> {
             i64::try_from(v).map_err(|_| Error::invalid_argument("invalid vec i64".to_string()))
         })
         .collect();
-    println!("map res: {:?}", mapres?);
+    println!("map res: {mapres:?}");
 
     // let Value::String(tystr) = res else { todo!() };
     // assert_eq!("i64", tystr);
@@ -121,7 +121,7 @@ fn test_list_expr() -> Result<(), Error> {
     let activation = Activation::new();
 
     let res = program.evaluate(&activation)?;
-    println!("res: {:?}", res);
+    println!("res: {res:?}");
 
     let Value::List(list) = res else {
         return Err(Error::invalid_argument("expected list".to_string()));

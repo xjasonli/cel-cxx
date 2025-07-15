@@ -91,18 +91,18 @@ mod ffi {
         fn CompilerOptions_new() -> UniquePtr<CompilerOptions>;
 
         // CompilerOptions getters and setters
-        fn CompilerOptions_parser_options<'a>(
-            compiler_options: &'a CompilerOptions,
-        ) -> &'a ParserOptions;
-        fn CompilerOptions_parser_options_mut<'a>(
-            compiler_options: Pin<&'a mut CompilerOptions>,
-        ) -> Pin<&'a mut ParserOptions>;
-        fn CompilerOptions_checker_options<'a>(
-            compiler_options: &'a CompilerOptions,
-        ) -> &'a CheckerOptions;
-        fn CompilerOptions_checker_options_mut<'a>(
-            compiler_options: Pin<&'a mut CompilerOptions>,
-        ) -> Pin<&'a mut CheckerOptions>;
+        fn CompilerOptions_parser_options(
+            compiler_options: &CompilerOptions,
+        ) -> &ParserOptions;
+        fn CompilerOptions_parser_options_mut(
+            compiler_options: Pin<&mut CompilerOptions>,
+        ) -> Pin<&mut ParserOptions>;
+        fn CompilerOptions_checker_options(
+            compiler_options: &CompilerOptions,
+        ) -> &CheckerOptions;
+        fn CompilerOptions_checker_options_mut(
+            compiler_options: Pin<&mut CompilerOptions>,
+        ) -> Pin<&mut CheckerOptions>;
     }
 }
 

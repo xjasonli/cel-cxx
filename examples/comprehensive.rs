@@ -151,7 +151,7 @@ fn demo1_basic_operations() -> Result<(), Error> {
         .declare_variable::<i64>("age")?
         .declare_variable::<f64>("score")?
         // ✨ Zero-annotation functions - types automatically inferred!
-        .register_global_function("greet", |name: &str| format!("Hello, {}!", name))?
+        .register_global_function("greet", |name: &str| format!("Hello, {name}!"))?
         .register_global_function("is_adult", |age: i64| age >= 18)?
         .register_global_function("grade", |score: f64| -> String {
             match score {
@@ -204,7 +204,7 @@ fn demo1_basic_operations() -> Result<(), Error> {
             .bind_variable("score", score)?;
 
         let result = program.evaluate(&activation)?;
-        println!("  {} = {} ({})", expr, result, description);
+        println!("  {expr} = {result} ({description})");
     }
 
     println!();
@@ -230,7 +230,7 @@ fn demo2_variable_operations() -> Result<(), Error> {
             .bind_variable("a", 10)?
             .bind_variable("b", 20)?;
         let result = program.evaluate(&activation)?;
-        println!("    a + b = {} (direct binding)", result);
+        println!("    a + b = {result} (direct binding)");
     }
 
     // Test variable provider binding
@@ -244,7 +244,7 @@ fn demo2_variable_operations() -> Result<(), Error> {
                 Ok(7)
             })?;
         let result = program.evaluate(&activation)?;
-        println!("    a * b = {} (provider binding)", result);
+        println!("    a * b = {result} (provider binding)");
     }
 
     // Test function declaration and binding
@@ -256,8 +256,7 @@ fn demo2_variable_operations() -> Result<(), Error> {
             .bind_global_function("get_const", || -> Result<i64, Error> { Ok(100) })?;
         let result = program.evaluate(&activation)?;
         println!(
-            "    get_const() + multiply(a, 3) = {} (function binding)",
-            result
+            "    get_const() + multiply(a, 3) = {result} (function binding)"
         );
     }
 
@@ -305,7 +304,7 @@ fn demo3_opaque_member_functions() -> Result<(), Error> {
     for (expr, description) in test_expressions {
         let program = env.compile(expr)?;
         let result = program.evaluate(&activation)?;
-        println!("  {} = {} ({})", expr, result, description);
+        println!("  {expr} = {result} ({description})");
     }
 
     println!();
@@ -360,7 +359,7 @@ fn demo4_type_conversions() -> Result<(), Error> {
     for (expr, description) in test_cases {
         let program = env.compile(expr)?;
         let result = program.evaluate(())?;
-        println!("  {} = {} ({})", expr, result, description);
+        println!("  {expr} = {result} ({description})");
 
         // Demonstrate type conversion back to Rust types
         match expr {
@@ -368,19 +367,19 @@ fn demo4_type_conversions() -> Result<(), Error> {
                 let rust_string: String = result
                     .try_into()
                     .map_err(|_| Error::invalid_argument("string conversion failed".to_string()))?;
-                println!("    Converted back to Rust String: '{}'", rust_string);
+                println!("    Converted back to Rust String: '{rust_string}'");
             }
             "return_int_result()" => {
                 let rust_int: i64 = result
                     .try_into()
                     .map_err(|_| Error::invalid_argument("int conversion failed".to_string()))?;
-                println!("    Converted back to Rust i64: {}", rust_int);
+                println!("    Converted back to Rust i64: {rust_int}");
             }
             "return_list()" => {
                 let rust_list: Vec<i64> = result
                     .try_into()
                     .map_err(|_| Error::invalid_argument("list conversion failed".to_string()))?;
-                println!("    Converted back to Rust Vec<i64>: {:?}", rust_list);
+                println!("    Converted back to Rust Vec<i64>: {rust_list:?}");
             }
             _ => {}
         }
@@ -460,7 +459,7 @@ fn demo5_generic_functions() -> Result<(), Error> {
     for (expr, description) in test_cases {
         let program = env.compile(expr)?;
         let result = program.evaluate(&activation)?;
-        println!("  {} = {} ({})", expr, result, description);
+        println!("  {expr} = {result} ({description})");
     }
 
     println!();
@@ -530,7 +529,7 @@ fn demo6_error_handling() -> Result<(), Error> {
                     0..=17 => Ok("minor".to_string()),
                     18..=64 => Ok("adult".to_string()),
                     65..=120 => Ok("senior".to_string()),
-                    _ => Err(ValidationError::AgeError(format!("Invalid age: {}", age))),
+                    _ => Err(ValidationError::AgeError(format!("Invalid age: {age}"))),
                 }
             },
         )?
@@ -632,13 +631,13 @@ fn demo6_error_handling() -> Result<(), Error> {
 
         match program.evaluate(&activation) {
             Ok(result) => {
-                println!("  {} = {} ✅ ({})", expr, result, description);
+                println!("  {expr} = {result} ✅ ({description})");
                 if !should_succeed {
                     println!("    ⚠️  Expected this to fail!");
                 }
             }
             Err(e) => {
-                println!("  {} -> ERROR: {} ❌ ({})", expr, e, description);
+                println!("  {expr} -> ERROR: {e} ❌ ({description})");
                 if should_succeed {
                     println!("    ⚠️  Expected this to succeed!");
                 }
@@ -663,13 +662,13 @@ fn demo7_program_introspection() -> Result<(), Error> {
         let program = env.compile("a + b")?;
         let return_type = program.return_type();
         println!("  Expression: 'a + b'");
-        println!("    Return type: {}", return_type);
+        println!("    Return type: {return_type}");
 
         let activation = Activation::new()
             .bind_variable("a", 10)?
             .bind_variable("b", 20)?;
         let result = program.evaluate(&activation)?;
-        println!("    Result: {}", result);
+        println!("    Result: {result}");
     }
 
     // Test with string expression
@@ -681,13 +680,13 @@ fn demo7_program_introspection() -> Result<(), Error> {
         let program = env.compile("a + b")?;
         let return_type = program.return_type();
         println!("  Expression: 'a + b' (strings)");
-        println!("    Return type: {}", return_type);
+        println!("    Return type: {return_type}");
 
         let activation = Activation::new()
             .bind_variable("a", "Hello ".to_string())?
             .bind_variable("b", "World!".to_string())?;
         let result = program.evaluate(&activation)?;
-        println!("    Result: {}", result);
+        println!("    Result: {result}");
     }
 
     // Test with boolean expression
@@ -696,11 +695,11 @@ fn demo7_program_introspection() -> Result<(), Error> {
         let program = env.compile("age >= 18")?;
         let return_type = program.return_type();
         println!("  Expression: 'age >= 18'");
-        println!("    Return type: {}", return_type);
+        println!("    Return type: {return_type}");
 
         let activation = Activation::new().bind_variable("age", 25i64)?;
         let result = program.evaluate(&activation)?;
-        println!("    Result: {}", result);
+        println!("    Result: {result}");
     }
 
     println!();
@@ -813,7 +812,7 @@ fn demo8_container_operations() -> Result<(), Error> {
     for (expr, description) in test_expressions {
         let program = env.compile(expr)?;
         let result = program.evaluate(&activation)?;
-        println!("  {} = {} ({})", expr, result, description);
+        println!("  {expr} = {result} ({description})");
     }
 
     println!();

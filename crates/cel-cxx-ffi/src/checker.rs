@@ -71,31 +71,31 @@ mod ffi {
         fn CheckerOptions_enable_cross_numeric_comparisons(
             checker_options: &CheckerOptions,
         ) -> bool;
-        fn CheckerOptions_enable_cross_numeric_comparisons_mut<'a>(
-            checker_options: Pin<&'a mut CheckerOptions>,
-        ) -> &'a mut bool;
+        fn CheckerOptions_enable_cross_numeric_comparisons_mut(
+            checker_options: Pin<&mut CheckerOptions>,
+        ) -> &mut bool;
         fn CheckerOptions_enable_legacy_null_assignment(checker_options: &CheckerOptions) -> bool;
-        fn CheckerOptions_enable_legacy_null_assignment_mut<'a>(
-            checker_options: Pin<&'a mut CheckerOptions>,
-        ) -> &'a mut bool;
+        fn CheckerOptions_enable_legacy_null_assignment_mut(
+            checker_options: Pin<&mut CheckerOptions>,
+        ) -> &mut bool;
         fn CheckerOptions_update_struct_type_names(checker_options: &CheckerOptions) -> bool;
-        fn CheckerOptions_update_struct_type_names_mut<'a>(
-            checker_options: Pin<&'a mut CheckerOptions>,
-        ) -> &'a mut bool;
+        fn CheckerOptions_update_struct_type_names_mut(
+            checker_options: Pin<&mut CheckerOptions>,
+        ) -> &mut bool;
         fn CheckerOptions_allow_well_known_type_context_declarations(
             checker_options: &CheckerOptions,
         ) -> bool;
-        fn CheckerOptions_allow_well_known_type_context_declarations_mut<'a>(
-            checker_options: Pin<&'a mut CheckerOptions>,
-        ) -> &'a mut bool;
+        fn CheckerOptions_allow_well_known_type_context_declarations_mut(
+            checker_options: Pin<&mut CheckerOptions>,
+        ) -> &mut bool;
         fn CheckerOptions_max_expression_node_count(checker_options: &CheckerOptions) -> i32;
-        fn CheckerOptions_max_expression_node_count_mut<'a>(
-            checker_options: Pin<&'a mut CheckerOptions>,
-        ) -> &'a mut i32;
+        fn CheckerOptions_max_expression_node_count_mut(
+            checker_options: Pin<&mut CheckerOptions>,
+        ) -> &mut i32;
         fn CheckerOptions_max_error_issues(checker_options: &CheckerOptions) -> i32;
-        fn CheckerOptions_max_error_issues_mut<'a>(
-            checker_options: Pin<&'a mut CheckerOptions>,
-        ) -> &'a mut i32;
+        fn CheckerOptions_max_error_issues_mut(
+            checker_options: Pin<&mut CheckerOptions>,
+        ) -> &mut i32;
 
         // TypeCheckerBuilder
         fn TypeCheckerBuilder_add_library<'a>(
@@ -256,7 +256,7 @@ unsafe impl Sync for TypeChecker {}
 impl std::fmt::Debug for TypeChecker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ptr = self as *const TypeChecker;
-        write!(f, "TypeChecker {{ ptr: {:p} }}", ptr)
+        write!(f, "TypeChecker {{ ptr: {ptr:p} }}")
     }
 }
 

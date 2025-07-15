@@ -217,7 +217,7 @@ unsafe impl cxx::ExternType for StatusCode {
 impl std::fmt::Display for StatusCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = ffi::StatusCode_to_string(*self);
-        write!(f, "{}", string)
+        write!(f, "{string}")
     }
 }
 
@@ -251,14 +251,14 @@ impl Default for Status {
 impl std::fmt::Display for Status {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = ffi::Status_to_string(self);
-        write!(f, "{}", string)
+        write!(f, "{string}")
     }
 }
 
 impl std::fmt::Debug for Status {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = ffi::Status_to_string(self);
-        write!(f, "{}", string)
+        write!(f, "{string}")
     }
 }
 

@@ -167,105 +167,105 @@ mod ffi {
 
         // RuntimeOptions getters and setters
         fn RuntimeOptions_container(runtime_options: &RuntimeOptions) -> &str;
-        fn RuntimeOptions_container_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> Pin<&'a mut CxxString>;
+        fn RuntimeOptions_container_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> Pin<&mut CxxString>;
         fn RuntimeOptions_unknown_processing(
             runtime_options: &RuntimeOptions,
         ) -> UnknownProcessingOptions;
-        fn RuntimeOptions_unknown_processing_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut UnknownProcessingOptions;
+        fn RuntimeOptions_unknown_processing_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut UnknownProcessingOptions;
         fn RuntimeOptions_enable_missing_attribute_errors(runtime_options: &RuntimeOptions)
             -> bool;
-        fn RuntimeOptions_enable_missing_attribute_errors_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_missing_attribute_errors_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_timestamp_duration_overflow_errors(
             runtime_options: &RuntimeOptions,
         ) -> bool;
-        fn RuntimeOptions_enable_timestamp_duration_overflow_errors_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_timestamp_duration_overflow_errors_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_short_circuiting(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_short_circuiting_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_short_circuiting_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_comprehension(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_comprehension_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_comprehension_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_comprehension_max_iterations(runtime_options: &RuntimeOptions) -> i32;
-        fn RuntimeOptions_comprehension_max_iterations_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut i32;
+        fn RuntimeOptions_comprehension_max_iterations_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut i32;
         fn RuntimeOptions_enable_comprehension_list_append(
             runtime_options: &RuntimeOptions,
         ) -> bool;
-        fn RuntimeOptions_enable_comprehension_list_append_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_comprehension_list_append_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_regex(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_regex_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_regex_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_regex_max_program_size(runtime_options: &RuntimeOptions) -> i32;
-        fn RuntimeOptions_regex_max_program_size_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut i32;
+        fn RuntimeOptions_regex_max_program_size_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut i32;
         fn RuntimeOptions_enable_string_conversion(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_string_conversion_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_string_conversion_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_string_concat(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_string_concat_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_string_concat_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_list_concat(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_list_concat_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_list_concat_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_list_contains(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_list_contains_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_list_contains_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_fail_on_warnings(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_fail_on_warnings_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_fail_on_warnings_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_qualified_type_identifiers(
             runtime_options: &RuntimeOptions,
         ) -> bool;
-        fn RuntimeOptions_enable_qualified_type_identifiers_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_qualified_type_identifiers_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_heterogeneous_equality(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_heterogeneous_equality_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_heterogeneous_equality_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_empty_wrapper_null_unboxing(
             runtime_options: &RuntimeOptions,
         ) -> bool;
-        fn RuntimeOptions_enable_empty_wrapper_null_unboxing_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_empty_wrapper_null_unboxing_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_lazy_bind_initialization(runtime_options: &RuntimeOptions)
             -> bool;
-        fn RuntimeOptions_enable_lazy_bind_initialization_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_lazy_bind_initialization_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_max_recursion_depth(runtime_options: &RuntimeOptions) -> i32;
-        fn RuntimeOptions_max_recursion_depth_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut i32;
+        fn RuntimeOptions_max_recursion_depth_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut i32;
         fn RuntimeOptions_enable_recursive_tracing(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_recursive_tracing_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_recursive_tracing_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
         fn RuntimeOptions_enable_fast_builtins(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_fast_builtins_mut<'a>(
-            runtime_options: Pin<&'a mut RuntimeOptions>,
-        ) -> &'a mut bool;
+        fn RuntimeOptions_enable_fast_builtins_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
 
         // FunctionDescriptor
         fn FunctionDescriptor_new(
@@ -492,7 +492,7 @@ impl<'a, 'f> Runtime<'a, 'f> {
 impl<'a, 'f> std::fmt::Debug for Runtime<'a, 'f> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ptr = self as *const Runtime<'a, 'f>;
-        write!(f, "Runtime {{ ptr: {:p} }}", ptr)
+        write!(f, "Runtime {{ ptr: {ptr:p} }}")
     }
 }
 
@@ -541,7 +541,7 @@ impl<'a, 'f> RuntimeBuilder<'a, 'f> {
 impl<'a, 'f> std::fmt::Debug for RuntimeBuilder<'a, 'f> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ptr = self as *const RuntimeBuilder<'a, 'f>;
-        write!(f, "RuntimeBuilder {{ ptr: {:p} }}", ptr)
+        write!(f, "RuntimeBuilder {{ ptr: {ptr:p} }}")
     }
 }
 
@@ -893,7 +893,7 @@ impl<'a, 'f> Program<'a, 'f> {
 impl<'a, 'f> std::fmt::Debug for Program<'a, 'f> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ptr = self as *const Program<'a, 'f>;
-        write!(f, "Program {{ ptr: {:p} }}", ptr)
+        write!(f, "Program {{ ptr: {ptr:p} }}")
     }
 }
 

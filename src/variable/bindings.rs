@@ -216,7 +216,7 @@ impl<'f> VariableBindings<'f> {
     /// Returns `Ok(())` if successfully removed, or an error if the variable doesn't exist
     pub fn remove(&mut self, name: &str) -> Result<(), Error> {
         if self.entries.remove(name).is_none() {
-            return Err(Error::not_found(format!("Variable {} not found", name)));
+            return Err(Error::not_found(format!("Variable {name} not found")));
         }
         Ok(())
     }

@@ -37,7 +37,7 @@ fn test_simple_asyncfunc() -> Result<(), Error> {
             .bind_variable("b", 12i64)?;
 
         let res = rt.block_on(async { program.evaluate(&activation).await });
-        println!("res: {:?}", res);
+        println!("res: {res:?}");
         assert_eq!(res?, Value::Int(17));
     }
 
@@ -85,7 +85,7 @@ fn test_simple_asyncfunc_timeout() -> Result<(), Error> {
     });
 
     assert!(res.is_err());
-    println!("Expected timeout occurred: {:?}", res);
+    println!("Expected timeout occurred: {res:?}");
 
     Ok(())
 }
@@ -139,7 +139,7 @@ fn test_opaque_asyncfunc() -> Result<(), Error> {
 
         let res = rt.block_on(async { program.evaluate(&activation).await })?;
         assert_eq!(res, Value::Int(16));
-        println!("Opaque member function result: {}", res);
+        println!("Opaque member function result: {res}");
     }
 
     {
@@ -164,7 +164,7 @@ fn test_opaque_asyncfunc() -> Result<(), Error> {
             .try_into()
             .map_err(|_| Error::invalid_argument("conversion failed".to_string()))?;
         assert_eq!(result_list, vec![11, 13, 14, 15]);
-        println!("Async collection operation result: {:?}", result_list);
+        println!("Async collection operation result: {result_list:?}");
     }
 
     Ok(())
@@ -196,7 +196,7 @@ fn test_async_variable_provider() -> Result<(), Error> {
 
     let res = rt.block_on(async { program.evaluate(&activation).await })?;
     assert_eq!(res, Value::Int(50));
-    println!("Async variable provider result: {}", res);
+    println!("Async variable provider result: {res}");
 
     Ok(())
 }
@@ -205,7 +205,7 @@ fn test_async_variable_provider() -> Result<(), Error> {
 fn call_async_func() -> Result<(), Error> {
     let rt = Runtime::new().map_err(|e| Error::invalid_argument(e.to_string()))?;
     let result = rt.block_on(simple_async_fn());
-    println!("Simple async function result: {}", result);
+    println!("Simple async function result: {result}");
     assert_eq!(result, 42);
     Ok(())
 }
@@ -224,14 +224,14 @@ fn call_async_spawn() -> Result<(), Error> {
     let result = rt
         .block_on(handle)
         .map_err(|e| Error::invalid_argument(e.to_string()))?;
-    println!("Spawned async task result: {}", result);
+    println!("Spawned async task result: {result}");
     assert_eq!(result, 100);
     Ok(())
 }
 
 fn spawn_async_task(msg: String) -> JoinHandle<i32> {
     tokio::spawn(async move {
-        println!("Processing message: {}", msg);
+        println!("Processing message: {msg}");
         sleep(Duration::from_millis(50)).await;
         100
     })

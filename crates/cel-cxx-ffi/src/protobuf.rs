@@ -77,8 +77,7 @@ impl std::fmt::Debug for DescriptorPool {
         };
         write!(
             f,
-            "DescriptorPool {{ ptr: {:p}, is_generated: {} }}",
-            ptr, is_generated
+            "DescriptorPool {{ ptr: {ptr:p}, is_generated: {is_generated} }}",
         )
     }
 }
@@ -110,8 +109,7 @@ impl std::fmt::Debug for MessageFactory {
         };
         write!(
             f,
-            "MessageFactory {{ ptr: {:p}, is_generated: {} }}",
-            ptr, is_generated
+            "MessageFactory {{ ptr: {ptr:p}, is_generated: {is_generated} }}",
         )
     }
 }

@@ -195,10 +195,10 @@ impl Build {
 
         let mut build_command = bazel.build(["//:cel"]);
 
-        build_command.arg(format!("--platforms=//:{}", target));
+        build_command.arg(format!("--platforms=//:{target}"));
 
         if let Some(config) = target_config(target) {
-            build_command.arg(format!("--config={}", config));
+            build_command.arg(format!("--config={config}"));
         }
 
         self.run_command(build_command, "building cel")
@@ -269,7 +269,7 @@ impl Build {
             work_dir.join("bazel-bin").join(libcel_name),
             install_library_dir.join(libcel_name),
         )
-        .context(format!("failed to copy {}", libcel_name))?;
+        .context(format!("failed to copy {libcel_name}"))?;
 
         Ok(Artifacts {
             lib_dir: install_library_dir,
@@ -397,7 +397,7 @@ impl Artifacts {
     pub fn print_cargo_metadata(&self) {
         println!("cargo:rustc-link-search=native={}", self.lib_dir.display());
         for lib in self.libs.iter() {
-            println!("cargo:rustc-link-lib=static={}", lib);
+            println!("cargo:rustc-link-lib=static={lib}");
         }
         println!("cargo:include={}", self.include_dir.display());
         println!("cargo:lib={}", self.lib_dir.display());

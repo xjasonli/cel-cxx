@@ -551,7 +551,7 @@ impl<T> From<Optional<T>> for Option<T> {
 impl<T: std::fmt::Display> std::fmt::Display for Optional<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.as_option() {
-            Some(v) => write!(f, "optional({})", v),
+            Some(v) => write!(f, "optional({v})"),
             None => write!(f, "optional.none()"),
         }
     }

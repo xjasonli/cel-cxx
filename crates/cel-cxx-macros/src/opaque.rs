@@ -264,7 +264,7 @@ impl Attrs {
     fn cel_path(&self) -> syn::Path {
         self.crate_path
             .clone()
-            .unwrap_or_else(|| syn::parse_str(format!("::{}", CEL_CXX).as_str()).unwrap())
+            .unwrap_or_else(|| syn::parse_str(format!("::{CEL_CXX}").as_str()).unwrap())
     }
 
     fn opaque_type(&self, default: &str) -> syn::Expr {

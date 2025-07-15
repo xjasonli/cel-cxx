@@ -57,7 +57,7 @@ fn test_opaque_function_overload() -> Result<(), Error> {
             .bind_variable("il", il)?;
 
         let res = program.evaluate(&activation)?;
-        println!("u64 overload result: {:?}", res);
+        println!("u64 overload result: {res:?}");
 
         let result_vec: Vec<u64> = res
             .try_into()
@@ -78,7 +78,7 @@ fn test_opaque_function_overload() -> Result<(), Error> {
             .bind_variable("il", il)?;
 
         let res = program.evaluate(&activation)?;
-        println!("i64 overload result: {:?}", res);
+        println!("i64 overload result: {res:?}");
 
         let result_vec: Vec<i64> = res
             .try_into()
@@ -121,7 +121,7 @@ fn test_list_function_overload() -> Result<(), Error> {
         let activation = Activation::new().bind_variable("li64", li64)?;
 
         let res = program.evaluate(&activation)?;
-        println!("li64 num: {:?}", res);
+        println!("li64 num: {res:?}");
         assert_eq!(res, Value::Uint(6)); // len(5) + 1
     }
 
@@ -134,7 +134,7 @@ fn test_list_function_overload() -> Result<(), Error> {
         let activation = Activation::new().bind_variable("ls", ls)?;
 
         let res = program.evaluate(&activation)?;
-        println!("ls num: {:?}", res);
+        println!("ls num: {res:?}");
         assert_eq!(res, Value::Uint(5)); // len(2) + 3
     }
 
@@ -147,7 +147,7 @@ fn test_list_function_overload() -> Result<(), Error> {
         let activation = Activation::new().bind_variable("loi32", loi32)?;
 
         let res = program.evaluate(&activation)?;
-        println!("loi32 num: {:?}", res);
+        println!("loi32 num: {res:?}");
         assert_eq!(res, Value::Uint(7)); // len(3) + 4
     }
 
@@ -184,7 +184,7 @@ fn test_map_function_overload() -> Result<(), Error> {
 
         let res = program.evaluate(&activation)?;
         if let Value::String(result) = res {
-            println!("msi64 name: {}", result);
+            println!("msi64 name: {result}");
             assert!(result.contains("map of str->i64"));
         } else {
             return Err(Error::invalid_argument(
@@ -204,7 +204,7 @@ fn test_map_function_overload() -> Result<(), Error> {
 
         let res = program.evaluate(&activation)?;
         if let Value::String(result) = res {
-            println!("msoi64 name: {}", result);
+            println!("msoi64 name: {result}");
             assert!(result.contains("map of str->optioni64"));
         } else {
             return Err(Error::invalid_argument(

@@ -33,43 +33,43 @@ mod ffi {
 
         // ParserOptions getters and setters
         fn ParserOptions_error_recovery_limit(parser_options: &ParserOptions) -> i32;
-        fn ParserOptions_error_recovery_limit_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut i32;
+        fn ParserOptions_error_recovery_limit_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut i32;
         fn ParserOptions_max_recursion_depth(parser_options: &ParserOptions) -> i32;
-        fn ParserOptions_max_recursion_depth_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut i32;
+        fn ParserOptions_max_recursion_depth_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut i32;
         fn ParserOptions_expression_size_codepoint_limit(parser_options: &ParserOptions) -> i32;
-        fn ParserOptions_expression_size_codepoint_limit_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut i32;
+        fn ParserOptions_expression_size_codepoint_limit_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut i32;
         fn ParserOptions_error_recovery_token_lookahead_limit(
             parser_options: &ParserOptions,
         ) -> i32;
-        fn ParserOptions_error_recovery_token_lookahead_limit_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut i32;
+        fn ParserOptions_error_recovery_token_lookahead_limit_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut i32;
         fn ParserOptions_add_macro_calls(parser_options: &ParserOptions) -> bool;
-        fn ParserOptions_add_macro_calls_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut bool;
+        fn ParserOptions_add_macro_calls_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut bool;
         fn ParserOptions_enable_optional_syntax(parser_options: &ParserOptions) -> bool;
-        fn ParserOptions_enable_optional_syntax_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut bool;
+        fn ParserOptions_enable_optional_syntax_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut bool;
         fn ParserOptions_disable_standard_macros(parser_options: &ParserOptions) -> bool;
-        fn ParserOptions_disable_standard_macros_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut bool;
+        fn ParserOptions_disable_standard_macros_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut bool;
         fn ParserOptions_enable_hidden_accumulator_var(parser_options: &ParserOptions) -> bool;
-        fn ParserOptions_enable_hidden_accumulator_var_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut bool;
+        fn ParserOptions_enable_hidden_accumulator_var_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut bool;
         fn ParserOptions_enable_quoted_identifiers(parser_options: &ParserOptions) -> bool;
-        fn ParserOptions_enable_quoted_identifiers_mut<'a>(
-            parser_options: Pin<&'a mut ParserOptions>,
-        ) -> &'a mut bool;
+        fn ParserOptions_enable_quoted_identifiers_mut(
+            parser_options: Pin<&mut ParserOptions>,
+        ) -> &mut bool;
     }
 }
 
@@ -172,6 +172,6 @@ unsafe impl Sync for Parser {}
 impl std::fmt::Debug for Parser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let ptr = self as *const Parser;
-        write!(f, "Parser {{ ptr: {:p} }}", ptr)
+        write!(f, "Parser {{ ptr: {ptr:p} }}")
     }
 }

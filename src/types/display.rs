@@ -58,7 +58,7 @@ impl std::fmt::Display for MapType {
 impl std::fmt::Display for TypeType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(parameter) = &self.parameter {
-            write!(f, "type<{}>", parameter)
+            write!(f, "type<{parameter}>")
         } else {
             write!(f, "type")
         }
