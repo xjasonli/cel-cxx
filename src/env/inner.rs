@@ -145,11 +145,14 @@ impl<'f> EnvInner<'f> {
                 Ok(compiler)
             },
             ffi_runtime_builder: |ffi_ctx: &ffi::Ctx| {
-                let options = ffi::RuntimeOptions::new();
-                let mut builder = ffi::RuntimeBuilder::new_standard(
-                    ffi_ctx.shared_descriptor_pool().clone(),
-                    &options,
-                )?;
+                let mut options = ffi::RuntimeOptions::new();
+                *options.pin_mut().enable_qualified_type_identifiers_mut() = true;
+
+                let mut builder =
+                    ffi::RuntimeBuilder::new(ffi_ctx.shared_descriptor_pool().clone(), &options)?;
+
+                builder.pin_mut().enable_standard(&options)?;
+                builder.pin_mut().enable_optional(&options)?;
 
                 ffi::extensions::strings::register_function(
                     builder.pin_mut().function_registry(),

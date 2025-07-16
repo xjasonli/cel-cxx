@@ -51,9 +51,7 @@ mod ffi {
             parser_options: Pin<&mut ParserOptions>,
         ) -> &mut i32;
         fn ParserOptions_add_macro_calls(parser_options: &ParserOptions) -> bool;
-        fn ParserOptions_add_macro_calls_mut(
-            parser_options: Pin<&mut ParserOptions>,
-        ) -> &mut bool;
+        fn ParserOptions_add_macro_calls_mut(parser_options: Pin<&mut ParserOptions>) -> &mut bool;
         fn ParserOptions_enable_optional_syntax(parser_options: &ParserOptions) -> bool;
         fn ParserOptions_enable_optional_syntax_mut(
             parser_options: Pin<&mut ParserOptions>,

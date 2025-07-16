@@ -26,6 +26,8 @@ mod ffi {
     unsafe extern "C++" {
         include!("runtime/runtime.h");
         include!("runtime/function.h");
+        include!("runtime/standard_functions.h");
+
         type Kind = super::Kind;
         type Value<'a> = super::Value<'a>;
         type OpaqueType<'a> = super::OpaqueType<'a>;
@@ -69,7 +71,6 @@ mod ffi {
             descriptor: &FunctionDescriptor,
         ) -> Status;
 
-        include!(<runtime/standard_functions.h>);
         fn RegisterStandardFunctions(
             function_registry: Pin<&mut FunctionRegistry>,
             options: &RuntimeOptions,
@@ -82,6 +83,12 @@ mod ffi {
             self: Pin<&mut TypeRegistry<'d, 'a>>,
             opaque_type: &OpaqueType<'a>,
         ) -> Status;
+    }
+
+    #[namespace = "cel::extensions"]
+    unsafe extern "C++" {
+        include!("runtime/optional_types.h");
+        fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
     }
 
     #[namespace = "cel::runtime_internal"]
@@ -152,11 +159,6 @@ mod ffi {
             options: &RuntimeOptions,
             result: &'this mut UniquePtr<RuntimeBuilder<'a, 'f>>,
         ) -> Status;
-        fn RuntimeBuilder_new_standard<'this, 'a, 'f>(
-            descriptor_pool: SharedPtr<DescriptorPool>,
-            options: &RuntimeOptions,
-            result: &'this mut UniquePtr<RuntimeBuilder<'a, 'f>>,
-        ) -> Status;
         fn RuntimeBuilder_build<'a, 'f>(
             runtime_builder: Pin<&mut RuntimeBuilder<'a, 'f>>,
             result: &mut UniquePtr<Runtime<'a, 'f>>,
@@ -206,9 +208,7 @@ mod ffi {
             runtime_options: Pin<&mut RuntimeOptions>,
         ) -> &mut bool;
         fn RuntimeOptions_enable_regex(runtime_options: &RuntimeOptions) -> bool;
-        fn RuntimeOptions_enable_regex_mut(
-            runtime_options: Pin<&mut RuntimeOptions>,
-        ) -> &mut bool;
+        fn RuntimeOptions_enable_regex_mut(runtime_options: Pin<&mut RuntimeOptions>) -> &mut bool;
         fn RuntimeOptions_regex_max_program_size(runtime_options: &RuntimeOptions) -> i32;
         fn RuntimeOptions_regex_max_program_size_mut(
             runtime_options: Pin<&mut RuntimeOptions>,
@@ -514,14 +514,21 @@ impl<'a, 'f> RuntimeBuilder<'a, 'f> {
             Err(status)
         }
     }
-    pub fn new_standard(
-        descriptor_pool: cxx::SharedPtr<DescriptorPool>,
-        options: &RuntimeOptions,
-    ) -> Result<cxx::UniquePtr<Self>, Status> {
-        let mut result = cxx::UniquePtr::null();
-        let status = ffi::RuntimeBuilder_new_standard(descriptor_pool, options, &mut result);
+
+    pub fn enable_standard(self: Pin<&mut Self>, options: &RuntimeOptions) -> Result<(), Status> {
+        let status = ffi::RegisterStandardFunctions(self.function_registry(), options);
         if status.is_ok() {
-            Ok(result)
+            Ok(())
+        } else {
+            Err(status)
+        }
+    }
+
+    #[allow(unused_variables)]
+    pub fn enable_optional(self: Pin<&mut Self>, options: &RuntimeOptions) -> Result<(), Status> {
+        let status = ffi::EnableOptionalTypes(self);
+        if status.is_ok() {
+            Ok(())
         } else {
             Err(status)
         }

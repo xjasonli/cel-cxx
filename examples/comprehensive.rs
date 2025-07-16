@@ -255,9 +255,7 @@ fn demo2_variable_operations() -> Result<(), Error> {
             .bind_variable("a", 4)?
             .bind_global_function("get_const", || -> Result<i64, Error> { Ok(100) })?;
         let result = program.evaluate(&activation)?;
-        println!(
-            "    get_const() + multiply(a, 3) = {result} (function binding)"
-        );
+        println!("    get_const() + multiply(a, 3) = {result} (function binding)");
     }
 
     println!();

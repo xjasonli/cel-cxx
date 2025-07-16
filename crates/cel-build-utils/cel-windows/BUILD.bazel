@@ -29,7 +29,9 @@ cc_static_library(
         "@cel-cpp//compiler:compiler_library_subset_factory",
 
         "@cel-cpp//runtime:runtime",
-        "@cel-cpp//runtime:standard_runtime_builder_factory",
+        "@cel-cpp//runtime:runtime_builder_factory",
+        "@cel-cpp//runtime:standard_functions",
+        "@cel-cpp//runtime:optional_types",
         "@cel-cpp//runtime:regex_precompilation",
         "@cel-cpp//runtime:comprehension_vulnerability_check",
         "@cel-cpp//runtime:constant_folding",

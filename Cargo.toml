@@ -110,6 +110,10 @@ path = "examples/comprehensive.rs"
 required-features = ["derive"]
 
 [[example]]
+name = "optional"
+path = "examples/optional.rs"
+
+[[example]]
 name = "tokio"
 path = "examples/async/tokio.rs"
 required-features = ["derive", "tokio"]

@@ -926,9 +926,7 @@ impl Value {
     pub fn unwrap_null(self) {
         match self {
             Value::Null => (),
-            _ => panic!(
-                "called `Value::unwrap_null()` on a non-null value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_null()` on a non-null value: {self:?}",),
         }
     }
 
@@ -936,9 +934,7 @@ impl Value {
     pub fn unwrap_bool(self) -> bool {
         match self {
             Value::Bool(b) => b,
-            _ => panic!(
-                "called `Value::unwrap_bool()` on a non-bool value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_bool()` on a non-bool value: {self:?}",),
         }
     }
 
@@ -946,9 +942,7 @@ impl Value {
     pub fn unwrap_int(self) -> i64 {
         match self {
             Value::Int(i) => i,
-            _ => panic!(
-                "called `Value::unwrap_int()` on a non-int value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_int()` on a non-int value: {self:?}",),
         }
     }
 
@@ -956,9 +950,7 @@ impl Value {
     pub fn unwrap_uint(self) -> u64 {
         match self {
             Value::Uint(u) => u,
-            _ => panic!(
-                "called `Value::unwrap_uint()` on a non-uint value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_uint()` on a non-uint value: {self:?}",),
         }
     }
 
@@ -966,9 +958,7 @@ impl Value {
     pub fn unwrap_double(self) -> f64 {
         match self {
             Value::Double(d) => d,
-            _ => panic!(
-                "called `Value::unwrap_double()` on a non-double value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_double()` on a non-double value: {self:?}",),
         }
     }
 
@@ -976,9 +966,7 @@ impl Value {
     pub fn unwrap_string(self) -> StringValue {
         match self {
             Value::String(s) => s,
-            _ => panic!(
-                "called `Value::unwrap_string()` on a non-string value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_string()` on a non-string value: {self:?}",),
         }
     }
 
@@ -986,9 +974,7 @@ impl Value {
     pub fn unwrap_bytes(self) -> BytesValue {
         match self {
             Value::Bytes(b) => b,
-            _ => panic!(
-                "called `Value::unwrap_bytes()` on a non-bytes value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_bytes()` on a non-bytes value: {self:?}",),
         }
     }
 
@@ -996,9 +982,7 @@ impl Value {
     pub fn unwrap_struct(self) {
         match self {
             Value::Struct(s) => s,
-            _ => panic!(
-                "called `Value::unwrap_struct()` on a non-struct value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_struct()` on a non-struct value: {self:?}",),
         }
     }
 
@@ -1006,9 +990,7 @@ impl Value {
     pub fn unwrap_duration(self) -> Duration {
         match self {
             Value::Duration(d) => d,
-            _ => panic!(
-                "called `Value::unwrap_duration()` on a non-duration value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_duration()` on a non-duration value: {self:?}",),
         }
     }
 
@@ -1016,9 +998,7 @@ impl Value {
     pub fn unwrap_timestamp(self) -> Timestamp {
         match self {
             Value::Timestamp(t) => t,
-            _ => panic!(
-                "called `Value::unwrap_timestamp()` on a non-timestamp value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_timestamp()` on a non-timestamp value: {self:?}",),
         }
     }
 
@@ -1026,9 +1006,7 @@ impl Value {
     pub fn unwrap_list(self) -> ListValue {
         match self {
             Value::List(l) => l,
-            _ => panic!(
-                "called `Value::unwrap_list()` on a non-list value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_list()` on a non-list value: {self:?}",),
         }
     }
 
@@ -1036,9 +1014,7 @@ impl Value {
     pub fn unwrap_map(self) -> MapValue {
         match self {
             Value::Map(m) => m,
-            _ => panic!(
-                "called `Value::unwrap_map()` on a non-map value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_map()` on a non-map value: {self:?}",),
         }
     }
 
@@ -1046,9 +1022,7 @@ impl Value {
     pub fn unwrap_unknown(self) {
         match self {
             Value::Unknown(u) => u,
-            _ => panic!(
-                "called `Value::unwrap_unknown()` on a non-unknown value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_unknown()` on a non-unknown value: {self:?}",),
         }
     }
 
@@ -1056,9 +1030,7 @@ impl Value {
     pub fn unwrap_type(self) -> ValueType {
         match self {
             Value::Type(t) => t,
-            _ => panic!(
-                "called `Value::unwrap_type()` on a non-type value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_type()` on a non-type value: {self:?}",),
         }
     }
 
@@ -1066,9 +1038,7 @@ impl Value {
     pub fn unwrap_error(self) -> Error {
         match self {
             Value::Error(e) => e,
-            _ => panic!(
-                "called `Value::unwrap_error()` on a non-error value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_error()` on a non-error value: {self:?}",),
         }
     }
 
@@ -1076,9 +1046,7 @@ impl Value {
     pub fn unwrap_opaque(self) -> OpaqueValue {
         match self {
             Value::Opaque(o) => o,
-            _ => panic!(
-                "called `Value::unwrap_opaque()` on a non-opaque value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_opaque()` on a non-opaque value: {self:?}",),
         }
     }
 
@@ -1086,9 +1054,7 @@ impl Value {
     pub fn unwrap_optional(self) -> OptionalValue {
         match self {
             Value::Optional(o) => o,
-            _ => panic!(
-                "called `Value::unwrap_optional()` on a non-optional value: {self:?}",
-            ),
+            _ => panic!("called `Value::unwrap_optional()` on a non-optional value: {self:?}",),
         }
     }
 

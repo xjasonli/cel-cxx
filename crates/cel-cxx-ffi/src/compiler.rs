@@ -91,15 +91,11 @@ mod ffi {
         fn CompilerOptions_new() -> UniquePtr<CompilerOptions>;
 
         // CompilerOptions getters and setters
-        fn CompilerOptions_parser_options(
-            compiler_options: &CompilerOptions,
-        ) -> &ParserOptions;
+        fn CompilerOptions_parser_options(compiler_options: &CompilerOptions) -> &ParserOptions;
         fn CompilerOptions_parser_options_mut(
             compiler_options: Pin<&mut CompilerOptions>,
         ) -> Pin<&mut ParserOptions>;
-        fn CompilerOptions_checker_options(
-            compiler_options: &CompilerOptions,
-        ) -> &CheckerOptions;
+        fn CompilerOptions_checker_options(compiler_options: &CompilerOptions) -> &CheckerOptions;
         fn CompilerOptions_checker_options_mut(
             compiler_options: Pin<&mut CompilerOptions>,
         ) -> Pin<&mut CheckerOptions>;
@@ -212,7 +208,12 @@ unsafe impl Sync for CompilerOptions {}
 
 impl CompilerOptions {
     pub fn new() -> cxx::UniquePtr<Self> {
-        ffi::CompilerOptions_new()
+        let mut options = ffi::CompilerOptions_new();
+        *options
+            .pin_mut()
+            .parser_options_mut()
+            .enable_optional_syntax_mut() = true;
+        options
     }
 
     pub fn parser_options(&self) -> &ParserOptions {

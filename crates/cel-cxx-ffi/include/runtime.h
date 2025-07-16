@@ -227,23 +227,6 @@ inline Status RuntimeBuilder_new(
     return Status();
 }
 
-inline Status RuntimeBuilder_new_standard(
-    std::shared_ptr<google::protobuf::DescriptorPool> descriptor_pool,
-    const RuntimeOptions& options,
-    std::unique_ptr<RuntimeBuilder>& result
-) {
-    auto status_or = cel::CreateStandardRuntimeBuilder(
-        descriptor_pool,
-        options
-    );
-    if (!status_or.ok()) {
-        return status_or.status();
-    }
-    auto builder = std::make_unique<RuntimeBuilder>(std::move(status_or.value()));
-    result.swap(builder);
-    return Status();
-}
-
 inline Status RuntimeBuilder_build(
     RuntimeBuilder& builder,
     std::unique_ptr<Runtime>& result
