@@ -73,9 +73,7 @@ impl<'f> EnvInner<'f> {
         variable_registry: VariableRegistry,
         mut env_options: EnvInnerOptions,
     ) -> Result<Self, ffi::Status> {
-        if !ffi::absl::log::is_log_initialized() {
-            ffi::absl::log::initialize_log();
-        }
+        ffi::absl::log::init();
 
         env_options.check_consistency();
 

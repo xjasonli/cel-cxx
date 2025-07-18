@@ -8,24 +8,24 @@ The math extension provides mathematical functions and operations beyond basic a
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
   - [2. Min and Max Operations](#2-min-and-max-operations)
-    - [math.min()](#mathmin)
-    - [math.max()](#mathmax)
-  - [3. Absolute Value](#3-absolute-value)
+    - [2.1 math.min()](#21-mathmin)
+    - [2.2 math.max()](#22-mathmax)
+  - [3. Absolute Value - `math.abs()`](#3-absolute-value---mathabs)
     - [math.abs()](#mathabs)
-  - [4. Sign Function](#4-sign-function)
+  - [4. Sign Function - `math.sign()`](#4-sign-function---mathsign)
     - [math.sign()](#mathsign)
   - [5. Rounding Functions](#5-rounding-functions)
-    - [math.ceil()](#mathceil)
-    - [math.floor()](#mathfloor)
-    - [math.round()](#mathround)
-    - [math.trunc()](#mathtrunc)
+    - [5.1 math.ceil()](#51-mathceil)
+    - [5.2 math.floor()](#52-mathfloor)
+    - [5.3 math.round()](#53-mathround)
+    - [5.4 math.trunc()](#54-mathtrunc)
   - [6. Bitwise Operations](#6-bitwise-operations)
-    - [math.bitAnd()](#mathbitand)
-    - [math.bitOr()](#mathbitor)
-    - [math.bitXor()](#mathbitxor)
-    - [math.bitNot()](#mathbitnot)
-    - [math.bitShiftLeft()](#mathbitshiftleft)
-    - [math.bitShiftRight()](#mathbitshiftright)
+    - [6.1 math.bitAnd()](#61-mathbitand)
+    - [6.2 math.bitOr()](#62-mathbitor)
+    - [6.3 math.bitXor()](#63-mathbitxor)
+    - [6.4 math.bitNot()](#64-mathbitnot)
+    - [6.5 math.bitShiftLeft()](#65-mathbitshiftleft)
+    - [6.6 math.bitShiftRight()](#66-mathbitshiftright)
   - [7. Usage Examples](#7-usage-examples)
     - [Range Validation](#range-validation)
     - [Statistical Operations](#statistical-operations)
@@ -46,7 +46,7 @@ let env = Env::builder()
 
 ## 2. Min and Max Operations
 
-### math.min()
+### 2.1 math.min()
 
 Returns the minimum value from a list or multiple arguments.
 
@@ -69,7 +69,7 @@ math.min([-5, -2, -8])      // -8
 math.min([42])              // 42
 ```
 
-### math.max()
+### 2.2 math.max()
 
 Returns the maximum value from a list or multiple arguments.
 
@@ -92,7 +92,7 @@ math.max([-5, -2, -8])      // -2
 math.max([42])              // 42
 ```
 
-## 3. Absolute Value
+## 3. Absolute Value - `math.abs()`
 
 ### math.abs()
 
@@ -114,7 +114,7 @@ math.abs(0)                 // 0
 math.abs(42)                // 42
 ```
 
-## 4. Sign Function
+## 4. Sign Function - `math.sign()`
 
 ### math.sign()
 
@@ -143,7 +143,7 @@ math.sign(42)               // 1
 
 ## 5. Rounding Functions
 
-### math.ceil()
+### 5.1 math.ceil()
 
 Rounds a number up to the nearest integer.
 
@@ -163,7 +163,7 @@ math.ceil(-5.0)             // -5.0
 math.ceil(0.1)              // 1.0
 ```
 
-### math.floor()
+### 5.2 math.floor()
 
 Rounds a number down to the nearest integer.
 
@@ -183,7 +183,7 @@ math.floor(-5.0)            // -5.0
 math.floor(0.9)             // 0.0
 ```
 
-### math.round()
+### 5.3 math.round()
 
 Rounds a number to the nearest integer.
 
@@ -205,7 +205,7 @@ math.round(5.5)             // 6.0
 
 **Rounding Rule:** Uses "round half away from zero" (banker's rounding)
 
-### math.trunc()
+### 5.4 math.trunc()
 
 Truncates a number to its integer part.
 
@@ -227,7 +227,7 @@ math.trunc(0.9)             // 0.0
 
 ## 6. Bitwise Operations
 
-### math.bitAnd()
+### 6.1 math.bitAnd()
 
 Performs bitwise AND operation.
 
@@ -246,7 +246,7 @@ math.bitAnd(15, 7)          // 7 (1111 & 0111 = 0111)
 math.bitAnd(0, 255)         // 0
 ```
 
-### math.bitOr()
+### 6.2 math.bitOr()
 
 Performs bitwise OR operation.
 
@@ -265,7 +265,7 @@ math.bitOr(8, 4)            // 12 (1000 | 0100 = 1100)
 math.bitOr(0, 255)          // 255
 ```
 
-### math.bitXor()
+### 6.3 math.bitXor()
 
 Performs bitwise XOR operation.
 
@@ -284,7 +284,7 @@ math.bitXor(15, 15)         // 0 (same numbers)
 math.bitXor(0, 255)         // 255
 ```
 
-### math.bitNot()
+### 6.4 math.bitNot()
 
 Performs bitwise NOT operation.
 
@@ -302,7 +302,7 @@ math.bitNot(0)              // -1
 math.bitNot(-1)             // 0
 ```
 
-### math.bitShiftLeft()
+### 6.5 math.bitShiftLeft()
 
 Performs left bit shift operation.
 
@@ -321,7 +321,7 @@ math.bitShiftLeft(1, 3)     // 8 (1 << 3 = 1000)
 math.bitShiftLeft(0, 5)     // 0
 ```
 
-### math.bitShiftRight()
+### 6.6 math.bitShiftRight()
 
 Performs right bit shift operation.
 

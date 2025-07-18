@@ -7,11 +7,11 @@ The sets extension provides set operations on lists, treating them as mathematic
 - [Sets Extension](#sets-extension)
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
-  - [2. Set Containment](#2-set-containment)
+  - [2. Set Containment - `contains()`](#2-set-containment---contains)
     - [contains()](#contains)
-  - [3. Set Equivalence](#3-set-equivalence)
+  - [3. Set Equivalence - `equivalent()`](#3-set-equivalence---equivalent)
     - [equivalent()](#equivalent)
-  - [4. Set Intersection](#4-set-intersection)
+  - [4. Set Intersection - `intersects()`](#4-set-intersection---intersects)
     - [intersects()](#intersects)
   - [5. Usage Examples](#5-usage-examples)
     - [Permission Checking](#permission-checking)
@@ -33,7 +33,7 @@ let env = Env::builder()
     .build()?;
 ```
 
-## 2. Set Containment
+## 2. Set Containment - `contains()`
 
 ### contains()
 
@@ -63,7 +63,7 @@ Checks if one set contains all elements of another set.
 - Empty list is considered a subset of any list
 - Order doesn't matter
 
-## 3. Set Equivalence
+## 3. Set Equivalence - `equivalent()`
 
 ### equivalent()
 
@@ -93,11 +93,11 @@ Checks if two sets contain exactly the same elements.
 - Duplicates are ignored
 - Two empty lists are equivalent
 
-## 4. Set Intersection
+## 4. Set Intersection - `intersects()`
 
 ### intersects()
 
-Checks if two sets have any common elements.
+Checks if two sets have any elements in common.
 
 **Syntax:** `list1.intersects(list2)`
 

@@ -23,6 +23,7 @@ default = []
 cxx = { workspace = true }
 dyn-clone = { workspace = true }
 chrono = { workspace = true }
+log = { workspace = true }
 
 [build-dependencies]
 cel-build-utils = { workspace = true }

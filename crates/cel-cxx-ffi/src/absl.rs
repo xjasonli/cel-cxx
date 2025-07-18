@@ -79,14 +79,25 @@ mod ffi {
         fn IsInitialized() -> bool;
     }
 
-    //#[namespace = "absl::time_internal"]
-    //unsafe extern "C++" {
-    //    fn FromUnixDuration(duration: Duration) -> Time;
-    //    fn ToUnixDuration(time: Time) -> Duration;
-    //    fn GetRepHi(duration: Duration) -> i64;
-    //    fn GetRepLo(duration: Duration) -> u32;
-    //    fn MakeDuration(hi: i64, lo: u32) -> Duration;
-    //}
+    #[namespace = "absl"]
+    unsafe extern "C++" {
+        include!("absl/log/log_entry.h");
+        
+        type LogSeverity = super::log::LogSeverity;
+        type LogSeverityAtLeast = super::log::LogSeverityAtLeast;
+        
+        type LogEntry;
+        // LogEntry accessor methods
+        fn log_severity(self: &LogEntry) -> LogSeverity;
+        fn text_message<'a>(self: &'a LogEntry) -> string_view<'a>;
+        fn source_filename<'a>(self: &'a LogEntry) -> string_view<'a>;
+        //fn source_basename<'a>(self: &'a LogEntry) -> string_view<'a>;
+        fn source_line(self: &LogEntry) -> i32;
+
+        include!("absl/log/globals.h");
+        #[rust_name = "set_stderr_threshold"]
+        fn SetStderrThreshold(severity: LogSeverityAtLeast);
+    }
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
@@ -108,11 +119,94 @@ mod ffi {
         fn Status_clone(status: &Status) -> Status;
         fn Status_drop(status: &mut Status);
         fn Status_to_string(status: &Status) -> String;
+        
+        #[rust_name = "set_log_callback"]
+        fn SetLogCallback();
+    }
+
+    #[namespace = "rust::cel_cxx"]
+    extern "Rust" {
+        fn log_callback(entry: &LogEntry);
     }
 }
 
+use log::log_callback;
 pub mod log {
-    pub use super::ffi::{initialize_log, is_log_initialized};
+    use super::ffi;
+    use std::sync::Once;
+
+    #[allow(dead_code)]
+    #[repr(i32)]
+    #[derive(Copy, Clone)]
+    pub(super) enum LogSeverity {
+        Info = 0,
+        Warning = 1,
+        Error = 2,
+        Fatal = 3,
+    }
+    unsafe impl cxx::ExternType for LogSeverity {
+        type Id = cxx::type_id!("absl::LogSeverity");
+        type Kind = cxx::kind::Trivial;
+    }
+
+    #[allow(dead_code)]
+    #[repr(i32)]
+    #[derive(Copy, Clone)]
+    pub(super) enum LogSeverityAtLeast {
+        Info = 0,
+        Warning = 1,
+        Error = 2,
+        Fatal = 3,
+        Infinity = 1000,
+    }
+    unsafe impl cxx::ExternType for LogSeverityAtLeast {
+        type Id = cxx::type_id!("absl::LogSeverityAtLeast");
+        type Kind = cxx::kind::Trivial;
+    }
+    
+    static BRIDGE_ONCE: Once = Once::new();
+    
+    /// Initialize absl log system and bridge to Rust log
+    /// This function is idempotent and can be called multiple times safely
+    pub fn init() {
+        // 1. Check and initialize absl log (atomic operation)
+        if !ffi::is_log_initialized() {
+            ffi::initialize_log();
+        }
+        
+        // 2. Bridge to Rust log (once only)
+        BRIDGE_ONCE.call_once(|| {
+            ffi::set_log_callback();
+        });
+
+        ffi::set_stderr_threshold(LogSeverityAtLeast::Infinity);
+    }
+    
+    /// Log callback function - converts absl::LogEntry to log::Record
+    pub(super) fn log_callback(entry: &ffi::LogEntry) {
+        // Convert absl log severity to log::Level
+        let level = match entry.log_severity() {
+            LogSeverity::Info => log::Level::Info,
+            LogSeverity::Warning => log::Level::Warn,
+            LogSeverity::Error => log::Level::Error,
+            LogSeverity::Fatal => log::Level::Error,
+        };
+        
+        // Extract message and file information
+        let message = entry.text_message().to_string_lossy();
+        let file = entry.source_filename().to_string_lossy();
+        let line = entry.source_line();
+        
+        // Create and log the record
+        log::logger().log(
+            &log::Record::builder()
+                .args(format_args!("{message}"))
+                .level(level)
+                .file(Some(file.as_ref()))
+                .line(if line > 0 { Some(line as u32) } else { None })
+                .build()
+        );
+    }
 }
 
 #[repr(transparent)]
@@ -557,15 +651,15 @@ impl<'a> StringView<'a> {
         self.len() == 0
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &'a [u8] {
         unsafe { std::slice::from_raw_parts(self.as_ptr(), self.len()) }
     }
 
-    pub fn to_str(&self) -> Result<&str, std::str::Utf8Error> {
+    pub fn to_str(&self) -> Result<&'a str, std::str::Utf8Error> {
         std::str::from_utf8(self.as_bytes())
     }
 
-    pub fn to_string_lossy(&self) -> Cow<'_, str> {
+    pub fn to_string_lossy(&self) -> Cow<'a, str> {
         String::from_utf8_lossy(self.as_bytes())
     }
 

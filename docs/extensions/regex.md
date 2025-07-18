@@ -8,9 +8,9 @@ The regex extension provides advanced regular expression operations for pattern 
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
   - [2. Pattern Extraction](#2-pattern-extraction)
-    - [regex.extract()](#regexextract)
-    - [regex.extractAll()](#regexextractall)
-  - [3. Pattern Replacement](#3-pattern-replacement)
+    - [2.1 regex.extract()](#21-regexextract)
+    - [2.2 regex.extractAll()](#22-regexextractall)
+  - [3. Pattern Replacement - `regex.replace()`](#3-pattern-replacement---regexreplace)
     - [regex.replace()](#regexreplace)
   - [4. Usage Examples](#4-usage-examples)
     - [Email Validation and Parsing](#email-validation-and-parsing)
@@ -38,7 +38,7 @@ let env = Env::builder()
 
 ## 2. Pattern Extraction
 
-### regex.extract()
+### 2.1 regex.extract()
 
 Returns the first match of a regex pattern in a string. If no match is found, it returns an optional none value. An error will be thrown for invalid regex or for multiple capture groups.
 
@@ -64,7 +64,7 @@ regex.extract('testuser@testdomain', '(.*)@([^.]*)') // Runtime Error: multiple 
 - If optional group is empty, returns optional.none
 - Supports at most one capturing group (multiple groups cause an error)
 
-### regex.extractAll()
+### 2.2 regex.extractAll()
 
 Returns a list of all matches of a regex pattern in a target string. If no matches are found, it returns an empty list. An error will be thrown for invalid regex or for multiple capture groups.
 
@@ -89,21 +89,18 @@ regex.extractAll('testuser@testdomain', '(.*)@([^.]*)') // Runtime Error: multip
 - Empty captured groups are excluded from results
 - Supports at most one capturing group (multiple groups cause an error)
 
-## 3. Pattern Replacement
+## 3. Pattern Replacement - `regex.replace()`
 
 ### regex.replace()
 
-Replaces all non-overlapping substrings of a regex pattern in the target string with a replacement string. Optionally, you can limit the number of replacements by providing a count argument.
+Replaces all occurrences of a regex pattern in a string with a replacement string.
 
-**Syntax:**
-- `regex.replace(target, pattern, replacement)`
-- `regex.replace(target, pattern, replacement, count)`
+**Syntax:** `regex.replace(target, pattern, replacement)`
 
 **Parameters:**
-- `target`: The input string
-- `pattern`: Regular expression pattern
-- `replacement`: The replacement string (supports capture group references)
-- `count`: Optional maximum number of replacements (default: all)
+- `target`: The input string to search
+- `pattern`: Regular expression pattern (raw string recommended)
+- `replacement`: String to replace matches with
 
 **Return Type:** `string`
 

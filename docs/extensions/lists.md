@@ -7,14 +7,14 @@ The lists extension provides advanced list processing functions that extend CEL'
 - [Lists Extension](#lists-extension)
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
-  - [2. List Slicing](#2-list-slicing)
-  - [3. List Flattening](#3-list-flattening)
-  - [4. List Deduplication](#4-list-deduplication)
-  - [5. List Reversal](#5-list-reversal)
+  - [2. List Slicing - `slice()`](#2-list-slicing---slice)
+  - [3. List Flattening - `flatten()`](#3-list-flattening---flatten)
+  - [4. List Deduplication - `unique()`](#4-list-deduplication---unique)
+  - [5. List Reversal - `reverse()`](#5-list-reversal---reverse)
   - [6. List Sorting](#6-list-sorting)
-    - [sort()](#sort)
-    - [sortBy()](#sortby)
-  - [7. Number Ranges](#7-number-ranges)
+    - [6.1 sort()](#61-sort)
+    - [6.2 sortBy()](#62-sortby)
+  - [7. Number Ranges - `range()`](#7-number-ranges---range)
   - [8. Usage Examples](#8-usage-examples)
     - [Data Deduplication and Cleaning](#data-deduplication-and-cleaning)
     - [Nested Data Processing](#nested-data-processing)
@@ -35,7 +35,7 @@ let env = Env::builder()
     .build()?;
 ```
 
-## 2. List Slicing
+## 2. List Slicing - `slice()`
 
 **Introduced in version:** 0
 
@@ -64,7 +64,7 @@ Returns a new sub-list using the indexes provided.
 - Out-of-bounds indices are clamped to valid ranges
 - If `start >= end`, returns empty list
 
-## 3. List Flattening
+## 3. List Flattening - `flatten()`
 
 **Introduced in version:** 1
 
@@ -95,7 +95,7 @@ Flattens a list recursively. If an optional depth is provided, the list is flatt
 - Non-list elements are preserved as-is
 - Negative depth values result in an error
 
-## 4. List Deduplication
+## 4. List Deduplication - `unique()`
 
 **Introduced in version:** 2
 
@@ -123,7 +123,7 @@ Returns the distinct elements of a list, preserving the order of first occurrenc
 - Empty lists return empty lists
 - Mixed types are supported
 
-## 5. List Reversal
+## 5. List Reversal - `reverse()`
 
 **Introduced in version:** 2
 
@@ -149,7 +149,7 @@ Returns the elements of a list in reverse order.
 
 **Introduced in version:** 2
 
-### sort()
+### 6.1 sort()
 
 Sorts a list with comparable elements. If the element type is not comparable or the element types are not the same, the function will produce an error.
 
@@ -172,7 +172,7 @@ Sorts a list with comparable elements. If the element type is not comparable or 
 [[1, 2, 3]].sort()                  // error (non-comparable type)
 ```
 
-### sortBy()
+### 6.2 sortBy()
 
 Sorts a list by a key value, i.e., the order is determined by the result of an expression applied to each element of the list. The output of the key expression must be a comparable type.
 
@@ -201,7 +201,7 @@ Sorts a list by a key value, i.e., the order is determined by the result of an e
 // [-1, -2, 3, 4]
 ```
 
-## 7. Number Ranges
+## 7. Number Ranges - `range()`
 
 **Introduced in version:** 2
 

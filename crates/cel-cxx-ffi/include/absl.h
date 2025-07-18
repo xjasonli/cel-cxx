@@ -3,6 +3,7 @@
 
 #include <rust/cxx.h>
 #include "absl/status/status.h"
+#include "absl/log/log_sink.h"
 
 namespace rust {
 template <> struct IsRelocatable<::absl::Status> : std::true_type {};
@@ -63,6 +64,15 @@ inline void Status_drop(Status& status) {
 inline String Status_to_string(const Status& status) {
     return String(status.ToString());
 }
+
+// Set log callback (internal use)
+void SetLogCallback();
+
+// Custom log sink for bridging to Rust
+class RustLogSink : public absl::LogSink {
+public:
+    void Send(const absl::LogEntry& entry) override;
+};
 
 } // namespace rust::cel_cxx
 

@@ -7,7 +7,7 @@ The bindings extension provides variable binding capabilities that allow you to 
 - [Bindings Extension](#bindings-extension)
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
-  - [2. Variable Binding](#2-variable-binding)
+  - [2. Variable Binding - `cel.bind()`](#2-variable-binding---celbind)
     - [cel.bind()](#celbind)
   - [3. Usage Examples](#3-usage-examples)
     - [Performance Optimization](#performance-optimization)
@@ -39,7 +39,7 @@ let env = Env::builder()
     .build()?;
 ```
 
-## 2. Variable Binding
+## 2. Variable Binding - `cel.bind()`
 
 ### cel.bind()
 
@@ -281,11 +281,5 @@ cel.bind(user_type, user.role,
 - The same variable name can be reused in different binding scopes
 - Bindings are particularly useful for avoiding repeated expensive computations
 - Local bindings are not guaranteed to be evaluated before use (lazy evaluation)
-
-The bindings extension is essential for writing maintainable, efficient CEL expressions by allowing you to break down complex logic into manageable, reusable components while avoiding redundant calculations. 
-  )
-)
-// Result: {"original": "  Hello, World!  ", "processed": "Hello, World!", "word_count": 2, "char_count": 13}
-```
 
 The bindings extension is essential for writing maintainable, efficient CEL expressions by allowing you to break down complex logic into manageable, reusable components while avoiding redundant calculations. 

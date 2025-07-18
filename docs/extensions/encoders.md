@@ -8,8 +8,8 @@ The encoders extension provides encoding and decoding functions for string, byte
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
   - [2. Base64 Encoding](#2-base64-encoding)
-    - [base64.decode()](#base64decode)
-    - [base64.encode()](#base64encode)
+    - [2.1 base64.decode()](#21-base64decode)
+    - [2.2 base64.encode()](#22-base64encode)
   - [3. Usage Examples](#3-usage-examples)
     - [Basic Data Encoding](#basic-data-encoding)
     - [Binary Data Handling](#binary-data-handling)
@@ -31,7 +31,7 @@ let env = Env::builder()
 
 ## 2. Base64 Encoding
 
-### base64.decode()
+### 2.1 base64.decode()
 
 Decodes base64-encoded string to bytes.
 
@@ -54,7 +54,7 @@ base64.decode('')                          // b""
 - Supports both standard and raw (unpadded) Base64 encoding
 - Automatically handles missing padding by trying alternative encoding
 
-### base64.encode()
+### 2.2 base64.encode()
 
 Encodes bytes to a base64-encoded string.
 

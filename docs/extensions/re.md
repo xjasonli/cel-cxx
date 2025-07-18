@@ -7,9 +7,9 @@
   - [Overview](#overview)
   - [Enabling the Extension](#enabling-the-extension)
   - [Functions](#functions)
-    - [re.extract](#reextract)
-    - [re.capture](#recapture)
-    - [re.captureN](#recapturen)
+    - [re.extract - `re.extract()`](#reextract---reextract)
+    - [re.capture - `re.capture()`](#recapture---recapture)
+    - [re.captureN - `re.captureN()`](#recapturen---recapturen)
   - [Error Handling](#error-handling)
   - [Performance Considerations](#performance-considerations)
   - [Comparison with Standard Regex Extension](#comparison-with-standard-regex-extension)
@@ -40,7 +40,7 @@ let env = EnvBuilder::new()
 
 ## Functions
 
-### re.extract
+### re.extract - `re.extract()`
 
 Extracts and rewrites matched groups from a target string using a regular expression pattern.
 
@@ -62,7 +62,7 @@ re.extract("2023-12-25", r"(\d{4})-(\d{2})-(\d{2})", r"\2/\3/\1")
 // Returns: "12/25/2023"
 ```
 
-### re.capture
+### re.capture - `re.capture()`
 
 Captures the first unnamed or named group from a regular expression match.
 
@@ -83,7 +83,7 @@ re.capture("Price: $29.99", r"Price: \$(\d+\.\d+)")
 // Returns: "29.99"
 ```
 
-### re.captureN
+### re.captureN - `re.captureN()`
 
 Captures all groups from a regular expression match and returns them as a map.
 

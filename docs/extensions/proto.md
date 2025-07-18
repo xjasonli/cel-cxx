@@ -7,9 +7,9 @@ The Protocol Buffers extension provides enhanced support for working with Protoc
 - [Protocol Buffers Extension](#protocol-buffers-extension)
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
-  - [2. Extension Field Access](#2-extension-field-access)
+  - [2. Extension Field Access - `proto.getExt()`](#2-extension-field-access---protogetext)
     - [proto.getExt()](#protogetext)
-  - [3. Extension Field Presence Testing](#3-extension-field-presence-testing)
+  - [3. Extension Field Presence Testing - `proto.hasExt()`](#3-extension-field-presence-testing---protohasext)
     - [proto.hasExt()](#protohasext)
   - [4. Usage Examples](#4-usage-examples)
     - [Basic Extension Field Access](#basic-extension-field-access)
@@ -34,7 +34,7 @@ let env = Env::builder()
     .build()?;
 ```
 
-## 2. Extension Field Access
+## 2. Extension Field Access - `proto.getExt()`
 
 ### proto.getExt()
 
@@ -61,7 +61,7 @@ proto.getExt(msg, google.expr.proto2.test.nested_ext)    // returns nested messa
 - Uses safe-traversal semantics (no errors on missing fields)
 - Only works with proto2 syntax messages that support extensions
 
-## 3. Extension Field Presence Testing
+## 3. Extension Field Presence Testing - `proto.hasExt()`
 
 ### proto.hasExt()
 

@@ -7,29 +7,29 @@ The strings extension provides advanced string manipulation functions that go be
 - [Strings Extension](#strings-extension)
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
-  - [2. Character Access](#2-character-access)
+  - [2. Character Access - `charAt()`](#2-character-access---charat)
     - [charAt()](#charat)
   - [3. String Search](#3-string-search)
-    - [indexOf()](#indexof)
-    - [lastIndexOf()](#lastindexof)
-  - [4. String Extraction](#4-string-extraction)
+    - [3.1 indexOf()](#31-indexof)
+    - [3.2 lastIndexOf()](#32-lastindexof)
+  - [4. String Extraction - `substring()`](#4-string-extraction---substring)
     - [substring()](#substring)
-  - [5. String Quoting](#5-string-quoting)
+  - [5. String Quoting - `strings.quote()`](#5-string-quoting---stringsquote)
     - [strings.quote()](#stringsquote)
-  - [6. String Trimming](#6-string-trimming)
+  - [6. String Trimming - `trim()`](#6-string-trimming---trim)
     - [trim()](#trim)
-  - [7. String Joining](#7-string-joining)
+  - [7. String Joining - `join()`](#7-string-joining---join)
     - [join()](#join)
-  - [8. String Splitting](#8-string-splitting)
+  - [8. String Splitting - `split()`](#8-string-splitting---split)
     - [split()](#split)
   - [9. Case Conversion](#9-case-conversion)
-    - [lowerAscii()](#lowerascii)
-    - [upperAscii()](#upperascii)
-  - [10. String Replacement](#10-string-replacement)
+    - [9.1 lowerAscii()](#91-lowerascii)
+    - [9.2 upperAscii()](#92-upperascii)
+  - [10. String Replacement - `replace()`](#10-string-replacement---replace)
     - [replace()](#replace)
-  - [11. String Formatting](#11-string-formatting)
+  - [11. String Formatting - `format()`](#11-string-formatting---format)
     - [format()](#format)
-  - [12. String Reversal](#12-string-reversal)
+  - [12. String Reversal - `reverse()`](#12-string-reversal---reverse)
     - [reverse()](#reverse)
   - [13. Usage Examples](#13-usage-examples)
     - [Email Processing](#email-processing)
@@ -49,7 +49,7 @@ let env = Env::builder()
     .build()?;
 ```
 
-## 2. Character Access
+## 2. Character Access - `charAt()`
 
 ### charAt()
 
@@ -77,7 +77,7 @@ Gets the character at a specific index.
 
 ## 3. String Search
 
-### indexOf()
+### 3.1 indexOf()
 
 Finds the first occurrence of a substring.
 
@@ -101,7 +101,7 @@ Finds the first occurrence of a substring.
 "programming".indexOf("gram")     // 3
 ```
 
-### lastIndexOf()
+### 3.2 lastIndexOf()
 
 Finds the last occurrence of a substring.
 
@@ -125,7 +125,7 @@ Finds the last occurrence of a substring.
 "banana".lastIndexOf("a")         // 5
 ```
 
-## 4. String Extraction
+## 4. String Extraction - `substring()`
 
 ### substring()
 
@@ -155,7 +155,7 @@ Extracts a portion of a string.
 - Out-of-bounds indices are clamped to valid ranges
 - If `start >= end`, returns empty string
 
-## 5. String Quoting
+## 5. String Quoting - `strings.quote()`
 
 ### strings.quote()
 
@@ -185,7 +185,7 @@ strings.quote("")                  // ""
 - `\\` → `\\\\` (backslash)
 - `\"` → `\\\"` (double quote)
 
-## 6. String Trimming
+## 6. String Trimming - `trim()`
 
 ### trim()
 
@@ -216,7 +216,7 @@ Removes whitespace from both ends of a string.
 - Form feed (`\f`)
 - Vertical tab (`\v`)
 
-## 7. String Joining
+## 7. String Joining - `join()`
 
 ### join()
 
@@ -242,7 +242,7 @@ Joins a list of strings with a separator.
 [].join(",")                        // ""
 ```
 
-## 8. String Splitting
+## 8. String Splitting - `split()`
 
 ### split()
 
@@ -276,7 +276,7 @@ Splits a string into a list of substrings.
 
 ## 9. Case Conversion
 
-### lowerAscii()
+### 9.1 lowerAscii()
 
 Converts ASCII characters to lowercase.
 
@@ -296,7 +296,7 @@ Converts ASCII characters to lowercase.
 "already lowercase".lowerAscii() // "already lowercase"
 ```
 
-### upperAscii()
+### 9.2 upperAscii()
 
 Converts ASCII characters to uppercase.
 
@@ -317,7 +317,7 @@ Converts ASCII characters to uppercase.
 
 **Note:** Only ASCII characters (A-Z, a-z) are converted. Unicode characters are left unchanged.
 
-## 10. String Replacement
+## 10. String Replacement - `replace()`
 
 ### replace()
 
@@ -344,7 +344,7 @@ Replaces occurrences of a substring with another string.
 "".replace("a", "b")                      // ""
 ```
 
-## 11. String Formatting
+## 11. String Formatting - `format()`
 
 ### format()
 
@@ -373,7 +373,7 @@ Formats a string using printf-style placeholders.
 "No placeholders".format([])             // "No placeholders"
 ```
 
-## 12. String Reversal
+## 12. String Reversal - `reverse()`
 
 ### reverse()
 
