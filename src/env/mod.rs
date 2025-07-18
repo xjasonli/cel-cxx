@@ -7,7 +7,7 @@ mod inner;
 
 use crate::ffi;
 use crate::{Error, Program, TypedValue};
-pub(crate) use inner::EnvInner;
+pub(crate) use inner::{EnvInner, EnvInnerOptions};
 
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
@@ -146,6 +146,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
 pub struct EnvBuilder<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
     function_registry: FunctionRegistry<'f>,
     variable_registry: VariableRegistry,
+    options: EnvInnerOptions,
     _fn_marker: std::marker::PhantomData<Fm>,
     _rt_marker: std::marker::PhantomData<Rm>,
 }
@@ -164,6 +165,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         EnvBuilder {
             function_registry: FunctionRegistry::new(),
             variable_registry: VariableRegistry::new(),
+            options: EnvInnerOptions::default(),
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         }
@@ -171,6 +173,215 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 }
 
 impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
+    /// Sets the CEL container for the environment, which acts as a namespace for unqualified names.
+    ///
+    /// The container influences how unqualified names (like function or variable names) are
+    /// resolved during expression compilation.
+    ///
+    /// # Examples
+    ///
+    /// If the container is set to `my.app`, an unqualified reference to `MyMessage` will be
+    /// resolved as `my.app.MyMessage`.
+    ///
+    /// ```cel
+    /// // With container "my.app", this expression:
+    /// MyMessage{field: 123}
+    /// // is equivalent to:
+    /// my.app.MyMessage{field: 123}
+    /// ```
+    pub fn with_container(mut self, container: impl Into<String>) -> Self {
+        self.options.container = container.into();
+        self
+    }
+
+    /// Enables or disables the CEL standard library of functions and macros.
+    ///
+    /// The standard library provides a rich set of common functions for types like `string`,
+    /// `list`, `map`, as well as logical and arithmetic operators. It is enabled by default.
+    /// Disabling it can reduce the environment's footprint if only custom functions are needed.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Standard functions like `size()` and operators like `+` are available:
+    /// 'hello'.size() + ' world'.size() == 11
+    /// ```
+    pub fn with_standard(mut self, enable: bool) -> Self {
+        self.options.enable_standard = enable;
+        self
+    }
+
+    /// Enables or disables support for CEL's optional types and related syntax.
+    ///
+    /// This enables the `optional` type and related features like optional field selection (`.?`),
+    /// optional index/key access (`[?_]`), and optional value construction (`{?key: ...}`).
+    /// This is disabled by default.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Optional field selection returns an optional value.
+    /// msg.?field.orValue('default')
+    ///
+    /// // Optional map construction only includes the entry if the value is present.
+    /// {'name': 'bob', ?'age': optional.of(25)}
+    /// ```
+    pub fn with_optional(mut self, enable: bool) -> Self {
+        self.options.enable_optional = enable;
+        self
+    }
+
+    /// Enables or disables the Bindings extension.
+    ///
+    /// This extension provides the `cel.bind()` macro, which allows for temporary variable
+    /// bindings within a CEL expression to improve readability and performance.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Bind a sub-expression to a variable `sub_list`.
+    /// cel.bind(sub_list, [1, 2, 3], sub_list.size() > 2)
+    /// ```
+    pub fn with_ext_bindings(mut self, enable: bool) -> Self {
+        self.options.enable_ext_bindings = enable;
+        self
+    }
+
+    /// Enables or disables the Encoders extension.
+    ///
+    /// This extension provides functions for encoding and decoding between common data formats,
+    /// such as `base64`.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Encode a byte sequence to a Base64 string.
+    /// base64.encode(b'hello') == 'aGVsbG8='
+    /// ```
+    pub fn with_ext_encoders(mut self, enable: bool) -> Self {
+        self.options.enable_ext_encoders = enable;
+        self
+    }
+
+    /// Enables or disables the Lists extension.
+    ///
+    /// This extension provides additional functions for working with lists, such as `indexOf`
+    /// and `lastIndexOf`.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Find the first index of an element in a list.
+    /// [1, 2, 3, 2].indexOf(2) == 1
+    /// ```
+    pub fn with_ext_lists(mut self, enable: bool) -> Self {
+        self.options.enable_ext_lists = enable;
+        self
+    }
+
+    /// Enables or disables the Math extension.
+    ///
+    /// This extension provides advanced mathematical functions beyond the standard operators,
+    /// such as `min`, `max`, and `sqrt`.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Find the minimum of a set of numbers.
+    /// math.min([5, 2, 8]) == 2
+    /// ```
+    pub fn with_ext_math(mut self, enable: bool) -> Self {
+        self.options.enable_ext_math = enable;
+        self
+    }
+
+    /// Enables or disables the Protocol Buffers (Protobuf) extension.
+    ///
+    /// This provides the ability to work with Protobuf messages, including accessing fields
+    /// and using Protobuf-specific functions.
+    ///
+    /// # Note
+    /// Requires proper setup of Protobuf descriptors in the environment.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Access a field on a Protobuf message.
+    /// my_proto_message.my_field == 'value'
+    /// ```
+    pub fn with_ext_proto(mut self, enable: bool) -> Self {
+        self.options.enable_ext_proto = enable;
+        self
+    }
+
+    /// Enables or disables the Regular Expression (Regex) extension.
+    ///
+    /// This extension provides functions for pattern matching on strings using regular expressions,
+    /// such as `matches`.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Check if a string matches a regex pattern.
+    /// 'a-123'.matches('^[a-z]-\\d+$')
+    /// ```
+    pub fn with_ext_regex(mut self, enable: bool) -> Self {
+        self.options.enable_ext_regex = enable;
+        self
+    }
+
+    /// Enables or disables the Regular Expression (Regex) extension.
+    ///
+    /// This extension provides functions for pattern matching on strings using regular expressions,
+    /// such as `matches`.
+    pub fn with_ext_re(mut self, enable: bool) -> Self {
+        self.options.enable_ext_re = enable;
+        self
+    }
+
+    /// Enables or disables the Sets extension.
+    ///
+    /// This extension provides functions for set-based operations on lists, such as `intersects`
+    /// and `contains`. Note that CEL does not have a native `set` type; these functions
+    /// treat lists as sets.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Check if two lists (treated as sets) have common elements.
+    /// [1, 2, 3].intersects([3, 4, 5])
+    /// ```
+    pub fn with_ext_sets(mut self, enable: bool) -> Self {
+        self.options.enable_ext_sets = enable;
+        self
+    }
+
+    /// Enables or disables the Strings extension.
+    ///
+    /// This extension provides additional functions for string manipulation, such as `join`,
+    /// `format`, and `replace`.
+    ///
+    /// # Examples
+    ///
+    /// ```cel
+    /// // Join a list of strings with a separator.
+    /// ['a', 'b', 'c'].join(',') == 'a,b,c'
+    /// ```
+    pub fn with_ext_strings(mut self, enable: bool) -> Self {
+        self.options.enable_ext_strings = enable;
+        self
+    }
+
+    /// Enables or disables the select optimization extension.
+    ///
+    /// This is an optimization that can improve the performance of `select` expressions
+    /// (field access) by transforming them at compile time. It does not introduce new
+    /// user-visible functions but can change the evaluation cost.
+    pub fn with_ext_select_optimization(mut self, enable: bool) -> Self {
+        self.options.enable_ext_select_optimization = enable;
+        self
+    }
+
     /// Registers a function (either global or member).
     ///
     /// This method allows you to register custom functions that can be called
@@ -315,6 +526,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
+            options: self.options,
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         })
@@ -386,6 +598,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
+            options: self.options,
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         })
@@ -503,6 +716,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
+            options: self.options,
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         })
@@ -534,6 +748,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
+            options: self.options,
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         })
@@ -556,6 +771,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
+            options: self.options,
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         })
@@ -578,6 +794,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
+            options: self.options,
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         })
@@ -610,6 +827,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
+            options: self.options,
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         })
@@ -648,6 +866,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         Ok(EnvBuilder {
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
+            options: self.options,
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         })
@@ -679,7 +898,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// Returns an error if the environment configuration is invalid or
     /// if the underlying CEL environment cannot be created.
     pub fn build(self) -> Result<Env<'f, Fm, Rm>, Error> {
-        let inner = EnvInner::new_with_registries(self.function_registry, self.variable_registry)
+        let inner = EnvInner::new_with_registries(self.function_registry, self.variable_registry, self.options)
             .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
         let env = Env {
             inner: Arc::new(inner),
@@ -746,6 +965,7 @@ const _: () = {
             EnvBuilder {
                 function_registry: self.function_registry,
                 variable_registry: self.variable_registry,
+                options: self.options,
                 _fn_marker: std::marker::PhantomData,
                 _rt_marker: std::marker::PhantomData,
             }
@@ -879,6 +1099,7 @@ const _: () = {
             EnvBuilder {
                 function_registry: self.function_registry,
                 variable_registry: self.variable_registry,
+                options: self.options,
                 _fn_marker: self._fn_marker,
                 _rt_marker: std::marker::PhantomData,
             }
@@ -979,6 +1200,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Default for EnvBuilder<'f, Fm, Rm> {
         EnvBuilder {
             function_registry: FunctionRegistry::new(),
             variable_registry: VariableRegistry::new(),
+            options: EnvInnerOptions::default(),
             _fn_marker: std::marker::PhantomData,
             _rt_marker: std::marker::PhantomData,
         }

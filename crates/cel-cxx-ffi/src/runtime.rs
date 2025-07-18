@@ -790,10 +790,6 @@ unsafe impl<'f> Send for FunctionRegistry<'f> {}
 unsafe impl<'f> Sync for FunctionRegistry<'f> {}
 
 impl<'f> FunctionRegistry<'f> {
-    pub fn register_standard_functions(self: Pin<&mut Self>, options: &RuntimeOptions) -> Status {
-        ffi::RegisterStandardFunctions(self, options)
-    }
-
     pub fn find_static_overloads<'this>(
         &'this self,
         name: StringView<'_>,

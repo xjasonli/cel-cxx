@@ -378,7 +378,7 @@ inline std::unique_ptr<StringValue> StringValue_new(const Arena& arena, Str valu
 }
 
 inline String StringValue_native_value(const StringValue& string_value) {
-    return string_value.ToString();
+    return String::lossy(string_value.ToString());
 }
 
 // TimestampValue

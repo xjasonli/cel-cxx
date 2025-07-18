@@ -7,13 +7,20 @@ module(
 bazel_dep(name = "rules_cc", version = "0.1.2")
 bazel_dep(name = "platforms", version = "1.0.0")
 
+# Abseil-CPP dependency
+bazel_dep(
+    name = "abseil-cpp",
+    version = "20250127.1",
+    repo_name = "com_google_absl",
+)
+
 # CEL-CPP dependency with patches for bazel build
 bazel_dep(name = "cel-cpp")
 git_override(
     module_name = "cel-cpp",
     # We need some patches
     remote = "https://github.com/xjasonli/cel-cpp.git",
-    commit = "3540ea522e12c06de4fbd44271a4c90c9c309b97",
+    tag = "cel-cxx-0.1.6",
     patches = [
         "//:fix_msvc.patch",
     ],

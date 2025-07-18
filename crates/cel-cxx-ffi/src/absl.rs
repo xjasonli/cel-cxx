@@ -6,6 +6,10 @@ use crate::Rep;
 mod ffi {
     #[namespace = "absl"]
     unsafe extern "C++" {
+        include!("absl/log/initialize.h");
+        #[rust_name = "initialize_log"]
+        fn InitializeLog();
+
         include!("absl/time/time.h");
 
         type Duration = super::Duration;
@@ -68,6 +72,13 @@ mod ffi {
         fn data(self: &string_view) -> *const c_char;
     }
 
+    #[namespace = "absl::log_internal"]
+    unsafe extern "C++" {
+        include!("absl/log/internal/globals.h");
+        #[rust_name = "is_log_initialized"]
+        fn IsInitialized() -> bool;
+    }
+
     //#[namespace = "absl::time_internal"]
     //unsafe extern "C++" {
     //    fn FromUnixDuration(duration: Duration) -> Time;
@@ -98,6 +109,10 @@ mod ffi {
         fn Status_drop(status: &mut Status);
         fn Status_to_string(status: &Status) -> String;
     }
+}
+
+pub mod log {
+    pub use super::ffi::{initialize_log, is_log_initialized};
 }
 
 #[repr(transparent)]

@@ -95,6 +95,9 @@ impl<'f> ProgramInner<'f> {
             eval_ctx.descriptor_pool(),
             eval_ctx.message_factory(),
         )?;
+        if value.is_error() && !self.return_type().is_error() {
+            return Err(value.expect_error("expect error but got value"));
+        }
         Ok(value)
     }
 
@@ -123,8 +126,9 @@ impl<'f> ProgramInner<'f> {
             Arc::new(std::sync::Mutex::new(abortable)),
         ));
 
+        let this = self.clone();
         let closure = move || -> Result<Value, Error> {
-            let ffi_value = self
+            let ffi_value = this
                 .ffi_program()
                 .evaluate(
                     eval_ctx.arena(),
@@ -152,16 +156,21 @@ impl<'f> ProgramInner<'f> {
             })
         };
 
+        let this = self.clone();
         let fut = async move {
             let _abort_handle = abort_handle;
 
             use futures::StreamExt as _;
             let _ = scope.into_future().await;
-            result
+            let value = result
                 .lock()
                 .expect("result lock failed")
                 .take()
-                .unwrap_or(Err(Error::unknown("unknown error")))
+                .unwrap_or(Err(Error::internal("async evaluation did not return a value")))?;
+            if value.is_error() && !this.return_type().is_error() {
+                return Err(value.expect_error("expect error but got value"));
+            }
+            Ok(value)
         };
         Box::pin(fut)
     }

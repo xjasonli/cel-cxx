@@ -169,23 +169,22 @@ platform(
 # ============================================================================
 # CEL Static Library
 # ============================================================================
-
-# This cc_static_library rule aims to create a "fat" static library
-# by archiving object files from its direct and transitive dependencies.
-# The list of dependencies is based on the direct_targets previously
-# used in the cel-cc-src/src/lib.rs build script.
-#
 # IMPORTANT: This rule is experimental and requires the
 # --experimental_cc_static_library Bazel flag to be enabled during the build.
 cc_static_library(
     name = "cel",  # This target will produce libcel.a
     deps = [
+        # For absl::InitializeLog()
+        "@com_google_absl//absl/log:initialize",
+
+        # compiler
         "@cel-cpp//compiler:compiler",
         "@cel-cpp//compiler:compiler_factory",
         "@cel-cpp//compiler:optional",
         "@cel-cpp//compiler:standard_library",
         "@cel-cpp//compiler:compiler_library_subset_factory",
 
+        # runtime
         "@cel-cpp//runtime:runtime",
         "@cel-cpp//runtime:runtime_builder_factory",
         "@cel-cpp//runtime:standard_functions",
@@ -194,12 +193,14 @@ cc_static_library(
         "@cel-cpp//runtime:comprehension_vulnerability_check",
         "@cel-cpp//runtime:constant_folding",
 
+        # extensions
         "@cel-cpp//extensions:encoders",
         "@cel-cpp//extensions:proto_ext",
         "@cel-cpp//extensions:math_ext",
         "@cel-cpp//extensions:math_ext_macros",
         "@cel-cpp//extensions:math_ext_decls",
         "@cel-cpp//extensions:regex_functions",
+        "@cel-cpp//extensions:regex_ext",
         "@cel-cpp//extensions:bindings_ext",
         "@cel-cpp//extensions:select_optimization",
         "@cel-cpp//extensions:lists_functions",
@@ -209,7 +210,4 @@ cc_static_library(
         "@cel-cpp//extensions:comprehensions_v2_macros",
         "@cel-cpp//extensions:formatting",
     ],
-    # Features like "symbol_check" are typically enabled by default for this rule.
-    # You can disable it if needed:
-    # features = ["-symbol_check"],
 )

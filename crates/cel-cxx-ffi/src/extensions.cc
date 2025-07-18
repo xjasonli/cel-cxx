@@ -1,4 +1,7 @@
 #include "cel-cxx-ffi/include/extensions.h"
+#include "cel-cxx-ffi/src/extensions.rs.h"
+#include <checker/internal/builtins_arena.h>
+#include <runtime/function_adapter.h>
 
 namespace cel::extensions {
 
@@ -16,4 +19,219 @@ CompilerLibrary BindingsCompilerLibrary() {
         AddBindingsExtensionMacros);
 }
 
+// regex_ext.h
+using ::cel::checker_internal::BuiltinsArena;
+
+const Type& OptionalStringType() {
+  static absl::NoDestructor<Type> kInstance(
+    OptionalType(BuiltinsArena(), StringType()));
+  return *kInstance;
+}
+
+const Type& ListStringType() {
+  static absl::NoDestructor<Type> kInstance(
+    ListType(BuiltinsArena(), StringType()));
+  return *kInstance;
+}
+
+absl::Status RegisterRegexExtensionDecls(TypeCheckerBuilder& builder) {
+  CEL_ASSIGN_OR_RETURN(
+    auto replace_decl,
+    MakeFunctionDecl(
+      "regex.replace",
+      MakeOverloadDecl("regex_replace_all", StringType(), StringType(), StringType(), StringType()),
+      MakeOverloadDecl("regex_replace_n", StringType(), StringType(), StringType(), StringType(), IntType())));
+
+  CEL_ASSIGN_OR_RETURN(
+    auto extract_decl,
+    MakeFunctionDecl(
+      "regex.extract",
+      MakeOverloadDecl("regex_extract", OptionalStringType(), StringType(), StringType())));
+  
+  CEL_ASSIGN_OR_RETURN(
+    auto extract_all_decl,
+    MakeFunctionDecl(
+      "regex.extract_all",
+      MakeOverloadDecl("regex_extract_all", ListStringType(), StringType(), StringType())));
+
+  CEL_RETURN_IF_ERROR(builder.AddFunction(std::move(replace_decl)));
+  CEL_RETURN_IF_ERROR(builder.AddFunction(std::move(extract_decl)));
+  CEL_RETURN_IF_ERROR(builder.AddFunction(std::move(extract_all_decl)));
+
+  return absl::OkStatus();
+}
+
+CheckerLibrary RegexExtensionCheckerLibrary() {
+    return {"cel.lib.ext.regex", &RegisterRegexExtensionDecls};
+}
+
+// strings.h
+
 } // namespace cel::extensions
+
+namespace rust::cel_cxx {
+
+using cel::Value;
+using cel::StringValue;
+using google::protobuf::DescriptorPool;
+using google::protobuf::MessageFactory;
+using google::protobuf::Arena;
+using cel::BinaryFunctionAdapter;
+using cel::TernaryFunctionAdapter;
+using cel::UnaryFunctionAdapter;
+
+absl::StatusOr<StringValue> CharAt(
+    const StringValue& string, int64_t index,
+    const DescriptorPool* descriptor_pool, MessageFactory* message_factory, Arena* arena) {
+  String result;
+  String input = String::lossy(string.ToString());
+  CEL_RETURN_IF_ERROR(
+    CharAtImpl(result, Str(input), index));
+  return StringValue::From(std::string(result), arena);
+}
+
+absl::StatusOr<int64_t> IndexOfOffset(
+    const StringValue& string,
+    const StringValue& substring,
+    int64_t start_index) {
+  int64_t result;
+  String input = String::lossy(string.ToString());
+  String substr = String::lossy(substring.ToString());
+  CEL_RETURN_IF_ERROR(IndexOfImpl(result, Str(input), Str(substr), start_index));
+  return result;
+}
+
+absl::StatusOr<int64_t> IndexOf(
+    const StringValue& string,
+    const StringValue& substring) {
+  return IndexOfOffset(string, substring, 0);
+}
+
+absl::StatusOr<int64_t> LastIndexOfOffset(
+    const StringValue& string,
+    const StringValue& substring,
+    int64_t start_index) {
+  int64_t result;
+  String input = String::lossy(string.ToString());
+  String substr = String::lossy(substring.ToString());
+  CEL_RETURN_IF_ERROR(LastIndexOfImpl(result, Str(input), Str(substr), start_index));
+  return result;
+}
+
+absl::StatusOr<int64_t> LastIndexOf(
+    const StringValue& string,
+    const StringValue& substring) {
+  return LastIndexOfOffset(string, substring, string.Size() - 1);
+}
+
+absl::StatusOr<StringValue> StringsQuote(
+    const StringValue& string,
+    const DescriptorPool* descriptor_pool, MessageFactory* message_factory, Arena* arena) {
+  String result;
+  String input = String::lossy(string.ToString());
+  CEL_RETURN_IF_ERROR(StringsQuoteImpl(result, Str(input)));
+  return StringValue::From(std::string(result), arena);
+}
+
+absl::StatusOr<StringValue> SubstringRange(
+    const StringValue& string,
+    int64_t start,
+    int64_t end,
+    const DescriptorPool* descriptor_pool, MessageFactory* message_factory, Arena* arena) {
+  String result;
+  String input = String::lossy(string.ToString());
+  CEL_RETURN_IF_ERROR(SubstringImpl(result, Str(input), start, end));
+  return StringValue::From(std::string(result), arena);
+}
+
+absl::StatusOr<StringValue> Substring(
+    const StringValue& string,
+    int64_t start,
+    const DescriptorPool* descriptor_pool, MessageFactory* message_factory, Arena* arena) {
+  return SubstringRange(string, start, string.Size(), descriptor_pool, message_factory, arena);
+}
+
+absl::StatusOr<StringValue> Trim(
+    const StringValue& string,
+    const DescriptorPool* descriptor_pool, MessageFactory* message_factory, Arena* arena) {
+  String result;
+  String input = String::lossy(string.ToString());
+  CEL_RETURN_IF_ERROR(TrimImpl(result, Str(input)));
+  return StringValue::From(std::string(result), arena);
+}
+
+absl::StatusOr<StringValue> Reverse(
+    const StringValue& string,
+    const DescriptorPool* descriptor_pool, MessageFactory* message_factory, Arena* arena) {
+  String result;
+  String input = String::lossy(string.ToString());
+  CEL_RETURN_IF_ERROR(ReverseImpl(result, Str(input)));
+  return StringValue::From(std::string(result), arena);
+}
+
+absl::Status RegisterStringsFunctions(cel::FunctionRegistry& function_registry,
+    const cel::RuntimeOptions& runtime_options) {
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      BinaryFunctionAdapter<absl::StatusOr<Value>, const StringValue&, int64_t>::CreateDescriptor(
+        "charAt", true),
+      BinaryFunctionAdapter<absl::StatusOr<Value>, const StringValue&, int64_t>::WrapFunction(
+        CharAt)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      BinaryFunctionAdapter<absl::StatusOr<int64_t>, const StringValue&, const StringValue&>::CreateDescriptor(
+        "indexOf", true),
+      BinaryFunctionAdapter<absl::StatusOr<int64_t>, const StringValue&, const StringValue&>::WrapFunction(
+        IndexOf)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      TernaryFunctionAdapter<absl::StatusOr<int64_t>, const StringValue&, const StringValue&, int64_t>::CreateDescriptor(
+        "indexOf", true),
+      TernaryFunctionAdapter<absl::StatusOr<int64_t>, const StringValue&, const StringValue&, int64_t>::WrapFunction(
+        IndexOfOffset)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      BinaryFunctionAdapter<absl::StatusOr<int64_t>, const StringValue&, const StringValue&>::CreateDescriptor(
+        "lastIndexOf", true),
+      BinaryFunctionAdapter<absl::StatusOr<int64_t>, const StringValue&, const StringValue&>::WrapFunction(
+        LastIndexOf)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      TernaryFunctionAdapter<absl::StatusOr<int64_t>, const StringValue&, const StringValue&, int64_t>::CreateDescriptor(
+        "lastIndexOf", true),
+      TernaryFunctionAdapter<absl::StatusOr<int64_t>, const StringValue&, const StringValue&, int64_t>::WrapFunction(
+        LastIndexOfOffset)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      UnaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&>::CreateDescriptor(
+        "strings.quote", false),
+      UnaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&>::WrapFunction(
+        StringsQuote)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      TernaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&, int64_t, int64_t>::CreateDescriptor(
+        "substring", true),
+      TernaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&, int64_t, int64_t>::WrapFunction(
+        SubstringRange)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      BinaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&, int64_t>::CreateDescriptor(
+        "substring", true),
+      BinaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&, int64_t>::WrapFunction(
+        Substring)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      UnaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&>::CreateDescriptor(
+        "trim", true),
+      UnaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&>::WrapFunction(
+        Trim)));
+
+    CEL_RETURN_IF_ERROR(function_registry.Register(
+      UnaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&>::CreateDescriptor(
+        "reverse", true),
+      UnaryFunctionAdapter<absl::StatusOr<StringValue>, const StringValue&>::WrapFunction(
+        Reverse)));
+
+    return cel::extensions::RegisterStringsFunctions(function_registry, runtime_options);
+}
+
+} // namespace rust::cel_cxx
