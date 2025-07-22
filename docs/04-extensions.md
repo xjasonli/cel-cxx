@@ -63,20 +63,22 @@ The strings extension provides advanced string manipulation functions that go be
 The math extension provides mathematical functions and operations beyond basic arithmetic.
 
 **Key Features**:
-- Min/max operations (`math.min`, `math.max`)
-- Absolute value (`math.abs`)
-- Sign function (`math.sign`)
+- Min/max operations (`math.greatest`, `math.least`)
+- Absolute value and sign (`math.abs`, `math.sign`)
 - Rounding functions (`math.ceil`, `math.floor`, `math.round`, `math.trunc`)
-- Bitwise operations (`math.bitAnd`, `math.bitOr`, `math.bitXor`, etc.)
+- Bitwise operations (`math.bitAnd`, `math.bitOr`, `math.bitXor`, `math.bitNot`, `math.bitShiftLeft`, `math.bitShiftRight`)
 - Floating point helpers (`math.isInf`, `math.isNaN`, `math.isFinite`)
 - Square root (`math.sqrt`)
 
 **Example Usage**:
 ```cel
-math.min([1, 2, 3])                          // 1
+math.greatest(1, 2, 3)                       // 3
+math.least([-42.0, -21.5, -100.0])          // -100.0
 math.abs(-5)                                 // 5
 math.ceil(3.14)                              // 4.0
 math.bitAnd(12, 10)                          // 8
+math.sqrt(81)                                // 9.0
+math.isFinite(1.2)                           // true
 ```
 
 ### 2.3 Lists Extension

@@ -175,19 +175,37 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// Sets the CEL container for the environment, which acts as a namespace for unqualified names.
     ///
+    /// **Default**: Empty string (root scope)
+    ///
     /// The container influences how unqualified names (like function or variable names) are
-    /// resolved during expression compilation.
+    /// resolved during expression compilation. This affects the CEL runtime's name resolution
+    /// behavior for types, functions, and variables.
     ///
-    /// # Examples
+    /// # CEL Syntax Impact
     ///
-    /// If the container is set to `my.app`, an unqualified reference to `MyMessage` will be
-    /// resolved as `my.app.MyMessage`.
+    /// When a container is set, unqualified names in CEL expressions are automatically prefixed
+    /// with the container namespace:
     ///
     /// ```cel
     /// // With container "my.app", this expression:
     /// MyMessage{field: 123}
     /// // is equivalent to:
     /// my.app.MyMessage{field: 123}
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// // Set container for protobuf message resolution
+    /// let env = Env::builder()
+    ///     .with_container("com.example.proto")
+    ///     .build()?;
+    /// 
+    /// // Now "UserMessage" resolves to "com.example.proto.UserMessage"
+    /// let program = env.compile("UserMessage{name: 'Alice', id: 123}")?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_container(mut self, container: impl Into<String>) -> Self {
         self.options.container = container.into();
@@ -196,15 +214,48 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the CEL standard library of functions and macros.
     ///
+    /// **Default**: Enabled (`true`)
+    ///
     /// The standard library provides a rich set of common functions for types like `string`,
-    /// `list`, `map`, as well as logical and arithmetic operators. It is enabled by default.
-    /// Disabling it can reduce the environment's footprint if only custom functions are needed.
+    /// `list`, `map`, as well as logical and arithmetic operators. Disabling it can reduce 
+    /// the environment's footprint if only custom functions are needed.
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, provides access to all standard CEL operations:
+    /// - **Arithmetic**: `+`, `-`, `*`, `/`, `%`
+    /// - **Comparison**: `==`, `!=`, `<`, `<=`, `>`, `>=`
+    /// - **Logical**: `&&`, `||`, `!`
+    /// - **String operations**: `+` (concatenation), `contains()`, `startsWith()`, `endsWith()`, `size()`
+    /// - **List operations**: `size()`, `in`, `[]` (indexing), `+` (concatenation)
+    /// - **Map operations**: `size()`, `in`, `[]` (key access), `+` (merge)
+    /// - **Type conversions**: `int()`, `uint()`, `double()`, `string()`, `bytes()`
+    /// - **Conditional**: `? :` (ternary operator)
+    /// - **Macros**: `has()`, `all()`, `exists()`, `exists_one()`, `map()`, `filter()`
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Standard functions like `size()` and operators like `+` are available:
-    /// 'hello'.size() + ' world'.size() == 11
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// // Standard library enabled (default)
+    /// let env = Env::builder()
+    ///     .with_standard(true)
+    ///     .build()?;
+    /// 
+    /// // Can use standard functions
+    /// let program = env.compile("'hello'.size() + ' world'.size() == 11")?;
+    /// let result = program.evaluate(&Activation::new())?;
+    /// assert_eq!(result, Value::Bool(true));
+    /// 
+    /// // Standard library disabled
+    /// let env_minimal = Env::builder()
+    ///     .with_standard(false)
+    ///     .build()?;
+    /// 
+    /// // Standard functions not available - would cause compilation error
+    /// // env_minimal.compile("'hello'.size()")?; // Error!
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_standard(mut self, enable: bool) -> Self {
         self.options.enable_standard = enable;
@@ -213,18 +264,40 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables support for CEL's optional types and related syntax.
     ///
+    /// **Default**: Disabled (`false`)
+    ///
     /// This enables the `optional` type and related features like optional field selection (`.?`),
     /// optional index/key access (`[?_]`), and optional value construction (`{?key: ...}`).
-    /// This is disabled by default.
+    /// Required for some extensions like regex that return optional values.
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds support for:
+    /// - **Optional type**: `optional<T>` for values that may or may not be present
+    /// - **Optional field selection**: `msg.?field` returns `optional<T>` instead of error
+    /// - **Optional indexing**: `list[?index]` and `map[?key]` return `optional<T>`
+    /// - **Optional map construction**: `{?'key': value}` only includes entry if value is present
+    /// - **Optional methods**: `.hasValue()`, `.value()`, `.orValue(default)`
+    /// - **Optional literals**: `optional.of(value)`, `optional.none()`
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Optional field selection returns an optional value.
-    /// msg.?field.orValue('default')
-    ///
-    /// // Optional map construction only includes the entry if the value is present.
-    /// {'name': 'bob', ?'age': optional.of(25)}
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_optional(true)
+    ///     .build()?;
+    /// 
+    /// // Optional field selection
+    /// let program = env.compile("msg.?field.orValue('default')")?;
+    /// 
+    /// // Optional map construction
+    /// let program2 = env.compile("{'name': 'bob', ?'age': optional.of(25)}")?;
+    /// 
+    /// // Optional indexing
+    /// let program3 = env.compile("list[?5].hasValue()")?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_optional(mut self, enable: bool) -> Self {
         self.options.enable_optional = enable;
@@ -233,14 +306,47 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the Bindings extension.
     ///
+    /// **Default**: Disabled (`false`)
+    ///
     /// This extension provides the `cel.bind()` macro, which allows for temporary variable
-    /// bindings within a CEL expression to improve readability and performance.
+    /// bindings within a CEL expression to improve readability and performance by avoiding
+    /// repeated calculations.
+    ///
+    /// # Available Functions
+    ///
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `cel.bind(var, init, result)` | Bind variable to initialization expression | `cel.bind(x, 5, x * x)` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds the `cel.bind()` macro that creates local variable scopes:
+    /// - Variables are scoped to the result expression
+    /// - Supports nested bindings
+    /// - Enables performance optimization through value reuse
+    /// - Improves readability of complex expressions
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Bind a sub-expression to a variable `sub_list`.
-    /// cel.bind(sub_list, [1, 2, 3], sub_list.size() > 2)
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_bindings(true)
+    ///     .build()?;
+    /// 
+    /// // Simple binding
+    /// let program = env.compile("cel.bind(x, 5, x * x)")?;
+    /// let result = program.evaluate(&Activation::new())?;
+    /// assert_eq!(result, Value::Int(25));
+    /// 
+    /// // Nested bindings for complex calculations
+    /// let program2 = env.compile(r#"
+    ///     cel.bind(a, 'hello',
+    ///       cel.bind(b, 'world', 
+    ///         a + ' ' + b + '!'))
+    /// "#)?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_bindings(mut self, enable: bool) -> Self {
         self.options.enable_ext_bindings = enable;
@@ -249,14 +355,44 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the Encoders extension.
     ///
+    /// **Default**: Disabled (`false`)
+    ///
     /// This extension provides functions for encoding and decoding between common data formats,
-    /// such as `base64`.
+    /// such as Base64. All functions handle edge cases gracefully and maintain CEL's safety guarantees.
+    ///
+    /// # Available Functions
+    ///
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `base64.encode(bytes)` | Encode bytes to Base64 string | `base64.encode(b'hello')` |
+    /// | `base64.decode(string)` | Decode Base64 string to bytes | `base64.decode('aGVsbG8=')` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds encoding/decoding functions in the `base64` namespace:
+    /// - Supports both standard and raw (unpadded) Base64 encoding
+    /// - Automatically handles missing padding in decode operations
+    /// - Returns errors for invalid Base64 input
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Encode a byte sequence to a Base64 string.
-    /// base64.encode(b'hello') == 'aGVsbG8='
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_encoders(true)
+    ///     .build()?;
+    /// 
+    /// // Encode bytes to Base64
+    /// let program = env.compile("base64.encode(b'hello')")?;
+    /// let result = program.evaluate(&Activation::new())?;
+    /// assert_eq!(result, Value::String("aGVsbG8=".into()));
+    /// 
+    /// // Decode Base64 to bytes
+    /// let program2 = env.compile("base64.decode('aGVsbG8=')")?;
+    /// let result2 = program2.evaluate(&Activation::new())?;
+    /// assert_eq!(result2, Value::Bytes(b"hello".to_vec()));
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_encoders(mut self, enable: bool) -> Self {
         self.options.enable_ext_encoders = enable;
@@ -265,14 +401,58 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the Lists extension.
     ///
-    /// This extension provides additional functions for working with lists, such as `indexOf`
-    /// and `lastIndexOf`.
+    /// **Default**: Disabled (`false`)
+    ///
+    /// This extension provides additional functions for working with lists, such as slicing,
+    /// flattening, sorting, and deduplication. All functions maintain CEL's immutability 
+    /// guarantees and return new lists rather than modifying existing ones.
+    ///
+    /// # Available Functions
+    ///
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `list.slice(start, end)` | Extract sub-list | `[1,2,3,4].slice(1,3)` → `[2,3]` |
+    /// | `list.flatten()` | Flatten nested lists | `[[1,2],[3,4]].flatten()` → `[1,2,3,4]` |
+    /// | `list.flatten(depth)` | Flatten to specified depth | `[1,[2,[3]]].flatten(1)` → `[1,2,[3]]` |
+    /// | `list.distinct()` | Remove duplicates | `[1,2,2,3].distinct()` → `[1,2,3]` |
+    /// | `list.reverse()` | Reverse list order | `[1,2,3].reverse()` → `[3,2,1]` |
+    /// | `list.sort()` | Sort comparable elements | `[3,1,2].sort()` → `[1,2,3]` |
+    /// | `list.sortBy(var, expr)` | Sort by key expression | `users.sortBy(u, u.age)` |
+    /// | `lists.range(n)` | Generate number sequence | `lists.range(3)` → `[0,1,2]` |
+    /// | `lists.range(start, end)` | Generate range | `lists.range(2,5)` → `[2,3,4]` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds advanced list manipulation capabilities:
+    /// - Zero-based indexing for all operations
+    /// - Type safety for sort operations (comparable types only)
+    /// - Efficient deduplication and flattening algorithms
+    /// - Lazy evaluation for range generation
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Find the first index of an element in a list.
-    /// [1, 2, 3, 2].indexOf(2) == 1
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_lists(true)
+    ///     .build()?;
+    /// 
+    /// // List slicing
+    /// let program = env.compile("[1, 2, 3, 4].slice(1, 3)")?;
+    /// let result = program.evaluate(&Activation::new())?;
+    /// assert_eq!(result, Value::List(vec![Value::Int(2), Value::Int(3)]));
+    /// 
+    /// // List sorting
+    /// let program2 = env.compile("[3, 1, 2].sort()")?;
+    /// let result2 = program2.evaluate(&Activation::new())?;
+    /// assert_eq!(result2, Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+    /// 
+    /// // Generate ranges
+    /// let program3 = env.compile("lists.range(3)")?;
+    /// let result3 = program3.evaluate(&Activation::new())?;
+    /// assert_eq!(result3, Value::List(vec![Value::Int(0), Value::Int(1), Value::Int(2)]));
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_lists(mut self, enable: bool) -> Self {
         self.options.enable_ext_lists = enable;
@@ -281,14 +461,115 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the Math extension.
     ///
+    /// **Default**: Disabled (`false`)
+    ///
     /// This extension provides advanced mathematical functions beyond the standard operators,
-    /// such as `min`, `max`, and `sqrt`.
+    /// including min/max operations, rounding functions, absolute value, sign detection,
+    /// bitwise operations, floating point helpers, and square root. All functions are 
+    /// deterministic and side-effect free.
+    ///
+    /// **Note**: All macros use the 'math' namespace; however, at the time of macro
+    /// expansion the namespace looks just like any other identifier. If you are
+    /// currently using a variable named 'math', the macro will likely work just as
+    /// intended; however, there is some chance for collision.
+    ///
+    /// # Available Functions
+    ///
+         /// ## Min/Max Operations
+     /// | Function | Description | Example |
+     /// |----------|-------------|---------|
+     /// | `math.greatest(...)` | Greatest value from arguments/list | `math.greatest(1,2,3)` → `3` |
+     /// | `math.least(...)` | Least value from arguments/list | `math.least([1,2,3])` → `1` |
+    ///
+    /// ## Absolute Value and Sign
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `math.abs(number)` | Absolute value | `math.abs(-5)` → `5` |
+    /// | `math.sign(number)` | Sign (-1, 0, or 1) | `math.sign(-5)` → `-1` |
+    ///
+    /// ## Rounding Functions
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `math.ceil(number)` | Round up | `math.ceil(3.14)` → `4.0` |
+    /// | `math.floor(number)` | Round down | `math.floor(3.14)` → `3.0` |
+    /// | `math.round(number)` | Round to nearest | `math.round(3.14)` → `3.0` |
+    /// | `math.trunc(number)` | Truncate decimals | `math.trunc(3.14)` → `3.0` |
+    ///
+    /// ## Bitwise Operations
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `math.bitAnd(a,b)` | Bitwise AND | `math.bitAnd(5,3)` → `1` |
+    /// | `math.bitOr(a,b)` | Bitwise OR | `math.bitOr(5,3)` → `7` |
+    /// | `math.bitXor(a,b)` | Bitwise XOR | `math.bitXor(5,3)` → `6` |
+    /// | `math.bitNot(n)` | Bitwise NOT | `math.bitNot(5)` → `-6` |
+    /// | `math.bitShiftLeft(n,bits)` | Left bit shift | `math.bitShiftLeft(5,1)` → `10` |
+    /// | `math.bitShiftRight(n,bits)` | Right bit shift | `math.bitShiftRight(5,1)` → `2` |
+    ///
+    /// ## Floating Point Helpers
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `math.isInf(number)` | Check if infinite | `math.isInf(1.0/0.0)` → `true` |
+    /// | `math.isNaN(number)` | Check if NaN | `math.isNaN(0.0/0.0)` → `true` |
+    /// | `math.isFinite(number)` | Check if finite | `math.isFinite(1.2)` → `true` |
+    ///
+    /// ## Square Root
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `math.sqrt(number)` | Square root | `math.sqrt(81)` → `9.0` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds mathematical functions in the `math` namespace:
+    /// - Supports both integer and floating-point operations
+    /// - Bitwise operations work on integer types only
+    /// - Rounding functions return double type
+    /// - Min/max functions preserve input type
+    /// - Floating point helpers work with double type
+    /// - Square root always returns double type
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Find the minimum of a set of numbers.
-    /// math.min([5, 2, 8]) == 2
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_math(true)
+    ///     .build()?;
+    /// 
+    /// // Greatest/least operations (macros)
+    /// let program = env.compile("math.greatest(5, 2, 8, 1)")?;
+    /// let result = program.evaluate(&Activation::new())?;
+    /// assert_eq!(result, Value::Int(8));
+    /// 
+    /// let program2 = env.compile("math.least([-42.0, -21.5, -100.0])")?;
+    /// let result2 = program2.evaluate(&Activation::new())?;
+    /// assert_eq!(result2, Value::Double(-100.0));
+    /// 
+         /// // Absolute value
+     /// let program3 = env.compile("math.abs(-5)")?;
+     /// let result3 = program3.evaluate(&Activation::new())?;
+     /// assert_eq!(result3, Value::Int(5));
+    /// 
+    /// // Rounding functions
+    /// let program4 = env.compile("math.ceil(3.14)")?;
+    /// let result4 = program4.evaluate(&Activation::new())?;
+    /// assert_eq!(result4, Value::Double(4.0));
+    /// 
+    /// // Bitwise operations
+    /// let program5 = env.compile("math.bitAnd(5, 3)")?;
+    /// let result5 = program5.evaluate(&Activation::new())?;
+    /// assert_eq!(result5, Value::Int(1));
+    /// 
+    /// // Floating point helpers
+    /// let program6 = env.compile("math.isFinite(1.2)")?;
+    /// let result6 = program6.evaluate(&Activation::new())?;
+    /// assert_eq!(result6, Value::Bool(true));
+    /// 
+    /// // Square root
+    /// let program7 = env.compile("math.sqrt(81)")?;
+    /// let result7 = program7.evaluate(&Activation::new())?;
+    /// assert_eq!(result7, Value::Double(9.0));
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_math(mut self, enable: bool) -> Self {
         self.options.enable_ext_math = enable;
@@ -297,17 +578,50 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the Protocol Buffers (Protobuf) extension.
     ///
-    /// This provides the ability to work with Protobuf messages, including accessing fields
-    /// and using Protobuf-specific functions.
+    /// **Default**: Disabled (`false`)
     ///
-    /// # Note
-    /// Requires proper setup of Protobuf descriptors in the environment.
+    /// This provides enhanced support for working with Protocol Buffer messages, particularly
+    /// for accessing and testing proto2 extension fields. Requires proper setup of Protobuf 
+    /// descriptors in the environment.
+    ///
+    /// # Available Functions
+    ///
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `proto.getExt(msg, ext)` | Get extension field value | `proto.getExt(msg, my.extension)` |
+    /// | `proto.hasExt(msg, ext)` | Test extension field presence | `proto.hasExt(msg, my.extension)` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds proto2 extension support:
+    /// - `proto.getExt()` returns extension value or default if not set
+    /// - `proto.hasExt()` returns boolean indicating if extension is explicitly set
+    /// - Extension names must be fully qualified (e.g., `com.example.my_extension`)
+    /// - Uses safe-traversal semantics (no errors on missing fields)
+    /// - Only works with proto2 syntax messages that support extensions
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Access a field on a Protobuf message.
-    /// my_proto_message.my_field == 'value'
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_proto(true)
+    ///     .build()?;
+    /// 
+    /// // Access extension field
+    /// let program = env.compile("proto.getExt(my_message, com.example.priority_ext)")?;
+    /// 
+    /// // Test extension presence
+    /// let program2 = env.compile("proto.hasExt(my_message, com.example.priority_ext)")?;
+    /// 
+    /// // Conditional processing based on extensions
+    /// let program3 = env.compile(r#"
+    ///     proto.hasExt(msg, com.example.metadata_ext) ? 
+    ///         proto.getExt(msg, com.example.metadata_ext).value : 
+    ///         "default"
+    /// "#)?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_proto(mut self, enable: bool) -> Self {
         self.options.enable_ext_proto = enable;
@@ -316,24 +630,99 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the Regular Expression (Regex) extension.
     ///
+    /// **Default**: Disabled (`false`)
+    ///
     /// This extension provides functions for pattern matching on strings using regular expressions,
-    /// such as `matches`.
+    /// including pattern extraction, replacement, and text processing. Requires optional types
+    /// to be enabled for proper operation.
+    ///
+    /// # Available Functions
+    ///
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `regex.extract(text, pattern)` | Extract first match (optional) | `regex.extract('hello', 'h(.*)o')` → `optional('ell')` |
+    /// | `regex.extractAll(text, pattern)` | Extract all matches | `regex.extractAll('a1 b2', '\\d+')` → `['1', '2']` |
+    /// | `regex.replace(text, pattern, replacement)` | Replace all matches | `regex.replace('hello', 'l', 'x')` → `'hexxo'` |
+    /// | `regex.replace(text, pattern, replacement, count)` | Replace up to count | `regex.replace('hello', 'l', 'x', 1)` → `'hexlo'` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds regex functions in the `regex` namespace:
+    /// - `regex.extract()` returns `optional<string>` (requires optional types)
+    /// - Supports 0 or 1 capture groups only (error for multiple groups)
+    /// - Uses standard regex syntax with proper escaping
+    /// - Replacement supports capture group references (`\1`, `\2`, etc.)
+    /// - Count parameter in replace: 0=no replacement, negative=replace all
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Check if a string matches a regex pattern.
-    /// 'a-123'.matches('^[a-z]-\\d+$')
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_regex(true)
+    ///     .with_optional(true)  // Required for regex.extract
+    ///     .build()?;
+    /// 
+    /// // Pattern extraction
+    /// let program = env.compile(r#"regex.extract('hello world', 'hello (.*)')"#)?;
+    /// 
+    /// // Extract all matches
+    /// let program2 = env.compile(r#"regex.extractAll('id:123, id:456', 'id:(\\d+)')"#)?;
+    /// 
+    /// // Pattern replacement with capture groups
+    /// let program3 = env.compile(r#"regex.replace('John Doe', '(\\w+) (\\w+)', r'\2, \1')"#)?;
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_regex(mut self, enable: bool) -> Self {
         self.options.enable_ext_regex = enable;
         self
     }
 
-    /// Enables or disables the Regular Expression (Regex) extension.
+    /// Enables or disables the Regular Expression (RE) extension.
     ///
-    /// This extension provides functions for pattern matching on strings using regular expressions,
-    /// such as `matches`.
+    /// **Default**: Disabled (`false`)
+    ///
+    /// This extension provides C++ specific regular expression functions built on the RE2 library,
+    /// offering additional pattern matching capabilities with different semantics than the standard
+    /// regex extension. This is specific to the C++ CEL implementation.
+    ///
+    /// # Available Functions
+    ///
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `re.extract(text, pattern, rewrite)` | Extract and rewrite with pattern | `re.extract('Hello World', r'(\\w+) (\\w+)', r'\\2, \\1')` |
+    /// | `re.capture(text, pattern)` | Capture first group | `re.capture('john@example.com', r'([^@]+)@')` |
+    /// | `re.captureN(text, pattern)` | Capture all groups as map | `re.captureN('2023-12-25', r'(\\d{4})-(\\d{2})-(\\d{2})')` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds RE2-based regex functions in the `re` namespace:
+    /// - `re.extract()` performs extraction and rewriting in one operation
+    /// - `re.capture()` returns string of first capture group
+    /// - `re.captureN()` returns map with numbered/named capture groups
+    /// - Uses RE2 library for consistent performance and safety
+    /// - Supports named capture groups in `captureN()`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_re(true)
+    ///     .build()?;
+    /// 
+    /// // Extract and rewrite
+    /// let program = env.compile(r#"re.extract('Hello World', r'(\w+) (\w+)', r'\2, \1')"#)?;
+    /// 
+    /// // Capture first group
+    /// let program2 = env.compile(r#"re.capture('john@example.com', r'([^@]+)@')"#)?;
+    /// 
+    /// // Capture all groups
+    /// let program3 = env.compile(r#"re.captureN('2023-12-25', r'(\d{4})-(\d{2})-(\d{2})')"#)?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
     pub fn with_ext_re(mut self, enable: bool) -> Self {
         self.options.enable_ext_re = enable;
         self
@@ -341,15 +730,53 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the Sets extension.
     ///
-    /// This extension provides functions for set-based operations on lists, such as `intersects`
-    /// and `contains`. Note that CEL does not have a native `set` type; these functions
-    /// treat lists as sets.
+    /// **Default**: Disabled (`false`)
+    ///
+    /// This extension provides functions for set-based operations on lists, such as containment
+    /// checking, equivalence testing, and intersection detection. Note that CEL does not have 
+    /// a native `set` type; these functions treat lists as sets.
+    ///
+    /// # Available Functions
+    ///
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `sets.contains(list1, list2)` | Check if list1 contains all elements of list2 | `sets.contains([1,2,3], [2,3])` → `true` |
+    /// | `sets.equivalent(list1, list2)` | Check if lists are set equivalent | `sets.equivalent([1,2,3], [3,2,1])` → `true` |
+    /// | `sets.intersects(list1, list2)` | Check if lists have common elements | `sets.intersects([1,2], [2,3])` → `true` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds set operations in the `sets` namespace:
+    /// - Treats lists as sets (order and duplicates don't matter for equivalence)
+    /// - Uses standard CEL equality for element comparison
+    /// - Supports type coercion (e.g., `1`, `1.0`, `1u` are considered equal)
+    /// - Empty list operations: `contains([], [])` → `true`, `intersects([], [])` → `false`
+    /// - Works with any comparable types
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Check if two lists (treated as sets) have common elements.
-    /// [1, 2, 3].intersects([3, 4, 5])
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_sets(true)
+    ///     .build()?;
+    /// 
+    /// // Set containment
+    /// let program = env.compile("sets.contains([1, 2, 3, 4], [2, 3])")?;
+    /// let result = program.evaluate(&Activation::new())?;
+    /// assert_eq!(result, Value::Bool(true));
+    /// 
+    /// // Set equivalence
+    /// let program2 = env.compile("sets.equivalent([1, 2, 3], [3, 2, 1])")?;
+    /// let result2 = program2.evaluate(&Activation::new())?;
+    /// assert_eq!(result2, Value::Bool(true));
+    /// 
+    /// // Set intersection
+    /// let program3 = env.compile("sets.intersects([1, 2], [2, 3])")?;
+    /// let result3 = program3.evaluate(&Activation::new())?;
+    /// assert_eq!(result3, Value::Bool(true));
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_sets(mut self, enable: bool) -> Self {
         self.options.enable_ext_sets = enable;
@@ -358,14 +785,66 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the Strings extension.
     ///
-    /// This extension provides additional functions for string manipulation, such as `join`,
-    /// `format`, and `replace`.
+    /// **Default**: Disabled (`false`)
+    ///
+    /// This extension provides additional functions for string manipulation, including character
+    /// access, searching, extraction, case conversion, formatting, and advanced text processing
+    /// operations that go beyond the basic string operations in the standard library.
+    ///
+    /// # Available Functions
+    ///
+    /// | Function | Description | Example |
+    /// |----------|-------------|---------|
+    /// | `string.charAt(index)` | Get character at index | `'hello'.charAt(1)` → `'e'` |
+    /// | `string.indexOf(substring)` | Find first occurrence | `'hello'.indexOf('l')` → `2` |
+    /// | `string.indexOf(substring, start)` | Find from start position | `'hello'.indexOf('l', 3)` → `3` |
+    /// | `string.lastIndexOf(substring)` | Find last occurrence | `'hello'.lastIndexOf('l')` → `3` |
+    /// | `string.substring(start)` | Extract from start to end | `'hello'.substring(1)` → `'ello'` |
+    /// | `string.substring(start, end)` | Extract substring | `'hello'.substring(1, 4)` → `'ell'` |
+    /// | `strings.quote(string)` | Quote string for CEL | `strings.quote('hello')` → `'"hello"'` |
+    /// | `string.trim()` | Remove whitespace | `' hello '.trim()` → `'hello'` |
+    /// | `list.join(separator)` | Join strings | `['a','b'].join(',')` → `'a,b'` |
+    /// | `string.split(separator)` | Split string | `'a,b,c'.split(',')` → `['a','b','c']` |
+    /// | `string.lowerAscii()` | Convert to lowercase | `'HELLO'.lowerAscii()` → `'hello'` |
+    /// | `string.upperAscii()` | Convert to uppercase | `'hello'.upperAscii()` → `'HELLO'` |
+    /// | `string.replace(old, new)` | Replace all occurrences | `'hello'.replace('l','x')` → `'hexxo'` |
+    /// | `string.replace(old, new, count)` | Replace up to count | `'hello'.replace('l','x',1)` → `'hexlo'` |
+    /// | `string.format(args)` | Printf-style formatting | `'Hello %s'.format(['World'])` → `'Hello World'` |
+    /// | `string.reverse()` | Reverse string | `'hello'.reverse()` → `'olleh'` |
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, adds advanced string manipulation capabilities:
+    /// - Zero-based indexing for character access and substring operations
+    /// - Safe out-of-bounds handling (empty string for invalid indices)
+    /// - ASCII-only case conversion (Unicode characters unchanged)
+    /// - Printf-style format placeholders: `%s`, `%d`, `%f`, `%.Nf`
+    /// - Efficient string processing with immutable operations
     ///
     /// # Examples
     ///
-    /// ```cel
-    /// // Join a list of strings with a separator.
-    /// ['a', 'b', 'c'].join(',') == 'a,b,c'
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_strings(true)
+    ///     .build()?;
+    /// 
+    /// // String searching and extraction
+    /// let program = env.compile("'hello world'.substring('hello world'.indexOf(' ') + 1)")?;
+    /// let result = program.evaluate(&Activation::new())?;
+    /// assert_eq!(result, Value::String("world".into()));
+    /// 
+    /// // String formatting
+    /// let program2 = env.compile("'Hello, %s!'.format(['Alice'])")?;
+    /// let result2 = program2.evaluate(&Activation::new())?;
+    /// assert_eq!(result2, Value::String("Hello, Alice!".into()));
+    /// 
+    /// // String processing pipeline
+    /// let program3 = env.compile("'  HELLO WORLD  '.trim().lowerAscii().replace(' ', '_')")?;
+    /// let result3 = program3.evaluate(&Activation::new())?;
+    /// assert_eq!(result3, Value::String("hello_world".into()));
+    /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_strings(mut self, enable: bool) -> Self {
         self.options.enable_ext_strings = enable;
@@ -374,9 +853,37 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
 
     /// Enables or disables the select optimization extension.
     ///
+    /// **Default**: Disabled (`false`)
+    ///
     /// This is an optimization that can improve the performance of `select` expressions
     /// (field access) by transforming them at compile time. It does not introduce new
-    /// user-visible functions but can change the evaluation cost.
+    /// user-visible functions but can change the evaluation cost of field access operations.
+    ///
+    /// # CEL Syntax Impact
+    ///
+    /// When enabled, provides compile-time optimizations for:
+    /// - Message field access operations
+    /// - Map key access patterns
+    /// - Nested field selection chains
+    /// - No new syntax or functions are added
+    /// - Transparent performance improvements
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use cel_cxx::*;
+    /// 
+    /// let env = Env::builder()
+    ///     .with_ext_select_optimization(true)
+    ///     .build()?;
+    /// 
+    /// // Field access operations may be optimized
+    /// let program = env.compile("user.profile.settings.theme")?;
+    /// 
+    /// // Map access patterns may be optimized  
+    /// let program2 = env.compile("config['database']['host']")?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
     pub fn with_ext_select_optimization(mut self, enable: bool) -> Self {
         self.options.enable_ext_select_optimization = enable;
         self

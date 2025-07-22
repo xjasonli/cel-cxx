@@ -8,34 +8,41 @@ The math extension provides mathematical functions and operations beyond basic a
   - [Table of Contents](#table-of-contents)
   - [1. Overview](#1-overview)
   - [2. Min and Max Operations](#2-min-and-max-operations)
-    - [2.1 math.min()](#21-mathmin)
-    - [2.2 math.max()](#22-mathmax)
-  - [3. Absolute Value - `math.abs()`](#3-absolute-value---mathabs)
-    - [math.abs()](#mathabs)
-  - [4. Sign Function - `math.sign()`](#4-sign-function---mathsign)
-    - [math.sign()](#mathsign)
-  - [5. Rounding Functions](#5-rounding-functions)
-    - [5.1 math.ceil()](#51-mathceil)
-    - [5.2 math.floor()](#52-mathfloor)
-    - [5.3 math.round()](#53-mathround)
-    - [5.4 math.trunc()](#54-mathtrunc)
-  - [6. Bitwise Operations](#6-bitwise-operations)
-    - [6.1 math.bitAnd()](#61-mathbitand)
-    - [6.2 math.bitOr()](#62-mathbitor)
-    - [6.3 math.bitXor()](#63-mathbitxor)
-    - [6.4 math.bitNot()](#64-mathbitnot)
-    - [6.5 math.bitShiftLeft()](#65-mathbitshiftleft)
-    - [6.6 math.bitShiftRight()](#66-mathbitshiftright)
-  - [7. Usage Examples](#7-usage-examples)
+    - [2.1 math.greatest()](#21-mathgreatest)
+    - [2.2 math.least()](#22-mathleast)
+  - [3. Absolute Value and Sign](#3-absolute-value-and-sign)
+    - [3.1 math.abs()](#31-mathabs)
+    - [3.2 math.sign()](#32-mathsign)
+  - [4. Rounding Functions](#4-rounding-functions)
+    - [4.1 math.ceil()](#41-mathceil)
+    - [4.2 math.floor()](#42-mathfloor)
+    - [4.3 math.round()](#43-mathround)
+    - [4.4 math.trunc()](#44-mathtrunc)
+  - [5. Bitwise Operations](#5-bitwise-operations)
+    - [5.1 math.bitAnd()](#51-mathbitand)
+    - [5.2 math.bitOr()](#52-mathbitor)
+    - [5.3 math.bitXor()](#53-mathbitxor)
+    - [5.4 math.bitNot()](#54-mathbitnot)
+    - [5.5 math.bitShiftLeft()](#55-mathbitshiftleft)
+    - [5.6 math.bitShiftRight()](#56-mathbitshiftright)
+  - [6. Floating Point Helpers](#6-floating-point-helpers)
+    - [6.1 math.isInf()](#61-mathisinf)
+    - [6.2 math.isNaN()](#62-mathisnan)
+    - [6.3 math.isFinite()](#63-mathisfinite)
+  - [7. Square Root](#7-square-root)
+    - [7.1 math.sqrt()](#71-mathsqrt)
+  - [8. Usage Examples](#8-usage-examples)
     - [Range Validation](#range-validation)
     - [Statistical Operations](#statistical-operations)
     - [Rounding and Formatting](#rounding-and-formatting)
     - [Bitwise Flags](#bitwise-flags)
-    - [Sign-based Logic](#sign-based-logic)
+    - [Floating Point Validation](#floating-point-validation)
 
 ## 1. Overview
 
 The math extension enhances CEL with additional mathematical functions that are commonly needed in expressions. All functions are deterministic and side-effect free.
+
+**Note**: All macros use the 'math' namespace; however, at the time of macro expansion the namespace looks just like any other identifier. If you are currently using a variable named 'math', the macro will likely work just as intended; however, there is some chance for collision.
 
 **Enabling the Extension**:
 ```rust
@@ -46,311 +53,425 @@ let env = Env::builder()
 
 ## 2. Min and Max Operations
 
-### 2.1 math.min()
+### 2.1 math.greatest()
 
-Returns the minimum value from a list or multiple arguments.
+Returns the greatest valued number present in the arguments to the macro.
 
 **Syntax:**
-- `math.min(list)`
-- `math.min(a, b, ...)`
+- `math.greatest(<arg>, ...)`
 
 **Parameters:**
-- `list`: List of numeric values
-- `a, b, ...`: Multiple numeric arguments
+- Variable argument count macro which must take at least one argument
+- Simple numeric and list literals are supported as valid argument types
+- Other literals will be flagged as errors during macro expansion
 
-**Return Type:** Same as input type (int or double)
+**Return Type:** `double`, `int`, or `uint` depending on input
 
 **Examples:**
 ```cel
-math.min([1, 2, 3])         // 1
-math.min(5, 2, 8, 1)        // 1
-math.min([3.14, 2.71])      // 2.71
-math.min([-5, -2, -8])      // -8
-math.min([42])              // 42
+math.greatest(1)                             // 1
+math.greatest(1u, 2u)                        // 2u
+math.greatest(-42.0, -21.5, -100.0)         // -21.5
+math.greatest([-42.0, -21.5, -100.0])       // -21.5
+math.greatest(numbers)                       // numbers must be list(numeric)
 ```
 
-### 2.2 math.max()
+**Error Cases:**
+```cel
+math.greatest()                              // parse error
+math.greatest('string')                      // parse error
+math.greatest(a, b)                          // check-time error if a or b is non-numeric
+math.greatest(dyn('string'))                 // runtime error
+```
 
-Returns the maximum value from a list or multiple arguments.
+### 2.2 math.least()
+
+Returns the least valued number present in the arguments to the macro.
 
 **Syntax:**
-- `math.max(list)`
-- `math.max(a, b, ...)`
+- `math.least(<arg>, ...)`
 
 **Parameters:**
-- `list`: List of numeric values
-- `a, b, ...`: Multiple numeric arguments
+- Variable argument count macro which must take at least one argument
+- Simple numeric and list literals are supported as valid argument types
+- Other literals will be flagged as errors during macro expansion
 
-**Return Type:** Same as input type (int or double)
+**Return Type:** `double`, `int`, or `uint` depending on input
 
 **Examples:**
 ```cel
-math.max([1, 2, 3])         // 3
-math.max(5, 2, 8, 1)        // 8
-math.max([3.14, 2.71])      // 3.14
-math.max([-5, -2, -8])      // -2
-math.max([42])              // 42
+math.least(1)                                // 1
+math.least(1u, 2u)                           // 1u
+math.least(-42.0, -21.5, -100.0)            // -100.0
+math.least([-42.0, -21.5, -100.0])          // -100.0
+math.least(numbers)                          // numbers must be list(numeric)
 ```
 
-## 3. Absolute Value - `math.abs()`
+**Error Cases:**
+```cel
+math.least()                                 // parse error
+math.least('string')                         // parse error
+math.least(a, b)                             // check-time error if a or b is non-numeric
+math.least(dyn('string'))                    // runtime error
+```
 
-### math.abs()
+## 3. Absolute Value and Sign
 
-Returns the absolute value of a number.
+### 3.1 math.abs()
+
+Returns the absolute value of the numeric type provided as input. If the value is NaN, the output is NaN. If the input is int64 min, the function will result in an overflow error.
 
 **Syntax:** `math.abs(number)`
 
 **Parameters:**
-- `number`: Numeric value (int or double)
+- `number`: Numeric value (int, uint, or double)
 
 **Return Type:** Same as input type
 
 **Examples:**
 ```cel
-math.abs(-5)                // 5
-math.abs(3.14)              // 3.14
-math.abs(-2.71)             // 2.71
-math.abs(0)                 // 0
-math.abs(42)                // 42
+math.abs(-1)                                 // 1
+math.abs(1)                                  // 1
+math.abs(-5.5)                               // 5.5
+math.abs(0)                                  // 0
+math.abs(42u)                                // 42u
 ```
 
-## 4. Sign Function - `math.sign()`
+**Error Cases:**
+```cel
+math.abs(-9223372036854775808)               // overflow error (int64 min)
+```
 
-### math.sign()
+### 3.2 math.sign()
 
-Returns the sign of a number.
+Returns the sign of the numeric type, either -1, 0, or 1 as an int, double, or uint depending on the overload. For floating point values, if NaN is provided as input, the output is also NaN. The implementation does not differentiate between positive and negative zero.
 
 **Syntax:** `math.sign(number)`
 
 **Parameters:**
-- `number`: Numeric value (int or double)
+- `number`: Numeric value (int, uint, or double)
 
-**Return Type:** int (-1, 0, or 1)
+**Return Type:** Same as input type (-1, 0, or 1)
 
 **Examples:**
 ```cel
-math.sign(-5)               // -1
-math.sign(0)                // 0
-math.sign(3.14)             // 1
-math.sign(-2.71)            // -1
-math.sign(42)               // 1
+math.sign(-42)                               // -1
+math.sign(0)                                 // 0
+math.sign(42)                                // 1
+math.sign(-3.14)                             // -1.0
+math.sign(0.0)                               // 0.0
+math.sign(2.71)                              // 1.0
 ```
 
-**Return Values:**
-- `-1` for negative numbers
-- `0` for zero
-- `1` for positive numbers
+## 4. Rounding Functions
 
-## 5. Rounding Functions
+### 4.1 math.ceil()
 
-### 5.1 math.ceil()
-
-Rounds a number up to the nearest integer.
+Compute the ceiling of a double value.
 
 **Syntax:** `math.ceil(number)`
 
 **Parameters:**
-- `number`: Numeric value
+- `number`: Double value
 
-**Return Type:** double
+**Return Type:** `double`
 
 **Examples:**
 ```cel
-math.ceil(3.14)             // 4.0
-math.ceil(-2.71)            // -2.0
-math.ceil(5.0)              // 5.0
-math.ceil(-5.0)             // -5.0
-math.ceil(0.1)              // 1.0
+math.ceil(1.2)                               // 2.0
+math.ceil(-1.2)                              // -1.0
+math.ceil(5.0)                               // 5.0
+math.ceil(0.1)                               // 1.0
 ```
 
-### 5.2 math.floor()
+### 4.2 math.floor()
 
-Rounds a number down to the nearest integer.
+Compute the floor of a double value.
 
 **Syntax:** `math.floor(number)`
 
 **Parameters:**
-- `number`: Numeric value
+- `number`: Double value
 
-**Return Type:** double
+**Return Type:** `double`
 
 **Examples:**
 ```cel
-math.floor(3.14)            // 3.0
-math.floor(-2.71)           // -3.0
-math.floor(5.0)             // 5.0
-math.floor(-5.0)            // -5.0
-math.floor(0.9)             // 0.0
+math.floor(1.2)                              // 1.0
+math.floor(-1.2)                             // -2.0
+math.floor(5.0)                              // 5.0
+math.floor(0.9)                              // 0.0
 ```
 
-### 5.3 math.round()
+### 4.3 math.round()
 
-Rounds a number to the nearest integer.
+Rounds the double value to the nearest whole number with ties rounding away from zero, e.g. 1.5 -> 2.0, -1.5 -> -2.0.
 
 **Syntax:** `math.round(number)`
 
 **Parameters:**
-- `number`: Numeric value
+- `number`: Double value
 
-**Return Type:** double
+**Return Type:** `double`
 
 **Examples:**
 ```cel
-math.round(3.14)            // 3.0
-math.round(3.64)            // 4.0
-math.round(-2.71)           // -3.0
-math.round(-2.49)           // -2.0
-math.round(5.5)             // 6.0
+math.round(1.2)                              // 1.0
+math.round(1.5)                              // 2.0
+math.round(-1.5)                             // -2.0
+math.round(3.14)                             // 3.0
+math.round(3.64)                             // 4.0
 ```
 
-**Rounding Rule:** Uses "round half away from zero" (banker's rounding)
+### 4.4 math.trunc()
 
-### 5.4 math.trunc()
-
-Truncates a number to its integer part.
+Truncates the fractional portion of the double value.
 
 **Syntax:** `math.trunc(number)`
 
 **Parameters:**
-- `number`: Numeric value
+- `number`: Double value
 
-**Return Type:** double
+**Return Type:** `double`
 
 **Examples:**
 ```cel
-math.trunc(3.14)            // 3.0
-math.trunc(-2.71)           // -2.0
-math.trunc(5.0)             // 5.0
-math.trunc(-5.0)            // -5.0
-math.trunc(0.9)             // 0.0
+math.trunc(-1.3)                             // -1.0
+math.trunc(1.3)                              // 1.0
+math.trunc(3.14)                             // 3.0
+math.trunc(-2.71)                            // -2.0
 ```
 
-## 6. Bitwise Operations
+## 5. Bitwise Operations
 
-### 6.1 math.bitAnd()
+### 5.1 math.bitAnd()
 
-Performs bitwise AND operation.
+Performs a bitwise-AND operation over two int or uint values.
 
-**Syntax:** `math.bitAnd(a, b)`
+**Syntax:**
+- `math.bitAnd(<int>, <int>)` -> `<int>`
+- `math.bitAnd(<uint>, <uint>)` -> `<uint>`
 
 **Parameters:**
-- `a`: First integer
-- `b`: Second integer
+- Two integers of the same type (int or uint)
 
-**Return Type:** int
+**Return Type:** Same as input type
 
 **Examples:**
 ```cel
-math.bitAnd(12, 10)         // 8 (1100 & 1010 = 1000)
-math.bitAnd(15, 7)          // 7 (1111 & 0111 = 0111)
-math.bitAnd(0, 255)         // 0
+math.bitAnd(3u, 2u)                          // 2u
+math.bitAnd(3, 5)                            // 1
+math.bitAnd(-3, -5)                          // -7
+math.bitAnd(12, 10)                          // 8 (1100 & 1010 = 1000)
 ```
 
-### 6.2 math.bitOr()
+### 5.2 math.bitOr()
 
-Performs bitwise OR operation.
+Performs a bitwise-OR operation over two int or uint values.
 
-**Syntax:** `math.bitOr(a, b)`
+**Syntax:**
+- `math.bitOr(<int>, <int>)` -> `<int>`
+- `math.bitOr(<uint>, <uint>)` -> `<uint>`
 
 **Parameters:**
-- `a`: First integer
-- `b`: Second integer
+- Two integers of the same type (int or uint)
 
-**Return Type:** int
+**Return Type:** Same as input type
 
 **Examples:**
 ```cel
-math.bitOr(12, 10)          // 14 (1100 | 1010 = 1110)
-math.bitOr(8, 4)            // 12 (1000 | 0100 = 1100)
-math.bitOr(0, 255)          // 255
+math.bitOr(1u, 2u)                           // 3u
+math.bitOr(-2, -4)                           // -2
+math.bitOr(12, 10)                           // 14 (1100 | 1010 = 1110)
 ```
 
-### 6.3 math.bitXor()
+### 5.3 math.bitXor()
 
-Performs bitwise XOR operation.
+Performs a bitwise-XOR operation over two int or uint values.
 
-**Syntax:** `math.bitXor(a, b)`
+**Syntax:**
+- `math.bitXor(<int>, <int>)` -> `<int>`
+- `math.bitXor(<uint>, <uint>)` -> `<uint>`
 
 **Parameters:**
-- `a`: First integer
-- `b`: Second integer
+- Two integers of the same type (int or uint)
 
-**Return Type:** int
+**Return Type:** Same as input type
 
 **Examples:**
 ```cel
-math.bitXor(12, 10)         // 6 (1100 ^ 1010 = 0110)
-math.bitXor(15, 15)         // 0 (same numbers)
-math.bitXor(0, 255)         // 255
+math.bitXor(3u, 5u)                          // 6u
+math.bitXor(1, 3)                            // 2
+math.bitXor(12, 10)                          // 6 (1100 ^ 1010 = 0110)
 ```
 
-### 6.4 math.bitNot()
+### 5.4 math.bitNot()
 
-Performs bitwise NOT operation.
+Function which accepts a single int or uint and performs a bitwise-NOT ones-complement of the given binary value.
 
-**Syntax:** `math.bitNot(a)`
+**Syntax:**
+- `math.bitNot(<int>)` -> `<int>`
+- `math.bitNot(<uint>)` -> `<uint>`
 
 **Parameters:**
-- `a`: Integer value
+- Single integer (int or uint)
 
-**Return Type:** int
+**Return Type:** Same as input type
 
 **Examples:**
 ```cel
-math.bitNot(12)             // -13 (~1100 = ...11110011)
-math.bitNot(0)              // -1
-math.bitNot(-1)             // 0
+math.bitNot(1)                               // -2
+math.bitNot(-1)                              // 0
+math.bitNot(0u)                              // 18446744073709551615u
 ```
 
-### 6.5 math.bitShiftLeft()
+### 5.5 math.bitShiftLeft()
 
-Performs left bit shift operation.
+Perform a left shift of bits on the first parameter, by the amount of bits specified in the second parameter. The first parameter is either a uint or an int. The second parameter must be an int.
 
-**Syntax:** `math.bitShiftLeft(a, positions)`
+When the second parameter is 64 or greater, 0 will always be returned since the number of bits shifted is greater than or equal to the total bit length of the number being shifted. Negative valued bit shifts will result in a runtime error.
+
+**Syntax:**
+- `math.bitShiftLeft(<int>, <int>)` -> `<int>`
+- `math.bitShiftLeft(<uint>, <int>)` -> `<uint>`
 
 **Parameters:**
-- `a`: Integer value to shift
-- `positions`: Number of positions to shift left
+- First parameter: Integer value to shift (int or uint)
+- Second parameter: Number of bit positions to shift left (int)
 
-**Return Type:** int
+**Return Type:** Same as first parameter type
 
 **Examples:**
 ```cel
-math.bitShiftLeft(5, 2)     // 20 (101 << 2 = 10100)
-math.bitShiftLeft(1, 3)     // 8 (1 << 3 = 1000)
-math.bitShiftLeft(0, 5)     // 0
+math.bitShiftLeft(1, 2)                      // 4
+math.bitShiftLeft(-1, 2)                     // -4
+math.bitShiftLeft(1u, 2)                     // 4u
+math.bitShiftLeft(1u, 200)                   // 0u
+math.bitShiftLeft(5, 2)                      // 20 (101 << 2 = 10100)
 ```
 
-### 6.6 math.bitShiftRight()
+### 5.6 math.bitShiftRight()
 
-Performs right bit shift operation.
+Perform a right shift of bits on the first parameter, by the amount of bits specified in the second parameter. The first parameter is either a uint or an int. The second parameter must be an int.
 
-**Syntax:** `math.bitShiftRight(a, positions)`
+When the second parameter is 64 or greater, 0 will always be returned since the number of bits shifted is greater than or equal to the total bit length of the number being shifted. Negative valued bit shifts will result in a runtime error.
+
+The sign bit extension will not be preserved for this operation: vacant bits on the left are filled with 0.
+
+**Syntax:**
+- `math.bitShiftRight(<int>, <int>)` -> `<int>`
+- `math.bitShiftRight(<uint>, <int>)` -> `<uint>`
 
 **Parameters:**
-- `a`: Integer value to shift
-- `positions`: Number of positions to shift right
+- First parameter: Integer value to shift (int or uint)
+- Second parameter: Number of bit positions to shift right (int)
 
-**Return Type:** int
+**Return Type:** Same as first parameter type
 
 **Examples:**
 ```cel
-math.bitShiftRight(20, 2)   // 5 (10100 >> 2 = 101)
-math.bitShiftRight(8, 3)    // 1 (1000 >> 3 = 1)
-math.bitShiftRight(7, 1)    // 3 (111 >> 1 = 11)
+math.bitShiftRight(1024, 2)                  // 256
+math.bitShiftRight(1024u, 2)                 // 256u
+math.bitShiftRight(1024u, 64)                // 0u
+math.bitShiftRight(20, 2)                    // 5 (10100 >> 2 = 101)
 ```
 
-## 7. Usage Examples
+## 6. Floating Point Helpers
+
+### 6.1 math.isInf()
+
+Returns true if the input double value is -Inf or +Inf.
+
+**Syntax:** `math.isInf(<double>)` -> `<bool>`
+
+**Parameters:**
+- `number`: Double value
+
+**Return Type:** `bool`
+
+**Examples:**
+```cel
+math.isInf(1.0/0.0)                          // true
+math.isInf(-1.0/0.0)                         // true
+math.isInf(1.2)                              // false
+math.isInf(0.0)                              // false
+```
+
+### 6.2 math.isNaN()
+
+Returns true if the input double value is NaN, false otherwise.
+
+**Syntax:** `math.isNaN(<double>)` -> `<bool>`
+
+**Parameters:**
+- `number`: Double value
+
+**Return Type:** `bool`
+
+**Examples:**
+```cel
+math.isNaN(0.0/0.0)                          // true
+math.isNaN(1.2)                              // false
+math.isNaN(1.0/0.0)                          // false (this is Inf, not NaN)
+```
+
+### 6.3 math.isFinite()
+
+Returns true if the value is a finite number. Equivalent in behavior to: `!math.isNaN(double) && !math.isInf(double)`
+
+**Syntax:** `math.isFinite(<double>)` -> `<bool>`
+
+**Parameters:**
+- `number`: Double value
+
+**Return Type:** `bool`
+
+**Examples:**
+```cel
+math.isFinite(0.0/0.0)                       // false (NaN)
+math.isFinite(1.0/0.0)                       // false (Inf)
+math.isFinite(1.2)                           // true
+math.isFinite(-42.5)                         // true
+```
+
+## 7. Square Root
+
+### 7.1 math.sqrt()
+
+Returns the square root of the given input as double. Throws error for negative or non-numeric inputs.
+
+**Syntax:**
+- `math.sqrt(<double>)` -> `<double>`
+- `math.sqrt(<int>)` -> `<double>`
+- `math.sqrt(<uint>)` -> `<double>`
+
+**Parameters:**
+- `number`: Numeric value (int, uint, or double)
+
+**Return Type:** `double`
+
+**Examples:**
+```cel
+math.sqrt(81)                                // 9.0
+math.sqrt(985.25)                            // 31.388692231439016
+math.sqrt(0)                                 // 0.0
+math.sqrt(4u)                                // 2.0
+```
+
+**Error Cases:**
+```cel
+math.sqrt(-15)                               // returns NaN
+```
+
+## 8. Usage Examples
 
 ### Range Validation
 ```cel
-// Check if value is within acceptable range
+// Check if value is within acceptable range using greatest/least
 cel.bind(value, 75,
-  cel.bind(min_val, 0,
-    cel.bind(max_val, 100,
-      value >= min_val && value <= max_val &&
-      math.abs(value - 50) <= 25
-    )
+  cel.bind(bounds, [0, 100],
+    value >= math.least(bounds) && value <= math.greatest(bounds) &&
+    math.abs(value - 50) <= 25
   )
 )
 // Result: true
@@ -361,13 +482,13 @@ cel.bind(value, 75,
 // Calculate basic statistics
 cel.bind(numbers, [1, 2, 3, 4, 5],
   {
-    "min": math.min(numbers),
-    "max": math.max(numbers),
-    "range": math.max(numbers) - math.min(numbers),
+    "min": math.least(numbers),
+    "max": math.greatest(numbers),
+    "range": math.greatest(numbers) - math.least(numbers),
+    "mean_approx": math.trunc((math.greatest(numbers) + math.least(numbers)) / 2.0),
     "abs_values": numbers.map(n, math.abs(n))
   }
 )
-// Result: {"min": 1, "max": 5, "range": 4, "abs_values": [1, 2, 3, 4, 5]}
 ```
 
 ### Rounding and Formatting
@@ -378,10 +499,11 @@ cel.bind(price, 19.99,
     "floor": math.floor(price),
     "ceil": math.ceil(price),
     "round": math.round(price),
-    "trunc": math.trunc(price)
+    "trunc": math.trunc(price),
+    "sqrt_price": math.sqrt(price)
   }
 )
-// Result: {"floor": 19.0, "ceil": 20.0, "round": 20.0, "trunc": 19.0}
+// Result: {"floor": 19.0, "ceil": 20.0, "round": 20.0, "trunc": 19.0, "sqrt_price": 4.47...}
 ```
 
 ### Bitwise Flags
@@ -395,26 +517,28 @@ cel.bind(permissions, 7,  // binary: 111
           "can_read": math.bitAnd(permissions, read_flag) != 0,
           "can_write": math.bitAnd(permissions, write_flag) != 0,
           "can_execute": math.bitAnd(permissions, exec_flag) != 0,
-          "full_access": permissions == math.bitOr(math.bitOr(read_flag, write_flag), exec_flag)
+          "full_access": permissions == math.bitOr(math.bitOr(read_flag, write_flag), exec_flag),
+          "shifted_perms": math.bitShiftLeft(permissions, 1)
         }
       )
     )
   )
 )
-// Result: {"can_read": true, "can_write": true, "can_execute": true, "full_access": true}
 ```
 
-### Sign-based Logic
+### Floating Point Validation
 ```cel
-// Categorize numbers by sign
-cel.bind(values, [-5, 0, 3, -2, 7],
-  values.map(v, 
-    math.sign(v) == -1 ? "negative" :
-    math.sign(v) == 0 ? "zero" :
-    "positive"
-  )
+// Validate floating point numbers
+cel.bind(values, [1.5, 1.0/0.0, 0.0/0.0, -42.7],
+  values.map(v, {
+    "value": v,
+    "is_finite": math.isFinite(v),
+    "is_inf": math.isInf(v),
+    "is_nan": math.isNaN(v),
+    "sign": math.isFinite(v) ? math.sign(v) : 0.0,
+    "sqrt": v >= 0 && math.isFinite(v) ? math.sqrt(v) : 0.0
+  })
 )
-// Result: ["negative", "zero", "positive", "negative", "positive"]
 ```
 
 The math extension provides essential mathematical operations that complement CEL's basic arithmetic, enabling more sophisticated numerical computations in expressions. 
