@@ -42,9 +42,8 @@ mod ffi {
 
         include!(<extensions/regex_ext.h>);
         #[rust_name = "register_regex_extension_functions"]
-        fn RegisterRegexExtensionFunctions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
-            runtime_options: &RuntimeOptions,
+        fn RegisterRegexExtensionFunctions<'a, 'f>(
+            runtime_builder: Pin<&mut RuntimeBuilder<'a, 'f>>,
         ) -> Status;
 
         include!(<extensions/regex_functions.h>);
@@ -69,6 +68,8 @@ mod ffi {
             runtime_options: &RuntimeOptions,
         ) -> Status;
 
+        // use our hacked version of RegisterStringsFunctions in extensions.h
+        //
         //include!(<extensions/strings.h>);
         //#[rust_name = "register_strings_functions"]
         //fn RegisterStringsFunctions<'f>(
@@ -268,11 +269,10 @@ pub mod re {
 pub mod regex {
     pub use super::ffi::regex_extension_compiler_library as compiler_library;
 
-    pub fn register_functions<'f>(
-        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
-        runtime_options: &super::RuntimeOptions,
+    pub fn register_functions<'a, 'f>(
+        runtime_builder: std::pin::Pin<&mut super::RuntimeBuilder<'a, 'f>>,
     ) -> Result<(), super::Status> {
-        let status = super::ffi::register_regex_extension_functions(function_registry, runtime_options);
+        let status = super::ffi::register_regex_extension_functions(runtime_builder);
         if status.is_ok() {
             Ok(())
         } else {
@@ -421,6 +421,7 @@ fn strings_quote(
     string: &str,
 ) -> Status {
     result.clear();
+    result.push('"');
     string.chars().for_each(|c| {
         match c {
             '\x07' => result.push_str("\\a"),
@@ -435,6 +436,7 @@ fn strings_quote(
             _ => result.push(c),
         }
     });
+    result.push('"');
     Status::ok()
 }
 

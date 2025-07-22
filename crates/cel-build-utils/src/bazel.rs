@@ -110,8 +110,8 @@ impl Bazel {
     fn common_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         cmd.arg(format!("--compilation_mode={}", self.mode));
         cmd.arg("--verbose_failures");
-        cmd.arg("--sandbox_debug");
-        cmd.arg("--experimental_writable_outputs");
+        //cmd.arg("--sandbox_debug");
+        //cmd.arg("--experimental_writable_outputs");
         cmd
     }
 }

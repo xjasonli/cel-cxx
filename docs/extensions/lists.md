@@ -9,7 +9,7 @@ The lists extension provides advanced list processing functions that extend CEL'
   - [1. Overview](#1-overview)
   - [2. List Slicing - `slice()`](#2-list-slicing---slice)
   - [3. List Flattening - `flatten()`](#3-list-flattening---flatten)
-  - [4. List Deduplication - `unique()`](#4-list-deduplication---unique)
+  - [4. List Deduplication - `distinct()`](#4-list-deduplication---distinct)
   - [5. List Reversal - `reverse()`](#5-list-reversal---reverse)
   - [6. List Sorting](#6-list-sorting)
     - [6.1 sort()](#61-sort)
@@ -95,13 +95,13 @@ Flattens a list recursively. If an optional depth is provided, the list is flatt
 - Non-list elements are preserved as-is
 - Negative depth values result in an error
 
-## 4. List Deduplication - `unique()`
+## 4. List Deduplication - `distinct()`
 
 **Introduced in version:** 2
 
 Returns the distinct elements of a list, preserving the order of first occurrence.
 
-**Syntax:** `list.distinct()`
+**Syntax:** `<list(T)>.distinct() -> <list(T)>`
 
 **Parameters:**
 - `list`: Input list of any type
@@ -129,7 +129,7 @@ Returns the distinct elements of a list, preserving the order of first occurrenc
 
 Returns the elements of a list in reverse order.
 
-**Syntax:** `list.reverse()`
+**Syntax:** `<list(T)>.reverse() -> <list(T)>`
 
 **Parameters:**
 - `list`: Input list of any type

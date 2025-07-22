@@ -148,8 +148,7 @@ impl Build {
         match self.try_build() {
             Ok(a) => a,
             Err(e) => {
-                println!("cargo:warning=libcel: failed to build cel-cpp from source");
-                eprintln!("\n\n\n{e}\n\n\n");
+                println!("cargo:warning=libcel: failed to build cel-cpp from source\n{e}");
                 std::process::exit(1)
             }
         }
@@ -168,17 +167,6 @@ impl Build {
         let install_library_dir = install_dir.join("lib");
         let install_include_dir = install_dir.join("include");
         let libs = vec!["cel".to_owned()];
-
-        //let install_library_file = install_library_dir.join("libcel.a");
-
-        //if let Ok(true) = install_library_file.try_exists() {
-        //    return Ok(Artifacts {
-        //        lib_dir: install_library_dir,
-        //        include_dir: install_include_dir,
-        //        libs,
-        //        target: target.to_owned(),
-        //    });
-        //}
 
         let mut bazel = Bazel::new(
             target.clone(),
@@ -319,13 +307,13 @@ impl Build {
 }
 
 fn cp_r(src: &Path, dst: &Path) -> Result<()> {
-    //println!("copying {:?} -> {:?}", src, dst);
+    //println!("copying dir {src:?} -> {dst:?}");
     for f in fs::read_dir(src).map_err(|e| anyhow!("{}: {e}", src.display()))? {
         let f = match f {
             Ok(f) => f,
             _ => continue,
         };
-        fs::create_dir_all(dst)?;
+        fs::create_dir_all(dst).map_err(|e| anyhow!("failed to create dir {dst:?}: {e}"))?;
 
         let file_name = f.file_name();
         let mut path = f.path();
@@ -337,18 +325,25 @@ fn cp_r(src: &Path, dst: &Path) -> Result<()> {
         }
 
         let dst = dst.join(file_name);
-        let mut ty = f.file_type()?;
+        let mut ty = f.file_type().map_err(|e| anyhow!("failed to read file type {f:?}: {e}"))?;
         while ty.is_symlink() {
-            path = fs::read_link(f.path())?;
-            ty = fs::metadata(&path)?.file_type();
+            let link_path = fs::read_link(f.path()).map_err(|e| anyhow!("failed to read link {f:?}: {e}"))?;
+            if link_path.is_relative() {
+                path = f.path().parent().unwrap().join(link_path);
+            } else {
+                path = link_path;
+            }
+            ty = fs::metadata(&path).map_err(|e| anyhow!("failed to read metadata {path:?}: {e}"))?.file_type();
         }
 
         if ty.is_dir() {
             //fs::create_dir_all(&dst).map_err(|e| e.to_string())?;
             cp_r(&f.path(), &dst)?;
         } else {
+            //println!("copying file {path:?} -> {dst:?}");
             let _ = fs::remove_file(&dst);
             if let Err(e) = fs::copy(&path, &dst) {
+                //println!("failed to copy {path:?} -> {dst:?}");
                 return Err(anyhow!(
                     "failed to copy '{}' to '{}': {e}",
                     path.display(),

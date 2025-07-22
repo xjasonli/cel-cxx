@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use crate::absl::Status;
+use crate::absl::{Status, StringView};
 use crate::common::{Ast, FunctionDecl, Source, Type, VariableDecl};
 
 #[cxx::bridge]
@@ -9,6 +9,9 @@ mod ffi {
     unsafe extern "C++" {
         include!(<absl/status/status.h>);
         type Status = super::Status;
+        
+        include!(<absl/strings/string_view.h>);
+        type string_view<'a> = super::StringView<'a>;
     }
 
     #[namespace = "cel"]
@@ -44,6 +47,7 @@ mod ffi {
         ) -> Status;
         #[rust_name = "set_expected_type"]
         fn SetExpectedType<'a>(self: Pin<&mut TypeCheckerBuilder<'a>>, expected_type: &Type<'a>);
+        fn set_container<'a, 'b>(self: Pin<&mut TypeCheckerBuilder<'a>>, container: string_view<'b>);
         fn options<'this, 'a>(self: &'this TypeCheckerBuilder<'a>) -> &'this CheckerOptions;
 
         type TypeCheckIssue;

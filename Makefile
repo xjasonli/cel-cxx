@@ -3,7 +3,7 @@ build:
 	cargo build
 
 test:
-	cargo test
+	cargo test --all-targets
 
 check:
 	CEL_CXX_FFI_SKIP_BUILD=1 cargo check

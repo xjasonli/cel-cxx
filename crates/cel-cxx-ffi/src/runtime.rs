@@ -85,11 +85,13 @@ mod ffi {
         ) -> Status;
     }
 
-    #[namespace = "cel::extensions"]
-    unsafe extern "C++" {
-        include!("runtime/optional_types.h");
-        fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
-    }
+    // We use our patched version of EnableOptionalTypes
+    //
+    //#[namespace = "cel::extensions"]
+    //unsafe extern "C++" {
+    //    include!("runtime/optional_types.h");
+    //    fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
+    //}
 
     #[namespace = "cel::runtime_internal"]
     unsafe extern "C++" {
@@ -159,6 +161,9 @@ mod ffi {
             options: &RuntimeOptions,
             result: &'this mut UniquePtr<RuntimeBuilder<'a, 'f>>,
         ) -> Status;
+        fn RuntimeBuilder_options<'this, 'a, 'f>(
+            runtime_builder: &'this RuntimeBuilder<'a, 'f>,
+        ) -> &'this RuntimeOptions;
         fn RuntimeBuilder_build<'a, 'f>(
             runtime_builder: Pin<&mut RuntimeBuilder<'a, 'f>>,
             result: &mut UniquePtr<Runtime<'a, 'f>>,
@@ -299,6 +304,9 @@ mod ffi {
 
         // Function
         fn Function_new<'a>(ffi_function: Box<AnyFfiFunction<'a>>) -> UniquePtr<Function<'a>>;
+
+        include!("cel-cxx-ffi/include/optional.h");
+        fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
     }
     #[namespace = "rust::cel_cxx"]
     extern "Rust" {
@@ -532,6 +540,10 @@ impl<'a, 'f> RuntimeBuilder<'a, 'f> {
         } else {
             Err(status)
         }
+    }
+
+    pub fn options(&self) -> &RuntimeOptions {
+        ffi::RuntimeBuilder_options(self)
     }
 
     pub fn build(self: Pin<&mut Self>) -> Result<cxx::UniquePtr<Runtime<'a, 'f>>, Status> {

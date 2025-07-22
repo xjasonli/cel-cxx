@@ -31,6 +31,7 @@ git_override(
     commit = "234adc1401b8fd43d8fd4837c09cefef5e3c672c",
 )
 
+# Abseil-CPP dependency
 bazel_dep(
     name = "abseil-cpp",
     version = "20250127.1",
@@ -43,5 +44,5 @@ git_override(
     module_name = "cel-cpp",
     # We need some patches
     remote = "https://github.com/xjasonli/cel-cpp.git",
-    tag = "cel-cxx-0.1.6",
+    commit = "2b411977d425763868183e7ce2de993120ace4b7",
 )

@@ -164,22 +164,22 @@ pub mod log {
         type Kind = cxx::kind::Trivial;
     }
     
-    static BRIDGE_ONCE: Once = Once::new();
+    static ONCE: Once = Once::new();
     
     /// Initialize absl log system and bridge to Rust log
     /// This function is idempotent and can be called multiple times safely
     pub fn init() {
-        // 1. Check and initialize absl log (atomic operation)
-        if !ffi::is_log_initialized() {
-            ffi::initialize_log();
-        }
-        
-        // 2. Bridge to Rust log (once only)
-        BRIDGE_ONCE.call_once(|| {
-            ffi::set_log_callback();
-        });
+        ONCE.call_once(|| {
+            // 1. Check and initialize absl log (atomic operation)
+            if !ffi::is_log_initialized() {
+                ffi::initialize_log();
+            }
 
-        ffi::set_stderr_threshold(LogSeverityAtLeast::Infinity);
+            // 2. Bridge to Rust log (once only)
+            ffi::set_log_callback();
+
+            ffi::set_stderr_threshold(LogSeverityAtLeast::Infinity);
+        });
     }
     
     /// Log callback function - converts absl::LogEntry to log::Record

@@ -20,9 +20,6 @@ namespace cel::extensions {
 // bindings_ext.h
 cel::CompilerLibrary BindingsCompilerLibrary();
 
-// regex_ext.h
-cel::CheckerLibrary RegexExtensionCheckerLibrary();
-
 } // namespace cel::extensions
 
 namespace rust::cel_cxx {
@@ -38,7 +35,6 @@ inline std::unique_ptr<cel::CompilerLibrary> EncodersCompilerLibrary() {
         cel::CompilerLibrary::FromCheckerLibrary(
             cel::extensions::EncodersCheckerLibrary()));
 }
-
 
 // lists_functions.h
 inline std::unique_ptr<cel::CompilerLibrary> ListsCompilerLibrary() {
@@ -62,10 +58,10 @@ inline std::unique_ptr<cel::CompilerLibrary> RegexCompilerLibrary() {
             cel::extensions::RegexCheckerLibrary()));
 }
 
+// regex_ext.h
 inline std::unique_ptr<cel::CompilerLibrary> RegexExtensionCompilerLibrary() {
     return std::make_unique<cel::CompilerLibrary>(
-        cel::CompilerLibrary::FromCheckerLibrary(
-            cel::extensions::RegexExtensionCheckerLibrary()));
+        cel::extensions::RegexExtCompilerLibrary());
 }
 
 // SelectOptimizationOptions
@@ -85,8 +81,13 @@ inline bool& SelectOptimizationOptions_force_fallback_implementation_mut(
 }
 
 // sets_functions.h
+
+// hacked version of SetsCheckerLibrary
+cel::CheckerLibrary SetsCheckerLibrary();
+
 inline std::unique_ptr<cel::CompilerLibrary> SetsCompilerLibrary() {
-    return std::make_unique<cel::CompilerLibrary>(cel::extensions::SetsCompilerLibrary());
+    return std::make_unique<cel::CompilerLibrary>(
+        cel::CompilerLibrary::FromCheckerLibrary(SetsCheckerLibrary()));
 }
 
 // strings.h

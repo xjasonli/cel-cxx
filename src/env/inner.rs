@@ -88,6 +88,13 @@ impl<'f> EnvInner<'f> {
                 let options = ffi::CompilerOptions::new();
                 let mut builder =
                     ffi::CompilerBuilder::new(ffi::DescriptorPool::generated(), &options)?;
+                
+                if !env_options.container.is_empty() {
+                    builder
+                        .pin_mut()
+                        .checker_builder()
+                        .set_container(ffi::StringView::new_str(&env_options.container));
+                }
 
                 if env_options.enable_standard {
                     builder
@@ -226,7 +233,7 @@ impl<'f> EnvInner<'f> {
                     builder
                         .pin_mut()
                         .checker_builder()
-                        .add_function(&ffi_function_decl);
+                        .merge_function(&ffi_function_decl);
                 }
 
                 let compiler = builder.pin_mut().build()?;
@@ -234,7 +241,17 @@ impl<'f> EnvInner<'f> {
             },
             ffi_runtime_builder: |ffi_ctx: &ffi::Ctx| {
                 let mut options = ffi::RuntimeOptions::new();
-                *options.pin_mut().enable_qualified_type_identifiers_mut() = true;
+
+                if !env_options.container.is_empty() {
+                    options
+                        .pin_mut()
+                        .container_mut()
+                        .push_str(&env_options.container);
+                }
+
+                if env_options.enable_optional {
+                    *options.pin_mut().enable_qualified_type_identifiers_mut() = true;
+                }
 
                 let mut builder =
                     ffi::RuntimeBuilder::new(ffi_ctx.shared_descriptor_pool().clone(), &options)?;
@@ -269,8 +286,7 @@ impl<'f> EnvInner<'f> {
 
                 if env_options.enable_ext_regex {
                     ffi::extensions::regex::register_functions(
-                        builder.pin_mut().function_registry(),
-                        &options,
+                        builder.pin_mut()
                     )?;
                 }
 

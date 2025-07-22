@@ -8,6 +8,7 @@
 #include <checker/validation_result.h>
 #include <checker/optional.h>
 #include <checker/standard_library.h>
+#include "optional.h"
 
 namespace rust::cel_cxx {
 
@@ -20,9 +21,9 @@ using ValidationResult = cel::ValidationResult;
 using CheckerLibrary = cel::CheckerLibrary;
 using Severity = cel::TypeCheckIssue::Severity;
 
-// CheckerLibrary
+
 inline std::unique_ptr<CheckerLibrary> CheckerLibrary_new_optional() {
-    return std::make_unique<CheckerLibrary>(cel::OptionalCheckerLibrary());
+    return std::make_unique<CheckerLibrary>(std::move(PatchOptionalCheckerLibrary(cel::OptionalCheckerLibrary())));
 }
 
 inline std::unique_ptr<CheckerLibrary> CheckerLibrary_new_standard() {

@@ -6,6 +6,8 @@
 #include <runtime/function.h>
 #include <runtime/runtime_builder_factory.h>
 #include <runtime/standard_runtime_builder_factory.h>
+#include <runtime/internal/runtime_impl.h>
+#include <runtime/internal/runtime_friend_access.h>
 #include "absl.h"
 
 namespace rust { inline namespace cxxbridge1 {
@@ -225,6 +227,12 @@ inline Status RuntimeBuilder_new(
     auto builder = std::make_unique<RuntimeBuilder>(std::move(status_or.value()));
     result.swap(builder);
     return Status();
+}
+
+inline const RuntimeOptions& RuntimeBuilder_options(const RuntimeBuilder& builder) {
+    auto& runtime = cel::internal::down_cast<cel::runtime_internal::RuntimeImpl&>(
+        cel::runtime_internal::RuntimeFriendAccess::GetMutableRuntime(const_cast<RuntimeBuilder&>(builder)));
+    return runtime.expr_builder().options();
 }
 
 inline Status RuntimeBuilder_build(

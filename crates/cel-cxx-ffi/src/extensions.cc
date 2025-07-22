@@ -2,6 +2,7 @@
 #include "cel-cxx-ffi/src/extensions.rs.h"
 #include <checker/internal/builtins_arena.h>
 #include <runtime/function_adapter.h>
+#include <checker/internal/builtins_arena.h>
 
 namespace cel::extensions {
 
@@ -19,58 +20,10 @@ CompilerLibrary BindingsCompilerLibrary() {
         AddBindingsExtensionMacros);
 }
 
-// regex_ext.h
-using ::cel::checker_internal::BuiltinsArena;
-
-const Type& OptionalStringType() {
-  static absl::NoDestructor<Type> kInstance(
-    OptionalType(BuiltinsArena(), StringType()));
-  return *kInstance;
-}
-
-const Type& ListStringType() {
-  static absl::NoDestructor<Type> kInstance(
-    ListType(BuiltinsArena(), StringType()));
-  return *kInstance;
-}
-
-absl::Status RegisterRegexExtensionDecls(TypeCheckerBuilder& builder) {
-  CEL_ASSIGN_OR_RETURN(
-    auto replace_decl,
-    MakeFunctionDecl(
-      "regex.replace",
-      MakeOverloadDecl("regex_replace_all", StringType(), StringType(), StringType(), StringType()),
-      MakeOverloadDecl("regex_replace_n", StringType(), StringType(), StringType(), StringType(), IntType())));
-
-  CEL_ASSIGN_OR_RETURN(
-    auto extract_decl,
-    MakeFunctionDecl(
-      "regex.extract",
-      MakeOverloadDecl("regex_extract", OptionalStringType(), StringType(), StringType())));
-  
-  CEL_ASSIGN_OR_RETURN(
-    auto extract_all_decl,
-    MakeFunctionDecl(
-      "regex.extract_all",
-      MakeOverloadDecl("regex_extract_all", ListStringType(), StringType(), StringType())));
-
-  CEL_RETURN_IF_ERROR(builder.AddFunction(std::move(replace_decl)));
-  CEL_RETURN_IF_ERROR(builder.AddFunction(std::move(extract_decl)));
-  CEL_RETURN_IF_ERROR(builder.AddFunction(std::move(extract_all_decl)));
-
-  return absl::OkStatus();
-}
-
-CheckerLibrary RegexExtensionCheckerLibrary() {
-    return {"cel.lib.ext.regex", &RegisterRegexExtensionDecls};
-}
-
-// strings.h
 
 } // namespace cel::extensions
 
 namespace rust::cel_cxx {
-
 using cel::Value;
 using cel::StringValue;
 using google::protobuf::DescriptorPool;
@@ -79,7 +32,38 @@ using google::protobuf::Arena;
 using cel::BinaryFunctionAdapter;
 using cel::TernaryFunctionAdapter;
 using cel::UnaryFunctionAdapter;
+using cel::checker_internal::BuiltinsArena;
 
+// sets_functions.h
+absl::Status RegisterSetsDecls(cel::TypeCheckerBuilder& b) {
+  cel::ListType list_t(BuiltinsArena(), cel::TypeParamType("T"));
+  CEL_ASSIGN_OR_RETURN(
+      auto decl,
+      MakeFunctionDecl("sets.contains",
+                       MakeOverloadDecl("list_sets_contains_list", cel::BoolType(),
+                                        list_t, list_t)));
+  CEL_RETURN_IF_ERROR(b.AddFunction(decl));
+
+  CEL_ASSIGN_OR_RETURN(
+      decl, MakeFunctionDecl("sets.equivalent",
+                             MakeOverloadDecl("list_sets_equivalent_list",
+                                              cel::BoolType(), list_t, list_t)));
+  CEL_RETURN_IF_ERROR(b.AddFunction(decl));
+
+  CEL_ASSIGN_OR_RETURN(
+      decl, MakeFunctionDecl("sets.intersects",
+                             MakeOverloadDecl("list_sets_intersects_list",
+                                              cel::BoolType(), list_t, list_t)));
+  CEL_RETURN_IF_ERROR(b.AddFunction(decl));
+
+  return absl::OkStatus();
+}
+
+cel::CheckerLibrary SetsCheckerLibrary() {
+  return {.id = "cel.lib.ext.sets", .configure = RegisterSetsDecls};
+}
+
+// strings.h
 absl::StatusOr<StringValue> CharAt(
     const StringValue& string, int64_t index,
     const DescriptorPool* descriptor_pool, MessageFactory* message_factory, Arena* arena) {
