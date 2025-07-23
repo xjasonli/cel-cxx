@@ -38,7 +38,11 @@
     - [Cross-Compilation Support](#cross-compilation-support)
     - [Android Build Instructions](#android-build-instructions)
   - [CEL Feature Support](#cel-feature-support)
-    - [Supported Features](#supported-features)
+    - [Core Language Features](#core-language-features)
+    - [Standard Library](#standard-library)
+    - [Optional Value Support](#optional-value-support)
+    - [Extension Libraries](#extension-libraries)
+    - [Runtime Features](#runtime-features)
     - [Planned Features](#planned-features)
   - [Prerequisites](#prerequisites)
     - [System Requirements](#system-requirements)
@@ -792,7 +796,7 @@ cargo ndk --target i686-linux-android build
 
 ## CEL Feature Support
 
-### Supported Features
+### Core Language Features
 
 | Feature | Status | Description |
 |---------|--------|-------------|
@@ -800,17 +804,55 @@ cargo ndk --target i686-linux-android build
 | **Collections** | ✅ | `list<T>`, `map<K,V>` with full indexing and comprehensions |
 | **Time Types** | ✅ | `duration`, `timestamp` with full arithmetic support |
 | **Operators** | ✅ | Arithmetic, logical, comparison, and membership operators |
-| **Functions** | ✅ | Built-in functions and custom function registration |
 | **Variables** | ✅ | Variable binding and scoping |
 | **Conditionals** | ✅ | Ternary operator and logical short-circuiting |
 | **Comprehensions** | ✅ | List and map comprehensions with filtering |
-| **Optional Types** | ✅ | `optional<T>` with safe navigation |
 | **Custom Types** | ✅ | Opaque types via `#[derive(Opaque)]` |
-| **Extensions** | ✅ | CEL language extensions and custom operators |
 | **Macros** | ✅ | CEL macro expansion support |
-| **Async Support** | ✅ | Async function calls and evaluation |
 | **Function Overloads** | ✅ | Multiple function signatures with automatic resolution |
 | **Type Checking** | ✅ | Compile-time type validation |
+
+### Standard Library
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Built-in Functions** | ✅ | Core CEL functions: `size()`, `type()`, `has()`, etc. |
+| **String Functions** | ✅ | `contains()`, `startsWith()`, `endsWith()`, `matches()` |
+| **List Functions** | ✅ | `all()`, `exists()`, `exists_one()`, `filter()`, `map()` |
+| **Map Functions** | ✅ | Key/value iteration and manipulation |
+| **Type Conversion** | ✅ | `int()`, `double()`, `string()`, `bytes()`, `duration()`, `timestamp()` |
+| **Math Functions** | ✅ | Basic arithmetic and comparison operations |
+
+### Optional Value Support
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Optional Types** | ✅ | `optional<T>` with safe navigation and null handling |
+| **Safe Navigation** | ✅ | `?.` operator for safe member access |
+| **Optional Chaining** | ✅ | Chain optional operations without explicit null checks |
+| **Value Extraction** | ✅ | `value()` and `hasValue()` functions for optional handling |
+| **Optional Macros** | ✅ | `optional.of()`, `optional.ofNonZeroValue()` macros |
+
+### Extension Libraries
+
+| Extension | Status | Description |
+|-----------|--------|-------------|
+| **Strings Extension** | ✅ | Advanced string operations: `split()`, `join()`, `replace()`, `format()` |
+| **Math Extension** | ✅ | Mathematical functions: `math.greatest()`, `math.least()`, `math.abs()`, `math.sqrt()`, bitwise ops |
+| **Lists Extension** | ✅ | Enhanced list operations: `flatten()`, `reverse()`, `slice()`, `unique()` |
+| **Sets Extension** | ✅ | Set operations: `sets.contains()`, `sets.equivalent()`, `sets.intersects()` |
+| **Regex Extension** | ✅ | Regular expression support: `matches()`, `findAll()`, `split()` |
+| **Encoders Extension** | ✅ | Encoding/decoding: `base64.encode()`, `base64.decode()`, URL encoding |
+| **Bindings Extension** | ✅ | Variable binding and scoping enhancements |
+
+### Runtime Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Custom Functions** | ✅ | Register custom Rust functions with automatic type conversion |
+| **Async Support** | ✅ | Async function calls and evaluation with Tokio integration |
+| **Custom Extensions** | ✅ | Build and register custom CEL extensions |
+| **Performance Optimization** | ✅ | Optimized evaluation with caching and short-circuiting |
 
 ### Planned Features
 
