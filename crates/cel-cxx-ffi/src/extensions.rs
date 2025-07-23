@@ -80,8 +80,8 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/absl.h");
-        include!("cel-cxx-ffi/include/extensions.h");
+        include!(<cel-cxx-ffi/include/absl.h>);
+        include!(<cel-cxx-ffi/include/extensions.h>);
 
         // bindings_ext.h
         #[rust_name = "bindings_compiler_library"]

@@ -1,6 +1,6 @@
-#include "cel-cxx-ffi/include/absl.h"
-#include "cel-cxx-ffi/src/absl.rs.h"
-#include "absl/log/log_sink_registry.h"
+#include <cel-cxx-ffi/include/absl.h>
+#include <cel-cxx-ffi/src/absl.rs.h>
+#include <absl/log/log_sink_registry.h>
 
 namespace rust::cel_cxx {
 
@@ -15,7 +15,7 @@ void SetLogCallback() {
 }
 
 void RustLogSink::Send(const absl::LogEntry& entry) {
-    log_callback(entry);
+    LogCallback(entry);
 }
 
 } // namespace rust::cel_cxx 

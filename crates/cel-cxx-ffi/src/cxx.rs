@@ -2,7 +2,7 @@
 mod ffi {
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/cxx.h");
+        include!(<cel-cxx-ffi/include/cxx.h>);
         fn CxxString_size_of() -> usize;
     }
 }

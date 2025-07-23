@@ -7,25 +7,25 @@ use crate::Rep;
 mod ffi {
     #[namespace = "google::protobuf"]
     unsafe extern "C++" {
-        include!("google/protobuf/arena.h");
+        include!(<google/protobuf/arena.h>);
         type Arena = super::Arena;
 
-        include!("google/protobuf/descriptor.h");
+        include!(<google/protobuf/descriptor.h>);
         type DescriptorPool = super::DescriptorPool;
     }
 
     #[namespace = "absl"]
     unsafe extern "C++" {
-        include!("absl/strings/string_view.h");
+        include!(<absl/strings/string_view.h>);
         type string_view<'a> = super::StringView<'a>;
     }
 
     #[namespace = "cel"]
     unsafe extern "C++" {
-        include!("base/kind.h");
+        include!(<base/kind.h>);
         type TypeKind = super::TypeKind;
 
-        include!("common/type.h");
+        include!(<common/type.h>);
         type Type<'a> = super::Type<'a>;
         fn name<'a>(self: &Type<'a>) -> string_view<'a>;
         fn kind(self: &Type) -> TypeKind;
@@ -168,7 +168,7 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/common/types.h");
+        include!(<cel-cxx-ffi/include/types.h>);
         type Span_Type<'s, 'a> = super::Span<'s, Type<'a>>;
 
         fn Type_new_any() -> Type<'static>;

@@ -1,5 +1,5 @@
-#include "cel-cxx-ffi/include/runtime.h"
-#include "cel-cxx-ffi/src/runtime.rs.h"
+#include <cel-cxx-ffi/include/runtime.h>
+#include <cel-cxx-ffi/src/runtime.rs.h>
 
 namespace rust::cel_cxx {
 

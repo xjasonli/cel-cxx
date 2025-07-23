@@ -8,15 +8,15 @@ use crate::protobuf::{Arena, DescriptorPool, MessageFactory};
 mod ffi {
     #[namespace = "absl"]
     unsafe extern "C++" {
-        include!("absl/status/status.h");
+        include!(<absl/status/status.h>);
         type Status = super::Status;
-        include!("absl/strings/string_view.h");
+        include!(<absl/strings/string_view.h>);
         type string_view<'a> = super::StringView<'a>;
     }
 
     #[namespace = "google::protobuf"]
     unsafe extern "C++" {
-        include!("google/protobuf/descriptor.h");
+        include!(<google/protobuf/descriptor.h>);
         type Arena = super::Arena;
         type MessageFactory = super::MessageFactory;
         type DescriptorPool = super::DescriptorPool;
@@ -24,9 +24,10 @@ mod ffi {
 
     #[namespace = "cel"]
     unsafe extern "C++" {
-        include!("runtime/runtime.h");
-        include!("runtime/function.h");
-        include!("runtime/standard_functions.h");
+        include!(<runtime/runtime.h>);
+        include!(<runtime/function.h>);
+        include!(<runtime/standard_functions.h>);
+        include!(<common/ast.h>);
 
         type Kind = super::Kind;
         type Value<'a> = super::Value<'a>;
@@ -89,7 +90,7 @@ mod ffi {
     //
     //#[namespace = "cel::extensions"]
     //unsafe extern "C++" {
-    //    include!("runtime/optional_types.h");
+    //    include!(<runtime/optional_types.h>);
     //    fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
     //}
 
@@ -101,7 +102,7 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/runtime.h");
+        include!(<cel-cxx-ffi/include/runtime.h>);
         type LazyOverload<'a> = super::LazyOverload<'a>;
 
         type Span_Value<'a, 'v> = super::Span<'a, super::Value<'v>>;
@@ -305,7 +306,7 @@ mod ffi {
         // Function
         fn Function_new<'a>(ffi_function: Box<AnyFfiFunction<'a>>) -> UniquePtr<Function<'a>>;
 
-        include!("cel-cxx-ffi/include/optional.h");
+        include!(<cel-cxx-ffi/include/optional.h>);
         fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
     }
     #[namespace = "rust::cel_cxx"]

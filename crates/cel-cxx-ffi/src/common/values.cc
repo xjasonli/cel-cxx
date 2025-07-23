@@ -1,7 +1,7 @@
 #include <common/value.h>
 #include <cel-cxx-ffi/include/absl.h>
-#include <cel-cxx-ffi/include/common/values.h>
-#include "cel-cxx-ffi/src/common/values.rs.h"
+#include <cel-cxx-ffi/include/values.h>
+#include <cel-cxx-ffi/src/common/values.rs.h>
 
 namespace rust::cel_cxx {
 

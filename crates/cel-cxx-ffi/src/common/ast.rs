@@ -37,7 +37,7 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/common/ast.h");
+        include!(<cel-cxx-ffi/include/ast.h>);
 
         fn AstImpl_cast_from_public_ast(ast: &Ast) -> &AstImpl;
         fn AstType_to_type<'a>(

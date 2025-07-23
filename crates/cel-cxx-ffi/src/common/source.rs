@@ -16,8 +16,8 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/absl.h");
-        include!("cel-cxx-ffi/include/common/source.h");
+        include!(<cel-cxx-ffi/include/absl.h>);
+        include!(<cel-cxx-ffi/include/source.h>);
 
         fn Source_new(content: &[u8], description: &str, result: &mut UniquePtr<Source>) -> Status;
     }

@@ -175,8 +175,8 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/absl.h");
-        include!("cel-cxx-ffi/include/common/values.h");
+        include!(<cel-cxx-ffi/include/absl.h>);
+        include!(<cel-cxx-ffi/include/values.h>);
 
         // Value
         fn Value_size_of() -> usize;

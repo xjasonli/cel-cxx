@@ -25,8 +25,8 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/absl.h");
-        include!("cel-cxx-ffi/include/parser.h");
+        include!(<cel-cxx-ffi/include/absl.h>);
+        include!(<cel-cxx-ffi/include/parser.h>);
 
         // ParserOptions
         fn ParserOptions_new() -> UniquePtr<ParserOptions>;

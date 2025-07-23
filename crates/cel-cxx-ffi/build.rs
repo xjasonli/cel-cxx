@@ -60,6 +60,7 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
     }
 
     let mut build = cxx_build::bridges(rs_srcs);
+
     build
         .include(artifacts.include_dir())
         .flag_if_supported("-Wno-attributes")
@@ -76,6 +77,9 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         .flag_if_supported("/Zc:sizedDealloc")
         .files(cc_srcs)
         .std(cxx_std.as_str());
+
+    #[cfg(windows)]
+    build.warnings(false);
 
     build.compile("cel-cxx");
 

@@ -6,7 +6,7 @@
 #include <compiler/compiler_factory.h>
 #include <compiler/standard_library.h>
 #include <compiler/optional.h>
-#include "optional.h"
+#include <cel-cxx-ffi/include/optional.h>
 
 namespace rust::cel_cxx {
 

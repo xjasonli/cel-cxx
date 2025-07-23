@@ -48,8 +48,8 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/absl.h");
-        include!("cel-cxx-ffi/include/common/decl.h");
+        include!(<cel-cxx-ffi/include/absl.h>);
+        include!(<cel-cxx-ffi/include/decl.h>);
 
         // VariableDecl
         fn VariableDecl_new<'a>(name: &str, ty: &Type<'a>) -> UniquePtr<VariableDecl<'a>>;

@@ -8,7 +8,7 @@
 #include <checker/validation_result.h>
 #include <checker/optional.h>
 #include <checker/standard_library.h>
-#include "optional.h"
+#include <cel-cxx-ffi/include/optional.h>
 
 namespace rust::cel_cxx {
 

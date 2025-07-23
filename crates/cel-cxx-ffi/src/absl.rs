@@ -6,11 +6,7 @@ use crate::Rep;
 mod ffi {
     #[namespace = "absl"]
     unsafe extern "C++" {
-        include!("absl/log/initialize.h");
-        #[rust_name = "initialize_log"]
-        fn InitializeLog();
-
-        include!("absl/time/time.h");
+        include!(<absl/time/time.h>);
 
         type Duration = super::Duration;
         fn Nanoseconds(n: i64) -> Duration;
@@ -20,7 +16,7 @@ mod ffi {
         fn ToUnixNanos(time: Time) -> i64;
         fn FromUnixNanos(nanos: i64) -> Time;
 
-        include!("absl/status/status.h");
+        include!(<absl/status/status.h>);
         type StatusCode = super::StatusCode;
 
         type Status = super::Status;
@@ -64,7 +60,7 @@ mod ffi {
         fn UnimplementedError(msg: string_view) -> Status;
         fn UnknownError(msg: string_view) -> Status;
 
-        include!("absl/strings/string_view.h");
+        include!(<absl/strings/string_view.h>);
         #[allow(unused, non_camel_case_types)]
         type string_view<'a> = super::StringView<'a>;
         #[rust_name = "len"]
@@ -72,16 +68,9 @@ mod ffi {
         fn data(self: &string_view) -> *const c_char;
     }
 
-    #[namespace = "absl::log_internal"]
-    unsafe extern "C++" {
-        include!("absl/log/internal/globals.h");
-        #[rust_name = "is_log_initialized"]
-        fn IsInitialized() -> bool;
-    }
-
     #[namespace = "absl"]
     unsafe extern "C++" {
-        include!("absl/log/log_entry.h");
+        include!(<absl/log/log_entry.h>);
         
         type LogSeverity = super::log::LogSeverity;
         type LogSeverityAtLeast = super::log::LogSeverityAtLeast;
@@ -94,14 +83,14 @@ mod ffi {
         //fn source_basename<'a>(self: &'a LogEntry) -> string_view<'a>;
         fn source_line(self: &LogEntry) -> i32;
 
-        include!("absl/log/globals.h");
+        include!(<absl/log/globals.h>);
         #[rust_name = "set_stderr_threshold"]
         fn SetStderrThreshold(severity: LogSeverityAtLeast);
     }
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/absl.h");
+        include!(<cel-cxx-ffi/include/absl.h>);
 
         fn Duration_new(seconds: i64, nanos: u32) -> Duration;
         fn Duration_seconds(duration: Duration) -> i64;
@@ -120,12 +109,16 @@ mod ffi {
         fn Status_drop(status: &mut Status);
         fn Status_to_string(status: &Status) -> String;
         
+        #[rust_name = "initialize_log"]
+        fn InitializeLog();
+
         #[rust_name = "set_log_callback"]
         fn SetLogCallback();
     }
 
     #[namespace = "rust::cel_cxx"]
     extern "Rust" {
+        #[cxx_name = "LogCallback"]
         fn log_callback(entry: &LogEntry);
     }
 }
@@ -170,12 +163,8 @@ pub mod log {
     /// This function is idempotent and can be called multiple times safely
     pub fn init() {
         ONCE.call_once(|| {
-            // 1. Check and initialize absl log (atomic operation)
-            if !ffi::is_log_initialized() {
-                ffi::initialize_log();
-            }
+            ffi::initialize_log();
 
-            // 2. Bridge to Rust log (once only)
             ffi::set_log_callback();
 
             ffi::set_stderr_threshold(LogSeverityAtLeast::Infinity);

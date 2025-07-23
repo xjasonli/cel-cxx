@@ -2,8 +2,10 @@
 #define CEL_CXX_FFI_INCLUDE_ABSL_H
 
 #include <rust/cxx.h>
-#include "absl/status/status.h"
-#include "absl/log/log_sink.h"
+#include <absl/status/status.h>
+#include <absl/log/log_sink.h>
+#include <absl/log/initialize.h>
+#include <absl/log/internal/globals.h>
 
 namespace rust {
 template <> struct IsRelocatable<::absl::Status> : std::true_type {};
@@ -63,6 +65,12 @@ inline void Status_drop(Status& status) {
 
 inline String Status_to_string(const Status& status) {
     return String(status.ToString());
+}
+
+inline void InitializeLog() {
+    if (!absl::log_internal::IsInitialized()) {
+        absl::InitializeLog();
+    }
 }
 
 // Set log callback (internal use)

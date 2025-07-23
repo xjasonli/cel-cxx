@@ -8,7 +8,7 @@
 #include <runtime/standard_runtime_builder_factory.h>
 #include <runtime/internal/runtime_impl.h>
 #include <runtime/internal/runtime_friend_access.h>
-#include "absl.h"
+#include <cel-cxx-ffi/include/absl.h>
 
 namespace rust { inline namespace cxxbridge1 {
 using LazyOverload = ::cel::FunctionRegistry::LazyOverload;

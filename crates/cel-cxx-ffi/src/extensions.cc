@@ -1,5 +1,5 @@
-#include "cel-cxx-ffi/include/extensions.h"
-#include "cel-cxx-ffi/src/extensions.rs.h"
+#include <cel-cxx-ffi/include/extensions.h>
+#include <cel-cxx-ffi/src/extensions.rs.h>
 #include <checker/internal/builtins_arena.h>
 #include <runtime/function_adapter.h>
 #include <checker/internal/builtins_arena.h>

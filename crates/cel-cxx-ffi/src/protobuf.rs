@@ -2,23 +2,23 @@
 mod ffi {
     #[namespace = "google::protobuf"]
     unsafe extern "C++" {
-        include!("google/protobuf/arena.h");
+        include!(<google/protobuf/arena.h>);
         type Arena;
         #[rust_name = "space_allocated"]
         fn SpaceAllocated(self: &Arena) -> u64;
         #[rust_name = "space_used"]
         fn SpaceUsed(self: &Arena) -> u64;
 
-        include!("google/protobuf/descriptor.h");
+        include!(<google/protobuf/descriptor.h>);
         type DescriptorPool;
 
-        include!("google/protobuf/message.h");
+        include!(<google/protobuf/message.h>);
         type MessageFactory;
     }
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
-        include!("cel-cxx-ffi/include/protobuf.h");
+        include!(<cel-cxx-ffi/include/protobuf.h>);
         fn NewArena() -> SharedPtr<Arena>;
 
         fn generated_pool() -> SharedPtr<DescriptorPool>;
