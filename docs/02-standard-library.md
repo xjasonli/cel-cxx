@@ -738,6 +738,8 @@ size(b'\xF0\x9F\xA4\xAA') // 4
 
 **Description:** Tests whether a string matches a given RE2 regular expression. Time complexity is proportional to the product of the sizes of the arguments as guaranteed by the RE2 design.
 
+**Regular Expression Syntax:** For detailed syntax reference, see: [RE2 Syntax Documentation](https://github.com/google/re2/wiki/Syntax)
+
 **Parameters:**
 - `pattern`: Regular expression pattern
 

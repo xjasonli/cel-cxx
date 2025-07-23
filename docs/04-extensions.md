@@ -154,7 +154,7 @@ The `re` extension provides C++ specific regular expression functions built on t
 
 **Example Usage**:
 ```cel
-re.extract("Hello World", r"(\w+) (\w+)", r"$2, $1")  // "World, Hello"
+re.extract("Hello World", r"(\w+) (\w+)", r"\2, \1")  // "World, Hello"
 re.capture("user@example.com", r"(\w+)@[\w.]+")       // "user"
 re.captureN("John Doe", r"(?P<first>\w+) (?P<last>\w+)")  // {"first": "John", "last": "Doe"}
 ```

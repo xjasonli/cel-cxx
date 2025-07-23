@@ -29,6 +29,8 @@ The regex extension enables powerful pattern matching and text extraction using 
 
 **Note**: This library depends on the CEL optional type. Please ensure that the `cel.OptionalTypes()` is enabled when using regex extensions.
 
+**Regular Expression Syntax**: All regex functions use RE2 syntax. For detailed syntax reference, see: [RE2 Syntax Documentation](https://github.com/google/re2/wiki/Syntax)
+
 **Enabling the Extension**:
 ```rust
 let env = Env::builder()
