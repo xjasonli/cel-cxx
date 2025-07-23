@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-07-23
+
+### Added
+- **Complete CEL Standard Library Implementation**
+  - Full support for all CEL standard library functions with comprehensive test coverage
+  - String operations, list/map manipulations, type conversions, and utility functions
+  - Mathematical operations, comparison functions, and type checking utilities
+
+- **Optional Types Support**
+  - Native `Optional<T>` wrapper type for safe null handling
+  - Safe navigation operators and optional value processing
+  - Integration with all CEL extensions and standard library functions
+
+- **Comprehensive CEL Extensions Support**
+  - **Strings Extension**: Advanced string manipulation (join, split, quote, etc.)
+  - **Math Extension**: Mathematical functions (abs, ceil, floor, bitwise operations, etc.)
+  - **Lists Extension**: List processing utilities (flatten, reverse, slice, etc.)
+  - **Sets Extension**: Set operations (contains, equivalent, intersects)
+  - **Encoders Extension**: Base64 encoding/decoding operations
+  - **Regex Extension**: Pattern extraction (`regex.extract`, `regex.extractAll`, `regex.replace`)
+  - **RE Extension**: C++ specific regex functions (`re.extract`, `re.capture`, `re.captureN`)
+  - **Bindings Extension**: Variable binding macros (`cel.bind`)
+
+- **Enhanced Documentation System**
+  - Complete English documentation for all CEL features and extensions
+  - Comprehensive Chinese (Simplified) documentation translation
+  - Detailed API references with practical examples and usage patterns
+  - RE2 regex syntax documentation links for all regex-related functions
+
+- **Improved Runtime Features**
+  - Automatic absl logging initialization to prevent runtime warnings
+  - Enhanced extension configuration and registration system
+  - Modular extension loading with dependency checking
+
+### Changed
+- **Enhanced Build System**
+  - Updated build configuration for new CEL-CPP dependencies
+  - Improved Bazel integration with MODULE.bazel updates
+  - Better platform compatibility including MSVC support fixes
+
+- **API Improvements**
+  - Enhanced `EnvBuilder` with `with_ext_*` methods for all extensions
+  - Improved type conversion handling between Rust and CEL types
+  - Better error handling and debugging capabilities
+
+### Fixed
+- **CEL-CPP Implementation Issues**
+  - Applied patches to fix missing functionality in upstream CEL-CPP
+  - Resolved optional type registration issues
+  - Fixed regex extension compatibility problems
+
+- **Documentation Corrections**
+  - Fixed incorrect function signatures and behavior descriptions
+  - Corrected regex capture group syntax (`\1`, `\2` instead of `$1`, `$2`)
+  - Updated extension documentation to match actual implementation
+
+- **Runtime Stability**
+  - Fixed clippy warnings and code quality issues
+  - Improved memory management and resource handling
+  - Enhanced error propagation and handling
+
+### Technical Details
+- Added `optional.h/optional.cc` for Optional<T> type support
+- Extended `extensions.h/extensions.cc` with all standard CEL extensions
+- Comprehensive test suites for all new functionality (`tests/standard-library.rs`, `tests/optional.rs`, `tests/extensions-*.rs`)
+- Practical examples demonstrating real-world usage scenarios (`examples/standard-library.rs`, `examples/extensions-*.rs`)
+
 ## [0.1.5] - 2025-07-11
 
 ### Added
@@ -131,7 +198,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite and examples
 - CI/CD pipeline for automated testing
 
-[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/xjasonli/cel-cxx/compare/v0.1.5...v0.2.0
 [0.1.5]: https://github.com/xjasonli/cel-cxx/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/xjasonli/cel-cxx/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/xjasonli/cel-cxx/compare/v0.1.2...v0.1.3
