@@ -34,7 +34,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [build-dependencies]
-cel-build-utils = "0.1.0"
+cel-build-utils = "0.2.0"
 ```
 
 ## License

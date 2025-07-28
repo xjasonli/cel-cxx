@@ -37,14 +37,14 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cel-cxx = { version = "0.1.0", features = ["derive"] }
+cel-cxx = { version = "0.2.0", features = ["derive"] }
 ```
 
 Or use directly:
 
 ```toml
 [dependencies]
-cel-cxx-macros = "0.1.0"
+cel-cxx-macros = "0.2.0"
 ```
 
 ## License
