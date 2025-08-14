@@ -8,7 +8,7 @@
 [docs-rs]: https://docs.rs/cel-cxx/badge.svg
 [deepwiki]: https://deepwiki.com/badge.svg
 
-- [CEL-CXX: Modern Rust Interface for CEL](#cel-cxx-modern-rust-interface-for-cel)
+- [CEL-CXX: Modern Rust library for CEL](#cel-cxx-modern-rust-library-for-cel)
   - [Architecture Overview](#architecture-overview)
     - [Core Design Principles](#core-design-principles)
     - [Integration Architecture](#integration-architecture)
@@ -51,9 +51,9 @@
   - [Acknowledgements](#acknowledgements)
 
 
-# CEL-CXX: Modern Rust Interface for CEL
+# CEL-CXX: Modern Rust library for CEL
 
-A high-performance, type-safe Rust interface for [Common Expression Language (CEL)](https://github.com/google/cel-spec),
+A high-performance, type-safe Rust library for [Common Expression Language (CEL)](https://github.com/google/cel-spec),
 built on top of [cel-cpp](https://github.com/google/cel-cpp) with zero-cost FFI bindings via [cxx](https://github.com/dtolnay/cxx).
 
 ## Architecture Overview
