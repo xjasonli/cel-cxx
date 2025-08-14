@@ -126,7 +126,7 @@ use cel_cxx::*;
 #[cel_cxx(display)]
 // or you can specify a custom format.
 // Generates `std::fmt::Display` impl with custom format.
-#[cel_cxx(display = write!(fmt, "User(name={name})", name = self.name))]
+#[cel_cxx(display = write!(fmt, "User(name={name})", name = &self.name))]
 struct User {
     name: String,
     age: i32,
