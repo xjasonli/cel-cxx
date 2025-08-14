@@ -76,15 +76,10 @@
 //! use cel_cxx::{VariableRegistry, VariableBindings, Opaque};
 //!
 //! #[derive(Opaque, Debug, Clone, PartialEq)]
+//! #[cel_cxx(display)]
 //! struct User {
 //!     id: i64,
 //!     name: String,
-//! }
-//!
-//! impl std::fmt::Display for User {
-//!     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//!         write!(f, "User({})", self.name)
-//!     }
 //! }
 //!
 //! let mut registry = VariableRegistry::new();

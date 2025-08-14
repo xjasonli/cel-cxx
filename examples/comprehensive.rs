@@ -31,6 +31,7 @@ enum ValidationError {
 /// Custom user type demonstrating derive macro usage
 #[derive(Opaque, Debug, Clone, PartialEq)]
 #[cel_cxx(type = "example.User")]
+#[cel_cxx(display)]
 struct User {
     id: i64,
     name: String,
@@ -38,17 +39,13 @@ struct User {
     age: i32,
     roles: Vec<String>,
     metadata: HashMap<String, String>,
-}
-
-impl std::fmt::Display for User {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "User(id={}, name={})", self.id, self.name)
-    }
+    r#type: String,
 }
 
 /// Custom product type for ecommerce scenarios
 #[derive(Opaque, Debug, Clone, PartialEq)]
 #[cel_cxx(type = "example.Product")]
+#[cel_cxx(display = write!(fmt, "{}(${:.2})", self.name, self.price))]
 struct Product {
     id: i64,
     name: String,
@@ -58,30 +55,15 @@ struct Product {
     in_stock: bool,
 }
 
-impl std::fmt::Display for Product {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}(${:.2})", self.name, self.price)
-    }
-}
-
 /// Student type for opaque member function demonstrations
 #[derive(Opaque, Debug, Clone, PartialEq)]
 #[cel_cxx(type = "example.Student")]
+#[cel_cxx(display = write!(fmt, "Student {{ name: {}, age: {}, grade: {:.1} }}", self.name, self.age, self.grade))]
 struct Student {
     name: String,
     age: i32,
     grade: f64,
     subjects: Vec<String>,
-}
-
-impl std::fmt::Display for Student {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Student {{ name: {}, age: {}, grade: {:.1} }}",
-            self.name, self.age, self.grade
-        )
-    }
 }
 
 impl Student {
@@ -771,6 +753,7 @@ fn demo8_container_operations() -> Result<(), Error> {
             age: 25,
             roles: vec![],
             metadata: HashMap::new(),
+            r#type: "user".to_string(),
         },
         User {
             id: 2,
@@ -779,6 +762,7 @@ fn demo8_container_operations() -> Result<(), Error> {
             age: 16,
             roles: vec![],
             metadata: HashMap::new(),
+            r#type: "user".to_string(),
         },
         User {
             id: 3,
@@ -787,6 +771,7 @@ fn demo8_container_operations() -> Result<(), Error> {
             age: 67,
             roles: vec![],
             metadata: HashMap::new(),
+            r#type: "user".to_string(),
         },
     ];
 
@@ -799,6 +784,7 @@ fn demo8_container_operations() -> Result<(), Error> {
             "group_by_age_range(users).size()",
             "Group users by age range",
         ),
+        ("users", "Display users")
     ];
 
     let activation = Activation::new()

@@ -23,10 +23,10 @@ OpaqueType AnyFfiOpaqueValueWrapper::GetRuntimeType() const {
 
 Status AnyFfiOpaqueValueWrapper::Equal(
     const OpaqueValue& other,
-    const google::protobuf::DescriptorPool* ABSL_NONNULL descriptor_pool,
-    google::protobuf::MessageFactory* ABSL_NONNULL message_factory,
-    google::protobuf::Arena* ABSL_NONNULL arena,
-    Value* ABSL_NONNULL result) const {
+    const google::protobuf::DescriptorPool* absl_nonnull descriptor_pool,
+    google::protobuf::MessageFactory* absl_nonnull message_factory,
+    google::protobuf::Arena* absl_nonnull arena,
+    Value* absl_nonnull result) const {
     auto other_wrapper = dynamic_cast<const AnyFfiOpaqueValueWrapper*>(other.interface());
     if (other_wrapper == nullptr) {
         *result = cel::FalseValue();
@@ -42,7 +42,7 @@ Status AnyFfiOpaqueValueWrapper::Equal(
     return absl::OkStatus();
 }
 
-OpaqueValue AnyFfiOpaqueValueWrapper::Clone(google::protobuf::Arena* ABSL_NONNULL arena) const {
+OpaqueValue AnyFfiOpaqueValueWrapper::Clone(google::protobuf::Arena* absl_nonnull arena) const {
     auto wrapper = arena->Create<AnyFfiOpaqueValueWrapper>(arena, ffi_->Clone());
     return OpaqueValue(wrapper, arena);
 }

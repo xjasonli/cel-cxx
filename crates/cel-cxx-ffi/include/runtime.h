@@ -119,9 +119,9 @@ public:
     
     virtual absl::StatusOr<bool> FindVariable(
         absl::string_view name,
-        const google::protobuf::DescriptorPool* ABSL_NONNULL descriptor_pool,
-        google::protobuf::MessageFactory* ABSL_NONNULL message_factory,
-        google::protobuf::Arena* ABSL_NONNULL arena, Value* ABSL_NONNULL result) const override;
+        const google::protobuf::DescriptorPool* absl_nonnull descriptor_pool,
+        google::protobuf::MessageFactory* absl_nonnull message_factory,
+        google::protobuf::Arena* absl_nonnull arena, Value* absl_nonnull result) const override;
 
     virtual std::vector<FunctionOverloadReference> FindFunctionOverloads(
         absl::string_view name) const override;
@@ -498,9 +498,9 @@ public:
 
     virtual absl::StatusOr<Value> Invoke(
         absl::Span<const Value> args,
-        const google::protobuf::DescriptorPool* ABSL_NONNULL descriptor_pool,
-        google::protobuf::MessageFactory* ABSL_NONNULL message_factory,
-        google::protobuf::Arena* ABSL_NONNULL arena,
+        const google::protobuf::DescriptorPool* absl_nonnull descriptor_pool,
+        google::protobuf::MessageFactory* absl_nonnull message_factory,
+        google::protobuf::Arena* absl_nonnull arena,
         absl::Span<const std::string> overload_id) const override;
 private:
     Box<AnyFfiFunction> ffi_;

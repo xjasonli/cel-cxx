@@ -22,18 +22,6 @@ for internal use by the `cel-cxx` crate and is not recommended for direct use.
 This crate is automatically included when you use `cel-cxx`. You typically don't need to 
 depend on it directly.
 
-```toml
-[dependencies]
-cel-cxx = "0.2.0"  # This includes cel-cxx-ffi automatically
-```
-
-If you need to use the low-level bindings directly:
-
-```toml
-[dependencies]
-cel-cxx-ffi = "0.2.0"
-```
-
 ## Build Requirements
 
 - **C++17 compatible compiler**

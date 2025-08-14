@@ -13,15 +13,10 @@ fn main() -> Result<()> {
 
 #[derive(Opaque, Debug, Clone, PartialEq)]
 #[cel_cxx(type = "helloworld.Student")]
+#[cel_cxx(display = write!(fmt, "Student {{ name: {}, age: {} }}", self.name, self.age))]
 struct Student {
     name: String,
     age: i32,
-}
-
-impl std::fmt::Display for Student {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Student {{ name: {}, age: {} }}", self.name, self.age)
-    }
 }
 
 impl Student {

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-08-14
+
+### Added
+- **Enhanced Opaque Derive Macro**
+  - Added `display` attribute support for automatic `std::fmt::Display` implementation
+  - Support for both automatic Debug-based formatting and custom format expressions
+  - Improved macro documentation with comprehensive usage examples
+  - Better developer experience for implementing Display trait on opaque types
+
 ## [0.2.0] - 2025-07-23
 
 ### Added

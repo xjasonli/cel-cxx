@@ -10,23 +10,13 @@ fn test_opaque_function_overload() -> Result<(), Error> {
 
     #[derive(Opaque, Debug, Clone, PartialEq)]
     #[cel_cxx(type = format!("{}.{}", MY_NAMESPACE, "TestOpaqueI64"))]
+    #[cel_cxx(display)]
     struct TestOpaqueI64(i64);
 
     #[derive(Opaque, Debug, Clone, PartialEq)]
     #[cel_cxx(type = format!("{}.{}", MY_NAMESPACE, "TestOpaqueU64"))]
+    #[cel_cxx(display)]
     struct TestOpaqueU64(u64);
-
-    impl std::fmt::Display for TestOpaqueI64 {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "TestOpaqueI64({})", self.0)
-        }
-    }
-
-    impl std::fmt::Display for TestOpaqueU64 {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "TestOpaqueU64({})", self.0)
-        }
-    }
 
     fn sum_i64(a: TestOpaqueI64, b: i64) -> Result<i64, Error> {
         Ok(a.0 + b)

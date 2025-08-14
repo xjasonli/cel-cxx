@@ -4,10 +4,16 @@ use quote::quote;
 
 pub fn expand_derive_opaque(input: syn::DeriveInput) -> syn::Result<TokenStream> {
     let ast = Ast::from_ast(&input)?;
-    let tokens = [impl_typed(&ast), impl_into(&ast), impl_from(&ast)]
-        .into_iter()
-        .flatten();
-    Ok(tokens.collect())
+    let tokens = [
+        impl_typed(&ast),
+        impl_into(&ast),
+        impl_from(&ast),
+        impl_display(&ast),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    Ok(tokens)
 }
 
 fn add_generic_bounds(
@@ -169,6 +175,29 @@ fn impl_from(input: &Ast) -> TokenStream {
     tokens
 }
 
+fn impl_display(input: &Ast) -> TokenStream {
+    let Some(display) = input.attrs.display() else {
+        return quote! {};
+    };
+
+    let name = &input.ident;
+    let generics = add_generic_bounds(
+        &input.generic_params,
+        &input.generics,
+        vec![syn::parse_quote!(::std::fmt::Display)],
+    );
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    let tokens = quote! {
+        impl #impl_generics ::std::fmt::Display for #name #ty_generics #where_clause {
+            fn fmt(&self, fmt: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                #display
+            }
+        }
+    };
+    tokens
+}
+
 struct Ast {
     pub ident: syn::Ident,
     pub attrs: Attrs,
@@ -225,12 +254,14 @@ impl Ast {
 struct Attrs {
     pub type_name: Option<syn::Expr>,
     pub crate_path: Option<syn::Path>,
+    pub display: Option<syn::Expr>,
 }
 
 impl Attrs {
     fn from_ast(input: &syn::DeriveInput) -> syn::Result<Self> {
         let mut type_name = None;
         let mut crate_path = None;
+        let mut display = None;
 
         for attr in input.attrs.iter() {
             if !attr.path().is_ident(CEL_CXX) {
@@ -249,6 +280,13 @@ impl Attrs {
                 } else if meta.path.is_ident(CRATE) {
                     let path: syn::Path = meta.value()?.parse()?;
                     crate_path = Some(path);
+                } else if meta.path.is_ident(DISPLAY) {
+                    let expr: syn::Expr = if meta.input.is_empty() {
+                        syn::parse_quote!(write!(fmt, "{self:?}"))
+                    } else {
+                        meta.value()?.parse()?
+                    };
+                    display = Some(expr);
                 } else {
                     return Err(syn::Error::new_spanned(meta.path, "unknown attribute"));
                 }
@@ -258,6 +296,7 @@ impl Attrs {
         Ok(Self {
             type_name,
             crate_path,
+            display,
         })
     }
 
@@ -271,5 +310,9 @@ impl Attrs {
         self.type_name
             .clone()
             .unwrap_or_else(|| syn::parse_quote!(#default))
+    }
+
+    fn display(&self) -> Option<&syn::Expr> {
+        self.display.as_ref()
     }
 }

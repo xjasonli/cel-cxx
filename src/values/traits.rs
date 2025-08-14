@@ -34,13 +34,8 @@ use std::hash::Hash;
 /// use cel_cxx::Opaque;
 ///
 /// #[derive(Opaque, Debug, Clone, PartialEq)]
+/// #[cel_cxx(display)]
 /// struct CustomId(u64);
-///
-/// impl std::fmt::Display for CustomId {
-///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-///         write!(f, "CustomId({})", self.0)
-///     }
-/// }
 ///
 /// // TypedValue is automatically implemented by the derive macro
 /// ```

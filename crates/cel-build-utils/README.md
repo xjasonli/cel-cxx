@@ -16,27 +16,6 @@ It is primarily intended for use in `build.rs` scripts and is used internally by
 - **Cross-platform build support** (Linux, macOS)
 - **Artifact management** for compiled libraries and headers
 
-## Usage
-
-Add this to your `build.rs`:
-
-```rust
-use cel_build_utils::{Build, Artifacts};
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let artifacts = Build::new().build();
-    artifacts.print_cargo_metadata();
-    Ok(())
-}
-```
-
-Add to your `Cargo.toml`:
-
-```toml
-[build-dependencies]
-cel-build-utils = "0.2.0"
-```
-
 ## License
 
 Licensed under the Apache License 2.0. See the [LICENSE](../../LICENSE) file for details. 

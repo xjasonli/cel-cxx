@@ -39,13 +39,8 @@ fn test_hand_map_function() -> Result<(), Error> {
 
     #[derive(Opaque, Debug, Clone, PartialEq)]
     #[cel_cxx(type = format!("{}.{}", MY_NAMESPACE, "TestOpaque"))]
+    #[cel_cxx(display)]
     struct TestOpaque(i64);
-
-    impl std::fmt::Display for TestOpaque {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "TestOpaque({})", self.0)
-        }
-    }
 
     fn get_type(_a: TestOpaque) -> Result<String, Error> {
         Ok("i64".to_string())

@@ -477,14 +477,8 @@ mod test {
     #[cfg(feature = "derive")]
     #[derive(Opaque, Debug, Clone, PartialEq)]
     #[cel_cxx(type = "MyOpaque", crate = crate)]
+    #[cel_cxx(display)]
     struct MyOpaque(pub i64);
-
-    #[cfg(feature = "derive")]
-    impl std::fmt::Display for MyOpaque {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(f, "MyOpaque({})", self.0)
-        }
-    }
 
     #[cfg(feature = "derive")]
     fn f6(a1: String, a2: MyOpaque, a3: HashMap<u64, Vec<Vec<i64>>>) -> Result<i64, Error> {

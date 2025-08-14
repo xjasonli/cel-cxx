@@ -417,13 +417,9 @@ impl ValueType {
     ///
     /// #[derive(Opaque, Debug, Clone, PartialEq)]
     /// #[cel_cxx(type = "my.CustomType")]
+    /// #[cel_cxx(display)]
     /// struct CustomType {
     ///     value: i32,
-    /// }
-    /// impl std::fmt::Display for CustomType {
-    ///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    ///         write!(f, "CustomType({})", self.value)
-    ///     }
     /// }
     ///
     /// let opaque_type = <CustomType as TypedValue>::value_type();

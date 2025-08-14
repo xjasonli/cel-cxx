@@ -123,13 +123,8 @@
 //! use cel_cxx::{Opaque, IntoValue, FromValue};
 //!
 //! #[derive(Opaque, Debug, Clone, PartialEq)]
+//! #[cel_cxx(display)]
 //! struct UserId(u64);
-//!
-//! impl std::fmt::Display for UserId {
-//!     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//!         write!(f, "User({})", self.0)
-//!     }
-//! }
 //!
 //! // All necessary traits (TypedValue, IntoValue, FromValue) are automatically implemented
 //!

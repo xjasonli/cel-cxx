@@ -35,13 +35,8 @@ use super::*;
 /// use cel_cxx::{Opaque, Value, IntoValue};
 ///
 /// #[derive(Opaque, Debug, Clone, PartialEq)]
+/// #[cel_cxx(display)]
 /// struct UserId(u64);
-///
-/// impl std::fmt::Display for UserId {
-///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-///         write!(f, "UserId({})", self.0)
-///     }
-/// }
 ///
 /// // All necessary traits are automatically implemented by the derive macro
 ///
@@ -56,15 +51,10 @@ use super::*;
 /// use cel_cxx::*;
 ///
 /// #[derive(Opaque, Debug, Clone, PartialEq)]
+/// #[cel_cxx(display)]
 /// struct BankAccount {
 ///     balance: f64,
 ///     account_number: String,
-/// }
-///
-/// impl std::fmt::Display for BankAccount {
-///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-///         write!(f, "BankAccount({})", self.account_number)
-///     }
 /// }
 ///
 /// impl BankAccount {
@@ -98,13 +88,8 @@ use super::*;
 /// use cel_cxx::{Value, Opaque, IntoValue};
 ///
 /// #[derive(Opaque, Debug, Clone, PartialEq)]
+/// #[cel_cxx(display)]
 /// struct UserId(u64);
-///
-/// impl std::fmt::Display for UserId {
-///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-///         write!(f, "UserId({})", self.0)
-///     }
-/// }
 ///
 /// let user_id = UserId(12345);
 /// let value = user_id.into_value();
@@ -159,13 +144,8 @@ dyn_clone::clone_trait_object!(Opaque);
 /// use cel_cxx::Opaque;
 ///
 /// #[derive(Opaque, Debug, Clone, PartialEq, Eq, Hash)]
+/// #[cel_cxx(display)]
 /// struct ProductId(String);
-///
-/// impl std::fmt::Display for ProductId {
-///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-///         write!(f, "ProductId({})", self.0)
-///     }
-/// }
 ///
 /// // All necessary traits are automatically implemented by the derive macro
 /// ```

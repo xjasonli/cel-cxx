@@ -329,16 +329,16 @@ public:
     virtual OpaqueType GetRuntimeType() const override;
     virtual Status Equal(
         const OpaqueValue& other,
-        const google::protobuf::DescriptorPool* ABSL_NONNULL descriptor_pool,
-        google::protobuf::MessageFactory* ABSL_NONNULL message_factory,
-        google::protobuf::Arena* ABSL_NONNULL arena,
-        Value* ABSL_NONNULL result) const override;
-    virtual OpaqueValue Clone(google::protobuf::Arena* ABSL_NONNULL arena) const override;
+        const google::protobuf::DescriptorPool* absl_nonnull descriptor_pool,
+        google::protobuf::MessageFactory* absl_nonnull message_factory,
+        google::protobuf::Arena* absl_nonnull arena,
+        Value* absl_nonnull result) const override;
+    virtual OpaqueValue Clone(google::protobuf::Arena* absl_nonnull arena) const override;
     virtual cel::NativeTypeId GetNativeTypeId() const override;
 
     struct Content {
-        const OpaqueValueInterface* ABSL_NONNULL interface;
-        google::protobuf::Arena* ABSL_NONNULL arena;
+        const OpaqueValueInterface* absl_nonnull interface;
+        google::protobuf::Arena* absl_nonnull arena;
     };
 private:
     Box<AnyFfiOpaqueValue> ffi_;

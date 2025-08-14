@@ -8,7 +8,7 @@
 [docs-rs]: https://docs.rs/cel-cxx/badge.svg
 [deepwiki]: https://deepwiki.com/badge.svg
 
-- [CEL-CXX: Modern Rust library for CEL](#cel-cxx-modern-rust-library-for-cel)
+- [CEL-CXX: CEL Rust library](#cel-cxx-cel-rust-library)
   - [Architecture Overview](#architecture-overview)
     - [Core Design Principles](#core-design-principles)
     - [Integration Architecture](#integration-architecture)
@@ -51,10 +51,9 @@
   - [Acknowledgements](#acknowledgements)
 
 
-# CEL-CXX: Modern Rust library for CEL
+# CEL-CXX: CEL Rust library
 
-A high-performance, type-safe Rust library for [Common Expression Language (CEL)](https://github.com/google/cel-spec),
-built on top of [cel-cpp](https://github.com/google/cel-cpp) with zero-cost FFI bindings via [cxx](https://github.com/dtolnay/cxx).
+A type-safe Rust library for [Common Expression Language (CEL)](https://github.com/google/cel-spec), built on top of [cel-cpp](https://github.com/google/cel-cpp) with zero-cost FFI bindings via [cxx](https://github.com/dtolnay/cxx).
 
 ## Architecture Overview
 
@@ -83,10 +82,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cel-cxx = "0.2.0"
+cel-cxx = "0.2.1"
 
 # Optional features
-cel-cxx = { version = "0.2.0", features = ["tokio"] }
+cel-cxx = { version = "0.2.1", features = ["tokio"] }
 ```
 
 ### Basic Expression Evaluation
@@ -121,7 +120,13 @@ println!("{}", result); // "Hello Alice! You are an adult"
 use cel_cxx::*;
 
 #[derive(Opaque, Debug, Clone, PartialEq)]
+// Specify type name in CEL type system.
 #[cel_cxx(type = "myapp.User")]
+// Generates `std::fmt::Display` impl for User` with `Debug` trait.
+#[cel_cxx(display)]
+// or you can specify a custom format.
+// Generates `std::fmt::Display` impl with custom format.
+#[cel_cxx(display = write!(fmt, "User(name={name})", name = self.name))]
 struct User {
     name: String,
     age: i32,
@@ -140,12 +145,6 @@ impl User {
     
     fn get_role_count(&self) -> i64 {
         self.roles.len() as i64
-    }
-}
-
-impl std::fmt::Display for User {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "User({})", self.name)
     }
 }
 
