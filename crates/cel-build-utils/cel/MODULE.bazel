@@ -34,7 +34,7 @@ git_override(
 # Abseil-CPP dependency
 bazel_dep(
     name = "abseil-cpp",
-    version = "20250127.1",
+    version = "20250512.1",
     repo_name = "com_google_absl",
 )
 

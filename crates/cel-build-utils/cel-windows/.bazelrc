@@ -12,6 +12,7 @@ build --enable_bzlmod
 
 # MSVC-specific flags (use /flag format instead of -flag)
 build:msvc --define absl=1
+build:msvc --define=protobuf_allow_msvc=true
 build:msvc --cxxopt=/std:c++20 --host_cxxopt=/std:c++20
 build:msvc --cxxopt=/Zc:sizedDealloc
 build:msvc --cxxopt=/DANTLR4CPP_STATIC --host_cxxopt=/DANTLR4CPP_STATIC
