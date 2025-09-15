@@ -3,6 +3,7 @@
 
 #include <rust/cxx.h>
 #include <extensions/bindings_ext.h>
+#include <extensions/comprehensions_v2.h>
 #include <extensions/encoders.h>
 #include <extensions/lists_functions.h>
 #include <extensions/math_ext_decls.h>
@@ -15,18 +16,16 @@
 #include <checker/internal/builtins_arena.h>
 #include <internal/status_macros.h>
 
-namespace cel::extensions {
-
-// bindings_ext.h
-cel::CompilerLibrary BindingsCompilerLibrary();
-
-} // namespace cel::extensions
-
 namespace rust::cel_cxx {
 
 // bindings_ext.h
 inline std::unique_ptr<cel::CompilerLibrary> BindingsCompilerLibrary() {
     return std::make_unique<cel::CompilerLibrary>(cel::extensions::BindingsCompilerLibrary());
+}
+
+// comprehensions_v2.h
+inline std::unique_ptr<cel::CompilerLibrary> ComprehensionsV2CompilerLibrary() {
+    return std::make_unique<cel::CompilerLibrary>(cel::extensions::ComprehensionsV2CompilerLibrary());
 }
 
 // encoders.h

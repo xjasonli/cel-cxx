@@ -17,31 +17,22 @@ mod ffi {
         type Type<'a> = super::Type<'a>;
 
         include!(<common/ast.h>);
+        type TypeSpec;
 
         type Ast;
         #[rust_name = "is_checked"]
         fn IsChecked(self: &Ast) -> bool;
-    }
 
-    #[namespace = "cel::ast_internal"]
-    unsafe extern "C++" {
-        include!(<common/ast/ast_impl.h>);
-
-        type AstImpl;
-        #[rust_name = "return_type"]
-        fn GetReturnType(self: &AstImpl) -> &AstType;
-
-        #[rust_name = "AstType"]
-        type Type;
+        #[rust_name = "return_type_spec"]
+        fn GetReturnType(self: &Ast) -> &TypeSpec;
     }
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
         include!(<cel-cxx-ffi/include/ast.h>);
 
-        fn AstImpl_cast_from_public_ast(ast: &Ast) -> &AstImpl;
-        fn AstType_to_type<'a>(
-            ast_type: &AstType,
+        fn TypeSpec_to_type<'a>(
+            ast_type: &TypeSpec,
             descriptor_pool: &DescriptorPool,
             arena: &'a Arena,
         ) -> Type<'a>;
@@ -56,8 +47,7 @@ unsafe impl Sync for Ast {}
 
 impl Ast {
     pub fn return_type<'a>(&self, descriptor_pool: &DescriptorPool, arena: &'a Arena) -> Type<'a> {
-        let ast_impl = ffi::AstImpl_cast_from_public_ast(self);
-        let ast_type = ast_impl.return_type();
-        ffi::AstType_to_type(ast_type, descriptor_pool, arena)
+        let type_spec = self.return_type_spec();
+        ffi::TypeSpec_to_type(type_spec, descriptor_pool, arena)
     }
 }

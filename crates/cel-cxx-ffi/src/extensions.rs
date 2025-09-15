@@ -19,6 +19,13 @@ mod ffi {
 
     #[namespace = "cel::extensions"]
     unsafe extern "C++" {
+        include!(<extensions/comprehensions_v2.h>);
+        #[rust_name = "register_comprehensions_v2_functions"]
+        fn RegisterComprehensionsV2Functions<'f>(
+            function_registry: Pin<&mut FunctionRegistry<'f>>,
+            runtime_options: &RuntimeOptions,
+        ) -> Status;
+
         include!(<extensions/encoders.h>);
         #[rust_name = "register_encoders_functions"]
         fn RegisterEncodersFunctions<'f>(
@@ -86,6 +93,10 @@ mod ffi {
         // bindings_ext.h
         #[rust_name = "bindings_compiler_library"]
         fn BindingsCompilerLibrary() -> UniquePtr<CompilerLibrary>;
+
+        // comprehensions_v2.h
+        #[rust_name = "comprehensions_v2_compiler_library"]
+        fn ComprehensionsV2CompilerLibrary() -> UniquePtr<CompilerLibrary>;
 
         // encoders.h
         #[rust_name = "encoders_compiler_library"]
@@ -201,6 +212,23 @@ pub mod encoders {
         runtime_options: &super::RuntimeOptions,
     ) -> Result<(), super::Status> {
         let status = super::ffi::register_encoders_functions(function_registry, runtime_options);
+        if status.is_ok() {
+            Ok(())
+        } else {
+            Err(status)
+        }
+    }
+}
+
+// comprehensions_v2.h
+pub mod comprehensions {
+    pub use super::ffi::comprehensions_v2_compiler_library as compiler_library;
+
+    pub fn register_functions<'f>(
+        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
+        runtime_options: &super::RuntimeOptions,
+    ) -> Result<(), super::Status> {
+        let status = super::ffi::register_comprehensions_v2_functions(function_registry, runtime_options);
         if status.is_ok() {
             Ok(())
         } else {

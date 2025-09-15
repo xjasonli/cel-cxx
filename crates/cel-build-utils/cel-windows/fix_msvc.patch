@@ -15,10 +15,10 @@ index c193f5f5..be6a774e 100644
      name = "bazel_skylib",
      version = "1.7.1",
 diff --git bazel/antlr.bzl bazel/antlr.bzl
-index 58ecce2c..bffae66b 100644
+index 73c5a9d2..b9d8f631 100644
 --- bazel/antlr.bzl
 +++ bazel/antlr.bzl
-@@ -44,13 +44,23 @@ def antlr_cc_library(name, src, package):
+@@ -46,13 +46,23 @@ def antlr_cc_library(name, src, package):
  def _antlr_library(ctx):
      output = ctx.actions.declare_directory(ctx.attr.name)
  
@@ -43,7 +43,7 @@ index 58ecce2c..bffae66b 100644
  
      # Strip ".g4" extension.
      basename = ctx.file.src.basename[:-3]
-@@ -71,17 +81,25 @@ def _antlr_library(ctx):
+@@ -73,17 +83,25 @@ def _antlr_library(ctx):
          source = ctx.actions.declare_file(basename + suffix + ".cpp")
          generated = output.path + "/" + ctx.file.src.path[:-3] + suffix
  
@@ -73,7 +73,7 @@ index 58ecce2c..bffae66b 100644
          )
  
          files.append(header)
-@@ -100,5 +118,8 @@ antlr_library = rule(
+@@ -102,5 +120,8 @@ antlr_library = rule(
              cfg = "exec",  # buildifier: disable=attr-cfg
              default = Label("//bazel:antlr4_tool"),
          ),

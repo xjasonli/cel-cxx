@@ -4,25 +4,6 @@
 #include <runtime/function_adapter.h>
 #include <checker/internal/builtins_arena.h>
 
-namespace cel::extensions {
-
-// bindings_ext.h
-absl::Status AddBindingsExtensionMacros(ParserBuilder& builder) {
-  for (const auto& m : bindings_macros()) {
-    CEL_RETURN_IF_ERROR(builder.AddMacro(m));
-  }
-  return absl::OkStatus();
-}
-
-CompilerLibrary BindingsCompilerLibrary() {
-    return CompilerLibrary(
-        "cel.lib.ext.bindings",
-        AddBindingsExtensionMacros);
-}
-
-
-} // namespace cel::extensions
-
 namespace rust::cel_cxx {
 using cel::Value;
 using cel::StringValue;

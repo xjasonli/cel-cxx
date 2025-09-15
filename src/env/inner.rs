@@ -27,6 +27,7 @@ pub struct EnvInnerOptions {
     pub enable_standard: bool,
     pub enable_optional: bool,
     pub enable_ext_bindings: bool,
+    pub enable_ext_comprehensions: bool,
     pub enable_ext_encoders: bool,
     pub enable_ext_lists: bool,
     pub enable_ext_math: bool,
@@ -45,6 +46,7 @@ impl Default for EnvInnerOptions {
             enable_standard: true,
             enable_optional: false,
             enable_ext_bindings: false,
+            enable_ext_comprehensions: false,
             enable_ext_encoders: false,
             enable_ext_lists: false,
             enable_ext_math: false,
@@ -112,6 +114,12 @@ impl<'f> EnvInner<'f> {
                     builder
                         .pin_mut()
                         .add_library(ffi::extensions::bindings::compiler_library())?;
+                }
+
+                if env_options.enable_ext_comprehensions {
+                    builder
+                        .pin_mut()
+                        .add_library(ffi::extensions::comprehensions::compiler_library())?;
                 }
 
                 if env_options.enable_ext_encoders {
@@ -261,6 +269,13 @@ impl<'f> EnvInner<'f> {
                 }
                 if env_options.enable_optional {
                     builder.pin_mut().enable_optional(&options)?;
+                }
+
+                if env_options.enable_ext_comprehensions {
+                    ffi::extensions::comprehensions::register_functions(
+                        builder.pin_mut().function_registry(),
+                        &options,
+                    )?;
                 }
 
                 if env_options.enable_ext_encoders {

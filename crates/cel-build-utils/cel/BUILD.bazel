@@ -194,6 +194,7 @@ cc_static_library(
         "@cel-cpp//runtime:constant_folding",
 
         # extensions
+        "@cel-cpp//extensions:comprehensions_v2",
         "@cel-cpp//extensions:encoders",
         "@cel-cpp//extensions:proto_ext",
         "@cel-cpp//extensions:math_ext",
