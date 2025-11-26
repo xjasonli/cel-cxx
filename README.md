@@ -32,10 +32,10 @@ A type-safe Rust library for [Common Expression Language (CEL)](https://github.c
 
 ## Documentation
 
-- [English Documentation](https://github.com/xjasonli/cel-cxx/blob/master/docs/README.md) - Complete documentation and guides
+- [English Documentation](https://github.com/xjasonli/cel-cxx/tree/master/docs/) - Complete documentation and guides
 - [中文文档](https://github.com/xjasonli/cel-cxx/tree/master/docs-cn/) - 中文文档和指南
 
-For detailed guides on architecture, function registration, type system, and advanced features, see the [documentation directory](https://github.com/xjasonli/cel-cxx/blob/master/docs/README.md).
+For detailed guides on architecture, function registration, type system, and advanced features, see the [documentation directory](https://github.com/xjasonli/cel-cxx/tree/master/docs/).
 
 ## Quick Start
 
@@ -45,10 +45,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cel-cxx = "0.2.1"
+cel-cxx = "0.2.2"
 
 # Optional features
-cel-cxx = { version = "0.2.1", features = ["tokio"] }
+cel-cxx = { version = "0.2.2", features = ["tokio"] }
 ```
 
 ### Basic Expression Evaluation

@@ -8,9 +8,50 @@ test:
 check:
 	CEL_CXX_FFI_SKIP_BUILD=1 cargo check
 
-doc: docs
 docs:
-	scripts/docs.sh
+	@( \
+		type cargo-docs-rs > /dev/null 2>&1 || \
+			( \
+				echo "cargo-docs-rs is not installed, Installing it..."; cargo install cargo-docs-rs; \
+			) \
+	) && \
+	( \
+		echo "Generating documentation for cel-build-utils..."; \
+		cargo +nightly docs-rs -p cel-build-utils \
+	) && \
+	( \
+		echo "Generating documentation for cel-cxx-macros..."; \
+		cargo +nightly docs-rs -p cel-cxx-macros \
+	) && \
+	( \
+		echo "Generating documentation for cel-cxx-ffi..."; \
+		cargo +nightly docs-rs -p cel-cxx-ffi \
+	) && \
+	( \
+		echo "Generating documentation for cel-cxx..."; \
+		cargo +nightly docs-rs -p cel-cxx \
+	) && \
+	echo "Documentation generated successfully!"
+
+publish:
+	@( \
+		echo "Publishing cel-build-utils..."; \
+		cargo publish -p cel-build-utils \
+	) && \
+	( \
+		echo "Publishing cel-cxx-macros..."; \
+		cargo publish -p cel-cxx-macros \
+	) && \
+	( \
+		echo "Publishing cel-cxx-ffi..."; \
+		cargo publish -p cel-cxx-ffi \
+	) && \
+	( \
+		echo "Publishing cel-cxx..."; \
+		cargo publish -p cel-cxx \
+	) && \
+	echo "All crates published successfully!"
+
 
 BEAR_CMD := bear --force-preload -- cargo build
 
@@ -24,4 +65,4 @@ clean:
 	rm -f compile_commands.json compile_commands.events.json
 
 
-.PHONY: build test check doc docs compile_commands clean
+.PHONY: build test check docs publish compile_commands clean
