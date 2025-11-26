@@ -167,6 +167,56 @@ pub trait FunctionDecl: private::Sealed {
     }
 }
 
+/// Marker trait for function declarations with at least one parameter.
+///
+/// This trait extends [`FunctionDecl`] to identify function signatures that have
+/// at least one argument. It is used to restrict member function declarations
+/// to ensure that member functions always have a receiver object as their first
+/// parameter.
+///
+/// # Purpose
+///
+/// Member functions in CEL must have at least one argument (the receiver object).
+/// This trait provides compile-time type checking to enforce this constraint
+/// when declaring member functions through [`FunctionRegistry::declare_member`]
+/// or [`EnvBuilder::declare_member_function`].
+///
+/// # Implementation Details
+///
+/// This trait is automatically implemented for all non-empty function signatures
+/// (1 to 10 parameters) through the [`impl_function_decl!`] macro. The zero-parameter
+/// function type `fn() -> R` implements [`FunctionDecl`] but does not implement
+/// `FunctionDeclWithNonEmptyArguments`, which allows the type system to distinguish between
+/// zero-argument and non-zero-argument function declarations.
+///
+/// # Usage in Member Function Declarations
+///
+/// When declaring a member function, the type system requires:
+/// ```rust,ignore
+/// D: FunctionDecl + FunctionDeclWithNonEmptyArguments
+/// ```
+///
+/// This constraint ensures that:
+/// - Member function declarations cannot have zero arguments
+/// - The first argument of a member function represents the receiver object
+/// - Type safety is enforced at compile time
+///
+/// # Examples
+///
+/// Valid member function declaration signatures (implement `FunctionDeclWithNonEmptyArguments`):
+/// - `fn(String) -> i64` - one argument
+/// - `fn(String, i64) -> bool` - two arguments
+/// - `fn(Vec<i64>, bool) -> String` - two arguments
+///
+/// Invalid member function declaration signature (does not implement `FunctionDeclWithNonEmptyArguments`):
+/// - `fn() -> i64` - zero arguments (cannot be used for member function declarations)
+///
+/// # Note
+///
+/// This trait is sealed and cannot be implemented outside this crate.
+/// It is automatically implemented for function pointer types with 1 to 10 parameters.
+pub trait FunctionDeclWithNonEmptyArguments: FunctionDecl + private::Sealed {}
+
 // =============================================================================
 // Implementation details
 // =============================================================================
@@ -174,7 +224,31 @@ pub trait FunctionDecl: private::Sealed {
 /// Macro to generate [`FunctionDecl`] implementations for function pointer types
 /// with different arities (0 to 10 parameters).
 macro_rules! impl_function_decl {
-    ($($ty:ident),*) => {
+    () => {
+        impl<R> FunctionDecl for fn() -> R
+        where
+            R: IntoResult,
+        {
+            fn arguments() -> Vec<ValueType> {
+                vec![]
+            }
+
+            fn result() -> ValueType {
+                R::value_type()
+            }
+
+            const ARGUMENTS_LEN: usize = 0;
+        }
+
+        // Sealed implementation for zero-parameter function pointer types
+        impl<R> private::Sealed for fn() -> R
+        where
+            R: IntoResult,
+        {}
+    };
+    (
+        $($ty:ident),+
+    ) => {
         impl<R, $($ty,)*> FunctionDecl for fn($($ty,)*) -> R
         where
             R: IntoResult,
@@ -191,7 +265,13 @@ macro_rules! impl_function_decl {
             const ARGUMENTS_LEN: usize = count_args!($($ty),*);
         }
 
-        // Sealed implementation for function pointer types
+        impl<R, $($ty,)*> FunctionDeclWithNonEmptyArguments for fn($($ty,)*) -> R
+        where
+            R: IntoResult,
+            $($ty: TypedValue,)*
+        {}
+
+        // Sealed implementation for non-empty function pointer types
         impl<R, $($ty,)*> private::Sealed for fn($($ty,)*) -> R
         where
             R: IntoResult,

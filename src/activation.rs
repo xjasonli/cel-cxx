@@ -98,7 +98,7 @@
 //! ```
 
 use crate::function::FunctionBindings;
-use crate::function::{Arguments, IntoFunction};
+use crate::function::{Arguments, NonEmptyArguments, IntoFunction};
 use crate::marker::*;
 use crate::values::{IntoValue, TypedValue};
 use crate::variable::VariableBindings;
@@ -474,7 +474,7 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
         S: Into<String>,
         F: IntoFunction<'f, Ffm, Args>,
         Ffm: FnMarkerAggr<Fm>,
-        Args: Arguments,
+        Args: Arguments + NonEmptyArguments,
     {
         self.bind_function(name, true, f)
     }

@@ -141,6 +141,9 @@ impl<'f> FunctionBindings<'f> {
         Args: Arguments,
     {
         let name = name.into();
+        if member && Args::LEN == 0 {
+            return Err(Error::invalid_argument("Member functions cannot have zero arguments"));
+        }
         let entry = self
             .entries
             .entry(name)
@@ -176,7 +179,7 @@ impl<'f> FunctionBindings<'f> {
     where
         F: IntoFunction<'f, Fm, Args>,
         Fm: FnMarker,
-        Args: Arguments,
+        Args: Arguments + NonEmptyArguments,
     {
         self.bind(name, true, f)
     }

@@ -1,4 +1,4 @@
-use crate::function::{Arguments, FunctionDecl, FunctionRegistry, IntoFunction};
+use crate::function::{Arguments, FunctionDecl, FunctionDeclWithNonEmptyArguments, FunctionRegistry, IntoFunction, NonEmptyArguments};
 use crate::variable::VariableRegistry;
 use crate::{FnMarker, FnMarkerAggr, IntoConstant, RuntimeMarker};
 use std::sync::Arc;
@@ -1259,7 +1259,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     where
         F: IntoFunction<'f, Ffm, Args>,
         Ffm: FnMarker + FnMarkerAggr<Fm>,
-        Args: Arguments,
+        Args: Arguments + NonEmptyArguments,
     {
         self.function_registry.register_member(name, f)?;
 
@@ -1430,10 +1430,12 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///
     /// # Type Parameters
     ///
-    /// * `D` - The function declaration type that specifies the signature
+    /// * `D` - The function declaration type that specifies the signature.
+    ///   Must implement [`FunctionDecl`] and [`FunctionDeclWithNonEmptyArguments`] to ensure
+    ///   the member function has at least one argument (the receiver object).
     pub fn declare_member_function<D>(mut self, name: impl Into<String>) -> Result<Self, Error>
     where
-        D: FunctionDecl,
+        D: FunctionDecl + FunctionDeclWithNonEmptyArguments,
     {
         self.function_registry.declare_member::<D>(name)?;
         Ok(EnvBuilder {

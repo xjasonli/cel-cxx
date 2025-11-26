@@ -172,6 +172,9 @@ impl<'f> FunctionOverloads<FunctionDeclOrImpl<'f>> {
     ///
     /// Returns error if the function signature conflicts with existing registrations.
     pub fn add_impl(&mut self, member: bool, f: Function<'f>) -> Result<&mut Self, Error> {
+        if member && f.arguments_len() == 0 {
+            return Err(Error::invalid_argument("Member functions cannot have zero arguments"));
+        }
         let kinds = f
             .arguments()
             .into_iter()
@@ -206,6 +209,9 @@ impl<'f> FunctionOverloads<FunctionDeclOrImpl<'f>> {
     ///
     /// Returns error if the function signature conflicts with existing registrations.
     pub fn add_decl(&mut self, member: bool, f: FunctionType) -> Result<&mut Self, Error> {
+        if member && f.arguments().is_empty() {
+            return Err(Error::invalid_argument("Member functions cannot have zero arguments"));
+        }
         let kinds = f.arguments().iter().map(|t| t.kind()).collect::<Vec<_>>();
         if let Some(overload) = self.find_mut(member, &kinds) {
             overload.add_decl(f)?;

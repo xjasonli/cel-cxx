@@ -190,7 +190,7 @@ impl<'f> FunctionRegistry<'f> {
     where
         F: IntoFunction<'f, Fm, Args>,
         Fm: FnMarker,
-        Args: Arguments,
+        Args: Arguments + NonEmptyArguments,
     {
         self.register(name, true, f)
     }
@@ -264,6 +264,9 @@ impl<'f> FunctionRegistry<'f> {
         D: FunctionDecl,
     {
         let name = name.into();
+        if member && D::ARGUMENTS_LEN == 0 {
+            return Err(Error::invalid_argument("Member functions cannot have zero arguments"));
+        }
         let entry = self
             .entries
             .entry(name)
@@ -279,7 +282,7 @@ impl<'f> FunctionRegistry<'f> {
     ///
     /// # Type Parameters
     ///
-    /// - `D`: Function declaration type, must implement [`FunctionDecl`]
+    /// - `D`: Function declaration type, must implement [`FunctionDecl`] and [`FunctionDeclWithNonEmptyArguments`]
     ///
     /// # Parameters
     ///
@@ -302,7 +305,7 @@ impl<'f> FunctionRegistry<'f> {
     /// ```
     pub fn declare_member<D>(&mut self, name: impl Into<String>) -> Result<&mut Self, Error>
     where
-        D: FunctionDecl,
+        D: FunctionDecl + FunctionDeclWithNonEmptyArguments,
     {
         self.declare::<D>(name, true)
     }

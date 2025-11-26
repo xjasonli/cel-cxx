@@ -227,7 +227,68 @@ pub use bindings::*;
 ///
 /// This trait is sealed and cannot be implemented outside this crate.
 /// It supports function signatures with 0 to 10 parameters.
-pub trait Arguments: Sized + private::Sealed {}
+pub trait Arguments: Sized + private::Sealed {
+    /// The number of arguments in the argument tuple.
+    ///
+    /// This constant provides compile-time information about the arity
+    /// (number of parameters) of a function signature.
+    ///
+    /// # Examples
+    ///
+    /// - `()` has `LEN = 0`
+    /// - `(String)` has `LEN = 1`
+    /// - `(i64, i64)` has `LEN = 2`
+    const LEN: usize;
+}
+
+/// Marker trait for function argument tuples with at least one parameter.
+///
+/// This trait extends [`Arguments`] to identify function signatures that have
+/// at least one argument. It is used to restrict member function registration
+/// to ensure that member functions always have a receiver object as their first
+/// parameter.
+///
+/// # Purpose
+///
+/// Member functions in CEL must have at least one argument (the receiver object).
+/// This trait provides compile-time type checking to enforce this constraint
+/// when registering member functions through [`FunctionRegistry::register_member`].
+///
+/// # Implementation Details
+///
+/// This trait is automatically implemented for all non-empty argument tuples
+/// (1 to 10 parameters) through the [`impl_arguments!`] macro. The empty tuple
+/// `()` implements [`Arguments`] but does not implement `NonEmptyArguments`,
+/// which allows the type system to distinguish between zero-argument and
+/// non-zero-argument functions.
+///
+/// # Usage in Member Functions
+///
+/// When registering a member function, the type system requires:
+/// ```rust,ignore
+/// Args: Arguments + NonEmptyArguments
+/// ```
+///
+/// This constraint ensures that:
+/// - Member functions cannot be registered with zero arguments
+/// - The first argument of a member function represents the receiver object
+/// - Type safety is enforced at compile time
+///
+/// # Examples
+///
+/// Valid member function signatures (implement `NonEmptyArguments`):
+/// - `(String)` - one argument
+/// - `(String, i64)` - two arguments
+/// - `(Vec<i64>, bool)` - two arguments
+///
+/// Invalid member function signature (does not implement `NonEmptyArguments`):
+/// - `()` - zero arguments (cannot be used for member functions)
+///
+/// # Note
+///
+/// This trait is sealed and cannot be implemented outside this crate.
+/// It is automatically implemented for argument tuples with 1 to 10 parameters.
+pub trait NonEmptyArguments: Arguments + private::Sealed {}
 
 /// Trait for types that can be converted into function implementations.
 ///
@@ -619,11 +680,20 @@ trait ErasedFn: Send + Sync {
 }
 
 macro_rules! impl_arguments {
-    ($(
+    () => {
+        impl Arguments for () {
+            const LEN: usize = 0;
+        }
+        impl private::Sealed for () {}
+    };
+    (
         $($ty:ident),+
-    )?) => {
-        impl<$($($ty: FromValue + TypedValue),+)?> Arguments for ($($($ty,)+)?) {}
-        impl<$($($ty: FromValue + TypedValue),+)?> private::Sealed for ($($($ty,)+)?) {}
+    ) => {
+        impl<$($ty: FromValue + TypedValue),+> Arguments for ($($ty,)*) {
+            const LEN: usize = count_args!($($ty),*) as usize;
+        }
+        impl<$($ty: FromValue + TypedValue),+> NonEmptyArguments for ($($ty,)*) {}
+        impl<$($ty: FromValue + TypedValue),+> private::Sealed for ($($ty,)*) {}
     }
 }
 
