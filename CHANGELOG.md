@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2025-11-26
+
+### Added
+- **Comprehensions Extension**: Support for list comprehensions with filtering
+- **Documentation System**: Restructured documentation with separate English (`docs/`) and Chinese (`docs-cn/`) directories
+- **CEL Reference Guide**: Complete reference documentation for CEL language features and extensions
+
+### Changed
+- **Member Function Constraints**: Enforced non-empty arguments requirement for member functions at compile-time and runtime
+- **cel-cpp Update**: Updated to latest cel-cpp with improved AST implementation (AstImpl renamed to Ast)
+
 ## [0.2.1] - 2025-08-14
 
 ### Added
@@ -207,7 +218,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite and examples
 - CI/CD pipeline for automated testing
 
-[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/xjasonli/cel-cxx/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/xjasonli/cel-cxx/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/xjasonli/cel-cxx/compare/v0.1.5...v0.2.0
 [0.1.5]: https://github.com/xjasonli/cel-cxx/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/xjasonli/cel-cxx/compare/v0.1.3...v0.1.4
