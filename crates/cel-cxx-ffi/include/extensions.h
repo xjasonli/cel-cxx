@@ -91,27 +91,8 @@ inline std::unique_ptr<cel::CompilerLibrary> SetsCompilerLibrary() {
 
 // strings.h
 inline std::unique_ptr<cel::CompilerLibrary> StringsCompilerLibrary() {
-    cel::CheckerLibrary origin = cel::extensions::StringsCheckerLibrary();
-    cel::CheckerLibrary checker_library = {
-        .id = origin.id,
-        .configure = [origin=std::move(origin)](cel::TypeCheckerBuilder& builder) -> absl::Status {
-            CEL_ASSIGN_OR_RETURN(
-                auto trim_decl,
-                cel::MakeFunctionDecl(
-                    "trim",
-                    cel::MakeMemberOverloadDecl("string_trim", cel::StringType(), cel::StringType())));
-
-            CEL_RETURN_IF_ERROR(builder.AddFunction(std::move(trim_decl)));
-            return origin.configure(builder);
-        }
-    };
-
-    return std::make_unique<cel::CompilerLibrary>(
-        cel::CompilerLibrary::FromCheckerLibrary(std::move(checker_library)));
+    return std::make_unique<cel::CompilerLibrary>(cel::extensions::StringsCompilerLibrary());
 }
-
-absl::Status RegisterStringsFunctions(cel::FunctionRegistry& function_registry,
-    const cel::RuntimeOptions& runtime_options);
 
 } // namespace rust::cel_cxx
 

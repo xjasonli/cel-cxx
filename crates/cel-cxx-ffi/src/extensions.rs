@@ -75,14 +75,12 @@ mod ffi {
             runtime_options: &RuntimeOptions,
         ) -> Status;
 
-        // use our hacked version of RegisterStringsFunctions in extensions.h
-        //
-        //include!(<extensions/strings.h>);
-        //#[rust_name = "register_strings_functions"]
-        //fn RegisterStringsFunctions<'f>(
-        //    function_registry: Pin<&mut FunctionRegistry<'f>>,
-        //    runtime_options: &RuntimeOptions,
-        //) -> Status;
+        include!(<extensions/strings.h>);
+        #[rust_name = "register_strings_functions"]
+        fn RegisterStringsFunctions<'f>(
+            function_registry: Pin<&mut FunctionRegistry<'f>>,
+            runtime_options: &RuntimeOptions,
+        ) -> Status;
     }
 
     #[namespace = "rust::cel_cxx"]
@@ -136,64 +134,6 @@ mod ffi {
         // strings.h
         #[rust_name = "strings_compiler_library"]
         fn StringsCompilerLibrary() -> UniquePtr<CompilerLibrary>;
-
-        #[rust_name = "register_strings_functions"]
-        fn RegisterStringsFunctions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
-            runtime_options: &RuntimeOptions,
-        ) -> Status;
-    }
-
-    #[namespace = "rust::cel_cxx"]
-    extern "Rust" {
-        #[cxx_name = "CharAtImpl"]
-        fn char_at(
-            result: &mut String,
-            string: &str,
-            index: i64,
-        ) -> Status;
-
-        #[cxx_name = "IndexOfImpl"]
-        fn index_of(
-            result: &mut i64,
-            string: &str,
-            substring: &str,
-            offset: i64,
-        ) -> Status;
-
-        #[cxx_name = "LastIndexOfImpl"]
-        fn last_index_of(
-            result: &mut i64,
-            string: &str,
-            substring: &str,
-            offset: i64,
-        ) -> Status;
-
-        #[cxx_name = "StringsQuoteImpl"]
-        fn strings_quote(
-            result: &mut String,
-            string: &str,
-        ) -> Status;
-
-        #[cxx_name = "SubstringImpl"]
-        fn substring(
-            result: &mut String,
-            string: &str,
-            start: i64,
-            end: i64,
-        ) -> Status;
-
-        #[cxx_name = "TrimImpl"]
-        fn trim(
-            result: &mut String,
-            string: &str,
-        ) -> Status;
-
-        #[cxx_name = "ReverseImpl"]
-        fn reverse(
-            result: &mut String,
-            string: &str,
-        ) -> Status;
     }
 }
 
@@ -376,123 +316,4 @@ pub mod strings {
             Err(status)
         }
     }
-}
-
-fn char_at(
-    result: &mut String,
-    string: &str,
-    index: i64,
-) -> Status {
-    let index = index as usize;
-    if let Some(char) = string.chars().nth(index) {
-        *result = char.to_string();
-        Status::ok()
-    } else {
-        Status::invalid_argument("index out of bounds")
-    }
-}
-
-fn index_of(
-    result: &mut i64,
-    string: &str,
-    substring: &str,
-    offset: i64,
-) -> Status {
-    if offset < 0 {
-        return Status::invalid_argument("index out of range: {offset}");
-    }
-    let offset = offset as usize;
-    if offset >= string.len() {
-        *result = -1;
-        return Status::ok();
-    }
-
-    let target = &string[offset..];
-    let index = target.find(substring);
-    if let Some(index) = index {
-        *result = offset as i64 + index as i64;
-    } else {
-        *result = -1;
-    }
-    Status::ok()
-}
-
-fn last_index_of(
-    result: &mut i64,
-    string: &str,
-    substring: &str,
-    offset: i64,
-) -> Status { 
-    if offset < 0 {
-        return Status::invalid_argument("index out of range: {offset}");
-    }
-    let offset = offset as usize;
-    if offset >= string.len() {
-        *result = -1;
-        return Status::ok();
-    }
-
-    let target = &string[..offset + 1];
-    let index = target.rfind(&substring);
-    if let Some(index) = index {
-        *result = index as i64;
-    } else {
-        *result = -1;
-    }
-    Status::ok()
-}
-
-// strings.quote
-// https://github.com/google/cel-go/blob/master/ext/strings.go#L751
-fn strings_quote(
-    result: &mut String,
-    string: &str,
-) -> Status {
-    result.clear();
-    result.push('"');
-    string.chars().for_each(|c| {
-        match c {
-            '\x07' => result.push_str("\\a"),
-            '\x08' => result.push_str("\\b"),
-            '\x0C' => result.push_str("\\f"),
-            '\n' => result.push_str("\\n"),
-            '\r' => result.push_str("\\r"),
-            '\t' => result.push_str("\\t"),
-            '\x0B' => result.push_str("\\v"),
-            '\\' => result.push_str("\\\\"),
-            '"' => result.push_str("\\\""),
-            _ => result.push(c),
-        }
-    });
-    result.push('"');
-    Status::ok()
-}
-
-fn substring(
-    result: &mut String,
-    string: &str,
-    start: i64,
-    end: i64,
-) -> Status {
-    if start > end {
-        return Status::invalid_argument("invalid substring range: start: {start}, end: {end}");
-    }
-    if start < 0 || start >= string.len() as i64 {
-        return Status::invalid_argument("index out of range: {start}");
-    }
-    if end < 0 || end > string.len() as i64 {
-        return Status::invalid_argument("index out of range: {end}");
-    }
-    *result = string[start as usize..end as usize].to_string();
-    Status::ok()
-}
-
-fn trim(result: &mut String, string: &str) -> Status {
-    *result = string.trim().to_string();
-    Status::ok()
-}
-
-fn reverse(result: &mut String, string: &str) -> Status {
-    *result = string.chars().rev().collect();
-    Status::ok()
 }
