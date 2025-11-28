@@ -45,10 +45,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cel-cxx = "0.2.2"
+cel-cxx = "0.2.3"
 
 # Optional features
-cel-cxx = { version = "0.2.2", features = ["tokio"] }
+cel-cxx = { version = "0.2.3", features = ["tokio"] }
 ```
 
 ### Basic Expression Evaluation

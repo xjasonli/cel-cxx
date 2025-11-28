@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2025-11-28
+
+### Changed
+- Update dependencies version
+  - cxx 1.0.189
+  - cel-cpp 0.14.0
+
 ## [0.2.2] - 2025-11-26
 
 ### Added
@@ -218,7 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite and examples
 - CI/CD pipeline for automated testing
 
-[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/xjasonli/cel-cxx/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/xjasonli/cel-cxx/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/xjasonli/cel-cxx/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/xjasonli/cel-cxx/compare/v0.1.5...v0.2.0
