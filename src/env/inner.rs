@@ -1,12 +1,13 @@
 use super::*;
 use crate::function::FunctionRegistry;
 use crate::variable::VariableRegistry;
-use crate::{ffi, Constant, Program, ProgramInner, ValueType};
+use crate::{ffi, Program, ProgramInner, ValueType};
 use ouroboros::self_referencing;
 
 #[self_referencing]
 #[derive(Debug)]
 pub struct EnvInner<'f> {
+    macros: Arc<HashSet<Macro>>,
     function_registry: Arc<FunctionRegistry<'f>>,
     variable_registry: Arc<VariableRegistry>,
 
@@ -71,6 +72,7 @@ impl EnvInnerOptions {
 
 impl<'f> EnvInner<'f> {
     pub fn new_with_registries(
+        macros: HashSet<Macro>,
         function_registry: FunctionRegistry<'f>,
         variable_registry: VariableRegistry,
         mut env_options: EnvInnerOptions,
@@ -79,10 +81,12 @@ impl<'f> EnvInner<'f> {
 
         env_options.check_consistency();
 
+        let macros = Arc::new(macros);
         let function_registry = Arc::new(function_registry);
         let variable_registry = Arc::new(variable_registry);
 
         EnvInnerTryBuilder {
+            macros: macros.clone(),
             function_registry: function_registry.clone(),
             variable_registry: variable_registry.clone(),
             ffi_ctx: ffi::Ctx::new_generated(),
@@ -170,25 +174,20 @@ impl<'f> EnvInner<'f> {
                         .add_library(ffi::extensions::strings::compiler_library())?;
                 }
 
+                for m in macros.iter() {
+                    let ffi_macro = &*m.0;
+                    let status = builder.pin_mut()
+                        .parser_builder()
+                        .add_macro(ffi_macro);
+                    if !status.is_ok() {
+                        return Err(status.into());
+                    }
+                }
 
                 for (name, decl_or_constant) in variable_registry.entries() {
                     let ffi_variable_decl = match decl_or_constant.constant() {
                         Some(constant) => {
-                            let ffi_constant = match constant {
-                                Constant::Null => ffi::Constant::new_null(),
-                                Constant::Bool(value) => ffi::Constant::new_bool(*value),
-                                Constant::Int(value) => ffi::Constant::new_int(*value),
-                                Constant::Uint(value) => ffi::Constant::new_uint(*value),
-                                Constant::Double(value) => ffi::Constant::new_double(*value),
-                                Constant::Bytes(value) => ffi::Constant::new_bytes(value),
-                                Constant::String(value) => ffi::Constant::new_string(value),
-                                Constant::Duration(value) => {
-                                    ffi::Constant::new_duration((*value).into())
-                                }
-                                Constant::Timestamp(value) => {
-                                    ffi::Constant::new_timestamp((*value).into())
-                                }
-                            };
+                            let ffi_constant: cxx::UniquePtr<ffi::Constant> = constant.into();
                             ffi::VariableDecl::new_constant(name, &ffi_constant)
                         }
                         None => {

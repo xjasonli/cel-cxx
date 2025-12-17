@@ -27,7 +27,7 @@ impl<'f> ProgramInner<'f> {
                 let mut result = env
                     .compiler()
                     .compile(source.as_ref(), None)
-                    .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
+                    .map_err(|ffi_status| Error::from(&ffi_status))?;
                 if !result.is_valid() {
                     let error = result.format_error();
                     return Err(Error::invalid_argument(error));
@@ -36,14 +36,14 @@ impl<'f> ProgramInner<'f> {
                 let ast = result
                     .pin_mut()
                     .release_ast()
-                    .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
+                    .map_err(|ffi_status| Error::from(&ffi_status))?;
                 let return_type =
                     ffi::type_to_rust(&ast.return_type(ffi_ctx.descriptor_pool(), ffi_ctx.arena()));
 
                 let program = env
                     .runtime()
                     .create_program(ast)
-                    .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
+                    .map_err(|ffi_status| Error::from(&ffi_status))?;
                 Ok((program, return_type))
             },
         }
@@ -85,7 +85,7 @@ impl<'f> ProgramInner<'f> {
                 Some(eval_ctx.message_factory()),
                 &ffi_activation,
             )
-            .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
+            .map_err(|ffi_status| Error::from(&ffi_status))?;
         if ffi_value.is_null() {
             return Err(Error::unknown("evaluation returned null"));
         }

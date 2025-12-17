@@ -253,8 +253,8 @@ inline std::unique_ptr<RuntimeOptions> RuntimeOptions_new() {
     return std::make_unique<RuntimeOptions>();
 }
 
-inline Str RuntimeOptions_container(const RuntimeOptions& options) {
-    return Str(options.container.data(), options.container.size());
+inline const std::string& RuntimeOptions_container(const RuntimeOptions& options) {
+    return options.container;
 }
 inline std::string& RuntimeOptions_container_mut(RuntimeOptions& options) {
     return options.container;

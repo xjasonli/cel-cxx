@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::pin::Pin;
 
 use crate::Rep;
 
@@ -500,7 +501,7 @@ impl Status {
     }
 }
 
-// absl::Span
+// absl::Span<const T>
 #[repr(C)]
 pub struct Span<'a, T: 'a + SpanElement> {
     ptr: *const T,
@@ -546,6 +547,16 @@ impl<'a, T: 'a + SpanElement> Span<'a, T> {
     }
 }
 
+impl<'a, T: 'a + SpanElement + cxx::vector::VectorElement> Span<'a, T> {
+    pub fn from_vector(vector: &'a cxx::CxxVector<T>) -> Self {
+        Self {
+            ptr: unsafe { vector.get_unchecked(0) as *const T },
+            len: vector.len(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
 impl<'a, T: 'a + SpanElement + cxx::ExternType<Kind = cxx::kind::Trivial>> Span<'a, T> {
     pub fn from_slice(slice: &'a [T]) -> Self {
         Self {
@@ -586,9 +597,7 @@ impl<'a, T: 'a + SpanElement> std::iter::Iterator for SpanIter<'a, T> {
 }
 
 impl<'a, T: 'a + SpanElement> std::iter::FusedIterator for SpanIter<'a, T> {}
-
 impl<'a, T: 'a + SpanElement> std::iter::ExactSizeIterator for SpanIter<'a, T> {}
-
 impl<'a, T: 'a + SpanElement> std::iter::IntoIterator for Span<'a, T> {
     type Item = &'a T;
     type IntoIter = SpanIter<'a, T>;
@@ -608,6 +617,122 @@ impl<'a, T: 'a + SpanElement + std::fmt::Debug> std::fmt::Debug for Span<'a, T> 
 }
 
 pub trait SpanElement: crate::SizedExternType {
+    type TypeId;
+}
+
+// absl::Span<T>
+pub struct MutSpan<'a, T: 'a + MutSpanElement> {
+    ptr: *mut T,
+    len: usize,
+    _marker: std::marker::PhantomData<&'a mut T>,
+}
+
+impl<'a, T: 'a + MutSpanElement> Copy for MutSpan<'a, T> {}
+impl<'a, T: 'a + MutSpanElement> Clone for MutSpan<'a, T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+unsafe impl<'a, T: 'a + MutSpanElement> cxx::ExternType for MutSpan<'a, T> {
+    type Id = T::TypeId;
+    type Kind = cxx::kind::Trivial;
+}
+
+impl<'a, T: 'a + MutSpanElement> MutSpan<'a, T> {
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn get(&self, index: usize) -> Option<Pin<&'a mut T>> {
+        if index < self.len() {
+            unsafe {
+                self.ptr.byte_add(index * T::size_of())
+                    .as_mut()
+                    .map(|ptr| Pin::new_unchecked(ptr))
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn iter(&self) -> MutSpanIter<'a, T> {
+        MutSpanIter {
+            span: *self,
+            index: 0,
+        }
+    }
+}
+
+impl<'a, T: 'a + MutSpanElement + cxx::vector::VectorElement> MutSpan<'a, T> {
+    pub fn from_vector(mut vector: Pin<&'a mut cxx::CxxVector<T>>) -> Self {
+        Self {
+            ptr: unsafe { vector.as_mut().index_unchecked_mut(0).get_unchecked_mut() as *mut T },
+            len: vector.len(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<'a, T: 'a + MutSpanElement + cxx::ExternType<Kind = cxx::kind::Trivial>> MutSpan<'a, T> {
+    pub fn from_slice(slice: &'a mut [T]) -> Self {
+        Self {
+            ptr: slice.as_mut_ptr(),
+            len: slice.len(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    pub fn as_slice(&self) -> &'a mut [T] {
+        unsafe { std::slice::from_raw_parts_mut(self.ptr, self.len) }
+    }
+}
+
+pub struct MutSpanIter<'a, T: 'a + MutSpanElement> {
+    span: MutSpan<'a, T>,
+    index: usize,
+}
+
+impl<'a, T: 'a + MutSpanElement> std::iter::Iterator for MutSpanIter<'a, T> {
+    type Item = Pin<&'a mut T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(item) = self.span.get(self.index) {
+            self.index += 1;
+            Some(item)
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (
+            self.span.len() - self.index,
+            Some(self.span.len() - self.index),
+        )
+    }
+}
+impl<'a, T: 'a + MutSpanElement> std::iter::FusedIterator for MutSpanIter<'a, T> {}
+impl<'a, T: 'a + MutSpanElement> std::iter::ExactSizeIterator for MutSpanIter<'a, T> {}
+impl<'a, T: 'a + MutSpanElement> std::iter::IntoIterator for &MutSpan<'a, T> {
+    type Item = Pin<&'a mut T>;
+    type IntoIter = MutSpanIter<'a, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        MutSpanIter { span: *self, index: 0 }
+    }
+}
+
+impl<'a, T: 'a + MutSpanElement + std::fmt::Debug> std::fmt::Debug for MutSpan<'a, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+pub trait MutSpanElement: crate::SizedExternType {
     type TypeId;
 }
 
@@ -654,5 +779,29 @@ impl<'a> StringView<'a> {
 
     pub fn as_ptr(&self) -> *const u8 {
         self.data() as *const u8
+    }
+}
+
+impl<'a> From<&'a str> for StringView<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::new_str(value)
+    }
+}
+
+impl<'a> From<&'a String> for StringView<'a> {
+    fn from(value: &'a String) -> Self {
+        Self::new_str(value.as_str())
+    }
+}
+
+impl<'a> From<&'a [u8]> for StringView<'a> {
+    fn from(value: &'a [u8]) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<'a> From<&'a Vec<u8>> for StringView<'a> {
+    fn from(value: &'a Vec<u8>) -> Self {
+        Self::new(value.as_slice())
     }
 }

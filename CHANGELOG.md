@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Macro System**: Compile-time expression expansion support
+  - Global macros for function-like invocations
+  - Receiver macros for method-like invocations
+  - Variable-argument macro support
+  - MacroExprFactory for expression building during expansion
+  - `EnvBuilder::register_macro()` for macro registration
+
+### Changed
+- Enhanced expression manipulation capabilities with macro support
+
 ## [0.2.3] - 2025-11-28
 
 ### Changed

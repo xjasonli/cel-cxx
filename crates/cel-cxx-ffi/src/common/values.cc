@@ -68,4 +68,42 @@ Box<AnyFfiOpaqueValue> OpaqueValue_get_ffi(const OpaqueValue& opaque_value) {
     return wrapper->ffi();
 }
 
+// ValueBuilder
+class AnyFfiValueBuilderWrapper: public cel::ValueBuilder {
+public:
+    AnyFfiValueBuilderWrapper(Box<AnyFfiValueBuilder> ffi): ffi_(std::move(ffi)) {}
+    Box<AnyFfiValueBuilder> ffi() const;
+    Box<AnyFfiValueBuilder> release() && { return std::move(ffi_); }
+
+    virtual absl::StatusOr<absl::optional<ErrorValue>> SetFieldByName(absl::string_view name, Value value) override {
+        auto status = ffi_->SetFieldByName(name, value);
+        if (!status.ok()) {
+            return absl::Status(status.code(), status.message());
+        }
+        return absl::nullopt;
+    }
+    virtual absl::StatusOr<absl::optional<ErrorValue>> SetFieldByNumber(int64_t number, Value value) override {
+        auto status = ffi_->SetFieldByNumber(number, value);
+        if (!status.ok()) {
+            return absl::Status(status.code(), status.message());
+        }
+        return absl::nullopt;
+    }
+    virtual absl::StatusOr<Value> Build() && override {
+        std::unique_ptr<Value> result;
+        auto status = ffi_->Build(result);
+        if (!status.ok()) { 
+            return absl::Status(status.code(), status.message());
+        }
+        return std::move(*result);
+    }
+private:
+    Box<AnyFfiValueBuilder> ffi_;
+};
+
+
+std::unique_ptr<ValueBuilder> ValueBuilder_new(Box<AnyFfiValueBuilder> ffi) {
+    return std::make_unique<AnyFfiValueBuilderWrapper>(std::move(ffi));
+}
+
 } // namespace rust::cel_cxx

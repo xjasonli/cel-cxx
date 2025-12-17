@@ -21,6 +21,8 @@ using StructType = cel::StructType;
 using TypeParamType = cel::TypeParamType;
 using TypeType = cel::TypeType;
 using TypeParameters = cel::TypeParameters;
+using MessageTypeField = cel::MessageTypeField;
+using StructTypeField = cel::StructTypeField;
 
 using Span_Type = absl::Span<const Type>;
 
@@ -239,6 +241,16 @@ inline bool TypeType_has_type(const TypeType& type_type) {
 // ============== TypeParameters ==============
 inline const Type& TypeParameters_get_unchecked(const TypeParameters& type_parameters, size_t index) {
     return type_parameters[index];
+}
+
+// ============== StructTypeField ==============
+inline StructTypeField StructTypeField_new_basic(Str name, int32_t number, const Type& type) {
+    auto basic = cel::common_internal::BasicStructTypeField(std::string_view(name.data(), name.size()), number, type);
+    return cel::StructTypeField(basic);
+}
+
+inline StructTypeField StructTypeField_new_message(const MessageTypeField& field) {
+    return cel::StructTypeField(field);
 }
 
 } // namespace cel_cxx

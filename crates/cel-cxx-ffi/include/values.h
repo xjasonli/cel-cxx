@@ -3,6 +3,7 @@
 
 #include <rust/cxx.h>
 #include <common/value.h>
+#include <common/values/value_builder.h>
 
 namespace rust::cel_cxx {
 
@@ -39,6 +40,7 @@ using UintValue = cel::UintValue;
 using UnknownValue = cel::UnknownValue;
 
 using ValueIterator = cel::ValueIterator;
+using ValueBuilder = cel::ValueBuilder;
 
 struct AnyFfiOpaqueValue;
 
@@ -447,6 +449,24 @@ inline Status ValueIterator_next2(
     key.swap(key_value);
     value.swap(value_value);
     return Status();
+}
+
+// ValueBuilder
+struct AnyFfiValueBuilder;
+std::unique_ptr<ValueBuilder> ValueBuilder_new(Box<AnyFfiValueBuilder> ffi);
+
+inline std::unique_ptr<ValueBuilder> ValueBuilder_new_message(
+    const Arena& arena,
+    const DescriptorPool& descriptor_pool,
+    const MessageFactory& message_factory,
+    absl::string_view name
+) {
+    return cel::common_internal::NewValueBuilder(
+        &const_cast<Arena&>(arena),
+        &descriptor_pool,
+        &const_cast<MessageFactory&>(message_factory),
+        name
+    );
 }
 
 } // namespace rust::cel_cxx

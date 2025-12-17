@@ -26,14 +26,26 @@ mod ffi {
 
         type CheckerOptions;
         type CheckerLibrary;
+        type TypeCheckerSubset;
 
         type TypeChecker;
 
+        type TypeCheckerBuilderConfigurer;
         type TypeCheckerBuilder<'a>;
         #[rust_name = "add_variable"]
         fn AddVariable<'a>(
             self: Pin<&mut TypeCheckerBuilder<'a>>,
             decl: &VariableDecl<'a>,
+        ) -> Status;
+        #[rust_name = "add_or_replace_variable"]
+        fn AddOrReplaceVariable<'a>(
+            self: Pin<&mut TypeCheckerBuilder<'a>>,
+            decl: &VariableDecl<'a>,
+        ) -> Status;
+        #[rust_name = "add_context_declaration"]
+        fn AddContextDeclaration<'a>(
+            self: Pin<&mut TypeCheckerBuilder<'a>>,
+            type_name: string_view<'_>,
         ) -> Status;
         #[rust_name = "add_function"]
         fn AddFunction<'a>(
@@ -47,7 +59,7 @@ mod ffi {
         ) -> Status;
         #[rust_name = "set_expected_type"]
         fn SetExpectedType<'a>(self: Pin<&mut TypeCheckerBuilder<'a>>, expected_type: &Type<'a>);
-        fn set_container<'a, 'b>(self: Pin<&mut TypeCheckerBuilder<'a>>, container: string_view<'b>);
+        fn set_container<'a>(self: Pin<&mut TypeCheckerBuilder<'a>>, container: string_view<'_>);
         fn options<'this, 'a>(self: &'this TypeCheckerBuilder<'a>) -> &'this CheckerOptions;
 
         type TypeCheckIssue;
@@ -63,10 +75,28 @@ mod ffi {
         include!(<cel-cxx-ffi/include/absl.h>);
         include!(<cel-cxx-ffi/include/checker.h>);
         type Severity = super::Severity;
+        type FunctionPredicate;
 
         // CheckerLibrary
+        fn CheckerLibrary_new(
+            id: &CxxString,
+            configurer: UniquePtr<TypeCheckerBuilderConfigurer>,
+        ) -> UniquePtr<CheckerLibrary>;
         fn CheckerLibrary_new_optional() -> UniquePtr<CheckerLibrary>;
         fn CheckerLibrary_new_standard() -> UniquePtr<CheckerLibrary>;
+        fn CheckerLibrary_id<'a>(checker_library: &'a CheckerLibrary) -> &'a CxxString;
+
+        // FunctionPredicate
+        fn FunctionPredicate_new(
+            ffi_predicate: Box<AnyFfiFunctionPredicate>
+        ) -> UniquePtr<FunctionPredicate>;
+
+        // TypeCheckerSubset
+        fn TypeCheckerSubset_new(
+            library_id: &CxxString,
+            should_include_overload: UniquePtr<FunctionPredicate>,
+        ) -> UniquePtr<TypeCheckerSubset>;
+        fn TypeCheckerSubset_library_id<'a>(type_checker_subset: &'a TypeCheckerSubset) -> &'a CxxString;
 
         // CheckerOptions
         fn CheckerOptions_new() -> UniquePtr<CheckerOptions>;
@@ -101,10 +131,19 @@ mod ffi {
             checker_options: Pin<&mut CheckerOptions>,
         ) -> &mut i32;
 
+        // TypeCheckerBuilderConfigurer
+        fn TypeCheckerBuilderConfigurer_new(
+            ffi_configurer: Box<AnyFfiTypeCheckerBuilderConfigurer>,
+        ) -> UniquePtr<TypeCheckerBuilderConfigurer>;
+
         // TypeCheckerBuilder
         fn TypeCheckerBuilder_add_library<'a>(
             type_checker_builder: Pin<&mut TypeCheckerBuilder<'a>>,
             library: UniquePtr<CheckerLibrary>,
+        ) -> Status;
+        fn TypeCheckerBuilder_add_library_subset<'a>(
+            type_checker_builder: Pin<&mut TypeCheckerBuilder<'a>>,
+            library_subset: UniquePtr<TypeCheckerSubset>,
         ) -> Status;
 
         // TypeCheckIssue
@@ -123,14 +162,67 @@ mod ffi {
         fn ValidationResult_format_error(validation_result: &ValidationResult) -> String;
     }
 
+    #[namespace = "rust::cel_cxx"]
+    extern "Rust" {
+        #[derive(ExternType)]
+        type AnyFfiTypeCheckerBuilderConfigurer<'f>;
+        #[cxx_name = "Call"]
+        unsafe fn call<'f>(
+            self: &AnyFfiTypeCheckerBuilderConfigurer<'f>,
+            type_checker_builder: Pin<&mut TypeCheckerBuilder<'_>>,
+        ) -> Status;
+
+        #[derive(ExternType)]
+        type AnyFfiFunctionPredicate<'f>;
+        #[cxx_name = "Call"]
+        unsafe fn call<'f>(
+            self: &AnyFfiFunctionPredicate<'f>,
+            function_name: string_view<'_>,
+            overload_id: string_view<'_>,
+        ) -> bool;
+    }
+
     impl UniquePtr<ValidationResult> {}
 }
+
+// TypeCheckerBuilderConfigurer
+pub use ffi::TypeCheckerBuilderConfigurer;
+unsafe impl Send for TypeCheckerBuilderConfigurer {}
+unsafe impl Sync for TypeCheckerBuilderConfigurer {}
+
+impl TypeCheckerBuilderConfigurer {
+    pub fn new<F: FfiTypeCheckerBuilderConfigurer + 'static>(configurer: F) -> cxx::UniquePtr<Self> {
+        ffi::TypeCheckerBuilderConfigurer_new(Box::new(AnyFfiTypeCheckerBuilderConfigurer::new(configurer)))
+    }
+}
+
+pub trait FfiTypeCheckerBuilderConfigurer: Fn(Pin<&mut TypeCheckerBuilder<'_>>) -> Status {}
+impl<'f, F> FfiTypeCheckerBuilderConfigurer for F where
+    F: 'f + Fn(Pin<&mut TypeCheckerBuilder<'_>>) -> Status {}
+
+struct AnyFfiTypeCheckerBuilderConfigurer<'f>(Box<dyn FfiTypeCheckerBuilderConfigurer + 'f>);
+impl<'f> AnyFfiTypeCheckerBuilderConfigurer<'f> {
+    fn new<T: FfiTypeCheckerBuilderConfigurer + 'f>(configurer: T) -> Self {
+        Self(Box::new(configurer))
+    }
+
+    fn call(&self, type_checker_builder: Pin<&mut TypeCheckerBuilder<'_>>) -> Status {
+        (self.0)(type_checker_builder)
+    }
+}
+
+// CheckerLibrary
+pub type TypeCheckerLibrary = CheckerLibrary;
 
 pub use ffi::CheckerLibrary;
 unsafe impl Send for CheckerLibrary {}
 unsafe impl Sync for CheckerLibrary {}
 
 impl CheckerLibrary {
+    pub fn new(id: &cxx::CxxString, configurer: cxx::UniquePtr<TypeCheckerBuilderConfigurer>) -> cxx::UniquePtr<Self> {
+        ffi::CheckerLibrary_new(id, configurer)
+    }
+
     pub fn new_optional() -> cxx::UniquePtr<Self> {
         ffi::CheckerLibrary_new_optional()
     }
@@ -138,7 +230,57 @@ impl CheckerLibrary {
     pub fn new_standard() -> cxx::UniquePtr<Self> {
         ffi::CheckerLibrary_new_standard()
     }
+
+    pub fn id(&self) -> &cxx::CxxString {
+        ffi::CheckerLibrary_id(&self)
+    }
 }
+
+// FunctionPredicate
+pub use ffi::FunctionPredicate;
+unsafe impl Send for FunctionPredicate {}
+unsafe impl Sync for FunctionPredicate {}
+
+impl FunctionPredicate {
+    pub fn new<F: FfiFunctionPredicate + 'static>(predicate: F) -> cxx::UniquePtr<Self> {
+        ffi::FunctionPredicate_new(Box::new(AnyFfiFunctionPredicate::new(predicate)))
+    }
+}
+
+pub trait FfiFunctionPredicate: Fn(StringView<'_>, StringView<'_>) -> bool {}
+impl<'f, F> FfiFunctionPredicate for F where
+    F: 'f + Fn(StringView<'_>, StringView<'_>) -> bool {}
+
+struct AnyFfiFunctionPredicate<'f>(Box<dyn FfiFunctionPredicate + 'f>);
+impl<'f> AnyFfiFunctionPredicate<'f> {
+    fn new<T: FfiFunctionPredicate + 'f>(predicate: T) -> Self {
+        Self(Box::new(predicate))
+    }
+
+    fn call(&self, function_name: StringView<'_>, overload_id: StringView<'_>) -> bool {
+        (self.0)(function_name, overload_id)
+    }
+}
+
+// CheckerLibrarySubset
+pub type TypeCheckerLibrarySubset = TypeCheckerSubset;
+
+pub use ffi::TypeCheckerSubset;
+unsafe impl Send for TypeCheckerSubset {}
+unsafe impl Sync for TypeCheckerSubset {}
+
+impl TypeCheckerSubset {
+    pub fn new(library_id: &cxx::CxxString, should_include_overload: cxx::UniquePtr<FunctionPredicate>) -> cxx::UniquePtr<Self> {
+        ffi::TypeCheckerSubset_new(library_id, should_include_overload)
+    }
+
+    pub fn library_id(&self) -> &cxx::CxxString {
+        ffi::TypeCheckerSubset_library_id(&self)
+    }
+}
+
+// CheckerOptions
+pub type TypeCheckerOptions = CheckerOptions;
 
 pub use ffi::CheckerOptions;
 unsafe impl Send for CheckerOptions {}
@@ -253,6 +395,7 @@ impl TypeCheckIssue {
     }
 }
 
+// TypeChecker
 pub use ffi::TypeChecker;
 unsafe impl Send for TypeChecker {}
 unsafe impl Sync for TypeChecker {}
@@ -264,6 +407,7 @@ impl std::fmt::Debug for TypeChecker {
     }
 }
 
+// TypeCheckerBuilder
 pub use ffi::TypeCheckerBuilder;
 unsafe impl<'a> Send for TypeCheckerBuilder<'a> {}
 unsafe impl<'a> Sync for TypeCheckerBuilder<'a> {}
@@ -271,5 +415,9 @@ unsafe impl<'a> Sync for TypeCheckerBuilder<'a> {}
 impl<'a> TypeCheckerBuilder<'a> {
     pub fn add_library(self: Pin<&mut Self>, library: cxx::UniquePtr<CheckerLibrary>) -> Status {
         ffi::TypeCheckerBuilder_add_library(self, library)
+    }
+
+    pub fn add_library_subset(self: Pin<&mut Self>, library_subset: cxx::UniquePtr<TypeCheckerSubset>) -> Status {
+        ffi::TypeCheckerBuilder_add_library_subset(self, library_subset)
     }
 }

@@ -2,11 +2,9 @@ use crate as rust;
 pub(crate) use cel_cxx_ffi::*;
 
 mod activation;
-mod error;
 mod types;
 mod values;
 pub(crate) use activation::*;
-pub(crate) use error::*;
 pub(crate) use types::*;
 pub(crate) use values::*;
 

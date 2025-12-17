@@ -45,9 +45,15 @@ mod ffi;
 pub mod error;
 pub use error::*;
 
+/// Function registration and declaration utilities.
 pub mod function;
 pub use function::*;
 
+/// CEL macro system for compile-time expression expansion.
+pub mod macros;
+pub use macros::*;
+
+/// Variable declarations for CEL environments.
 pub mod variable;
 pub use variable::*;
 

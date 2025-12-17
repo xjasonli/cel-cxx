@@ -1,11 +1,11 @@
 use crate::function::{Arguments, FunctionDecl, FunctionDeclWithNonEmptyArguments, FunctionRegistry, IntoFunction, NonEmptyArguments};
 use crate::variable::VariableRegistry;
-use crate::{FnMarker, FnMarkerAggr, IntoConstant, RuntimeMarker};
+use crate::{FnMarker, FnMarkerAggr, IntoConstant, Macro, RuntimeMarker};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 mod inner;
 
-use crate::ffi;
 use crate::{Error, Program, TypedValue};
 pub(crate) use inner::{EnvInner, EnvInnerOptions};
 
@@ -144,6 +144,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
 /// # Ok::<(), cel_cxx::Error>(())
 /// ```
 pub struct EnvBuilder<'f, Fm: FnMarker = (), Rm: RuntimeMarker = ()> {
+    macros: HashSet<Macro>,
     function_registry: FunctionRegistry<'f>,
     variable_registry: VariableRegistry,
     options: EnvInnerOptions,
@@ -163,6 +164,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ```
     pub fn new() -> Self {
         EnvBuilder {
+            macros: HashSet::new(),
             function_registry: FunctionRegistry::new(),
             variable_registry: VariableRegistry::new(),
             options: EnvInnerOptions::default(),
@@ -1050,6 +1052,115 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         self
     }
 
+    /// Registers a CEL macro for compile-time expression expansion.
+    ///
+    /// Macros enable custom syntactic sugar and expression transformations that
+    /// execute during the compilation phase, before type checking and evaluation.
+    /// This allows you to extend CEL's syntax without modifying the parser.
+    ///
+    /// # Macro Registration Process
+    ///
+    /// When you register a macro:
+    /// 1. The macro's unique key (based on name, style, and arity) is computed
+    /// 2. The system checks for conflicts with existing macros
+    /// 3. If no conflict exists, the macro is stored in the environment
+    /// 4. Future compilations will invoke the macro when matching expressions are encountered
+    ///
+    /// # Macro Types
+    ///
+    /// You can register two types of macros:
+    /// - **Global macros**: Invoked as functions, e.g., `all(list, x, x > 0)`
+    /// - **Receiver macros**: Invoked as methods, e.g., `list.filter(x, x > 0)`
+    ///
+    /// Both can accept fixed or variable numbers of arguments.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - A macro with the same key (name, style, and arity) is already registered
+    ///
+    /// # Examples
+    ///
+    /// ## Registering a global macro
+    ///
+    /// ```rust,no_run
+    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::macros::Macro;
+    /// # fn example() -> Result<(), Error> {
+    /// // Create a macro that expands not_zero(x) to x != 0
+    /// let not_zero = Macro::new_global("not_zero", 1, |factory, mut args| {
+    ///     let arg = args.pop()?;
+    ///     Some(factory.new_call("_!=_", &[arg, factory.new_const(0)]))
+    /// })?;
+    ///
+    /// let env = EnvBuilder::new()
+    ///     .register_macro(not_zero)?
+    ///     .build()?;
+    ///
+    /// // Now "not_zero(value)" in expressions will be expanded to "value != 0"
+    /// let program = env.compile("not_zero(x)")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## Registering a receiver macro
+    ///
+    /// ```rust,no_run
+    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::macros::Macro;
+    /// # fn example() -> Result<(), Error> {
+    /// // Create a macro for optional chaining: target.get_or(default)
+    /// let get_or = Macro::new_receiver("get_or", 1, |factory, target, mut args| {
+    ///     let default_val = args.pop()?;
+    ///     // Expand to: target != null ? target : default_val
+    ///     let null_check = factory.new_call("_!=_", &[
+    ///         target.clone(),
+    ///         factory.new_const(())
+    ///     ]);
+    ///     Some(factory.new_call("_?_:_", &[null_check, target, default_val]))
+    /// })?;
+    ///
+    /// let env = EnvBuilder::new()
+    ///     .register_macro(get_or)?
+    ///     .build()?;
+    ///
+    /// // Now "value.get_or(0)" will expand to null-safe access
+    /// let program = env.compile("value.get_or(0)")?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## Multiple macros
+    ///
+    /// ```rust,no_run
+    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::macros::Macro;
+    /// # fn example() -> Result<(), Error> {
+    /// let macro1 = Macro::new_global("custom_op", 2, |factory, args| {
+    ///     // Implementation
+    ///     None
+    /// })?;
+    ///
+    /// let macro2 = Macro::new_receiver("custom_method", 1, |factory, target, args| {
+    ///     // Implementation
+    ///     None
+    /// })?;
+    ///
+    /// let env = EnvBuilder::new()
+    ///     .register_macro(macro1)?
+    ///     .register_macro(macro2)?
+    ///     .build()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn register_macro(mut self, m: Macro) -> Result<Self, Error> {
+        let key = String::from_utf8_lossy(m.key()).to_string();
+        if !self.macros.insert(m) {
+            return Err(Error::invalid_argument(format!("macro already registered: {}", key)));
+        }
+        Ok(self)
+    }
+
     /// Registers a function (either global or member).
     ///
     /// This method allows you to register custom functions that can be called
@@ -1192,6 +1303,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         self.function_registry.register(name, member, f)?;
 
         Ok(EnvBuilder {
+            macros: self.macros,
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
             options: self.options,
@@ -1264,6 +1376,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         self.function_registry.register_member(name, f)?;
 
         Ok(EnvBuilder {
+            macros: self.macros,
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
             options: self.options,
@@ -1382,6 +1495,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         self.function_registry.register_global(name, f)?;
 
         Ok(EnvBuilder {
+            macros: self.macros,
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
             options: self.options,
@@ -1414,6 +1528,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     {
         self.function_registry.declare::<D>(name, member)?;
         Ok(EnvBuilder {
+            macros: self.macros,
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
             options: self.options,
@@ -1439,6 +1554,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     {
         self.function_registry.declare_member::<D>(name)?;
         Ok(EnvBuilder {
+            macros: self.macros,
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
             options: self.options,
@@ -1462,6 +1578,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     {
         self.function_registry.declare_global::<D>(name)?;
         Ok(EnvBuilder {
+            macros: self.macros,
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
             options: self.options,
@@ -1495,6 +1612,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     {
         self.variable_registry.define_constant(name, value)?;
         Ok(EnvBuilder {
+            macros: self.macros,
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
             options: self.options,
@@ -1534,6 +1652,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     {
         self.variable_registry.declare::<T>(name)?;
         Ok(EnvBuilder {
+            macros: self.macros,
             function_registry: self.function_registry,
             variable_registry: self.variable_registry,
             options: self.options,
@@ -1568,8 +1687,8 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// Returns an error if the environment configuration is invalid or
     /// if the underlying CEL environment cannot be created.
     pub fn build(self) -> Result<Env<'f, Fm, Rm>, Error> {
-        let inner = EnvInner::new_with_registries(self.function_registry, self.variable_registry, self.options)
-            .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
+        let inner = EnvInner::new_with_registries(self.macros, self.function_registry, self.variable_registry, self.options)
+            .map_err(|ffi_status| Error::from(&ffi_status))?;
         let env = Env {
             inner: Arc::new(inner),
             _fn_marker: self._fn_marker,
@@ -1633,6 +1752,7 @@ const _: () = {
         /// ```
         pub fn force_async(self) -> EnvBuilder<'f, Async, Rm> {
             EnvBuilder {
+                macros: self.macros,
                 function_registry: self.function_registry,
                 variable_registry: self.variable_registry,
                 options: self.options,
@@ -1767,6 +1887,7 @@ const _: () = {
         /// ```
         pub fn use_runtime<Rt: Runtime>(self) -> EnvBuilder<'f, Fm, Rt> {
             EnvBuilder {
+                macros: self.macros,
                 function_registry: self.function_registry,
                 variable_registry: self.variable_registry,
                 options: self.options,
@@ -1868,6 +1989,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> std::fmt::Debug for EnvBuilder<'f, Fm,
 impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Default for EnvBuilder<'f, Fm, Rm> {
     fn default() -> Self {
         EnvBuilder {
+            macros: HashSet::new(),
             function_registry: FunctionRegistry::new(),
             variable_registry: VariableRegistry::new(),
             options: EnvInnerOptions::default(),

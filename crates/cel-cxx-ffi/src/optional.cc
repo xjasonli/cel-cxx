@@ -58,7 +58,7 @@ cel::TypeCheckerBuilderConfigurer PatchOptionalTypeCheckerBuilderConfigurer(cel:
 cel::CheckerLibrary PatchOptionalCheckerLibrary(cel::CheckerLibrary origin) {
     cel::CheckerLibrary checker_library = {
         .id = std::move(origin.id),
-        .configure = std::move(PatchOptionalTypeCheckerBuilderConfigurer(std::move(origin.configure))),
+        .configure = PatchOptionalTypeCheckerBuilderConfigurer(std::move(origin.configure)),
     };
     return checker_library;
 }

@@ -174,7 +174,7 @@ mod ffi {
         fn RuntimeOptions_new() -> UniquePtr<RuntimeOptions>;
 
         // RuntimeOptions getters and setters
-        fn RuntimeOptions_container(runtime_options: &RuntimeOptions) -> &str;
+        fn RuntimeOptions_container(runtime_options: &RuntimeOptions) -> &CxxString;
         fn RuntimeOptions_container_mut(
             runtime_options: Pin<&mut RuntimeOptions>,
         ) -> Pin<&mut CxxString>;
@@ -593,7 +593,7 @@ impl RuntimeOptions {
         ffi::RuntimeOptions_new()
     }
 
-    pub fn container(&self) -> &str {
+    pub fn container(&self) -> &cxx::CxxString {
         ffi::RuntimeOptions_container(self)
     }
 

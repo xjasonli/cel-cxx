@@ -164,6 +164,20 @@ mod ffi {
         fn size(self: &TypeParameters) -> usize;
         #[rust_name = "is_empty"]
         fn empty(self: &TypeParameters) -> bool;
+
+        type StructTypeField<'a> = super::StructTypeField<'a>;
+        fn name<'a>(self: &StructTypeField<'a>) -> string_view<'a>;
+        fn number(self: &StructTypeField<'_>) -> i32;
+        #[rust_name = "get_type"]
+        fn GetType<'a>(self: &StructTypeField<'a>) -> Type<'a>;
+        #[rust_name = "is_message"]
+        fn IsMessage(self: &StructTypeField) -> bool;
+
+        type MessageTypeField<'a> = super::MessageTypeField<'a>;
+        fn name<'a>(self: &MessageTypeField<'a>) -> string_view<'a>;
+        fn number(self: &MessageTypeField<'_>) -> i32;
+        #[rust_name = "get_type"]
+        fn GetType<'a>(self: &MessageTypeField<'a>) -> Type<'a>;
     }
 
     #[namespace = "rust::cel_cxx"]
@@ -250,6 +264,10 @@ mod ffi {
             type_parameters: &TypeParameters<'a>,
             index: usize,
         ) -> &'a Type<'a>;
+
+        // StructTypeField
+        fn StructTypeField_new_basic<'a>(name: &'a str, number:i32, type_: &Type<'a>) -> StructTypeField<'a>;
+        fn StructTypeField_new_message<'a>(field: &MessageTypeField<'a>) -> StructTypeField<'a>;
     }
 }
 
@@ -663,3 +681,36 @@ impl<'a> std::iter::ExactSizeIterator for TypeParametersIter<'a> {
 }
 
 impl<'a> std::iter::FusedIterator for TypeParametersIter<'a> {}
+
+// StructTypeField
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub struct StructTypeField<'a>(Rep<'a, usize, 7>);
+
+unsafe impl<'a> cxx::ExternType for StructTypeField<'a> {
+    type Id = cxx::type_id!("cel::StructTypeField");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl<'a> StructTypeField<'a> {
+    pub fn new_basic(name: &'a str, number:i32, type_: &Type<'a>) -> Self {
+        ffi::StructTypeField_new_basic(name, number, type_)
+    }
+
+    pub fn new_message(field: &MessageTypeField<'a>) -> Self {
+        ffi::StructTypeField_new_message(field)
+    }
+}
+
+// MessageTypeField
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub struct MessageTypeField<'a>(Rep<'a, usize, 1>);
+
+unsafe impl<'a> cxx::ExternType for MessageTypeField<'a> {
+    type Id = cxx::type_id!("cel::MessageTypeField");
+    type Kind = cxx::kind::Trivial;
+}
+
+impl<'a> MessageTypeField<'a> {
+}

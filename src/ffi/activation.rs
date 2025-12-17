@@ -48,7 +48,7 @@ impl<'f> FfiFunction for FfiFunctionImpl<'f> {
                 .into_iter()
                 .map(|arg| value_to_rust(arg, arena, descriptor_pool, message_factory))
                 .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| error_from_rust(&e))?;
+                .map_err(|e| Status::from(&e))?;
 
             let result = overload.call(rust_args);
 
@@ -57,7 +57,7 @@ impl<'f> FfiFunction for FfiFunctionImpl<'f> {
 
             let value = result
                 .map(|value| value_from_rust(&value, arena, descriptor_pool, message_factory))
-                .map_err(|e| error_from_rust(&e))?;
+                .map_err(|e| Status::from(&e))?;
 
             return Ok(value);
         }

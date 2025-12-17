@@ -1446,6 +1446,53 @@ impl TryFrom<Value> for Constant {
     }
 }
 
+impl From<&Constant> for cxx::UniquePtr<crate::ffi::Constant> {
+    fn from(constant: &Constant) -> Self {
+        use crate::ffi::Constant as FfiConstant;
+        match constant {
+            Constant::Null => FfiConstant::new_null(),
+            Constant::Bool(value) => FfiConstant::new_bool(*value),
+            Constant::Int(value) => FfiConstant::new_int(*value),
+            Constant::Uint(value) => FfiConstant::new_uint(*value),
+            Constant::Double(value) => FfiConstant::new_double(*value),
+            Constant::Bytes(value) => FfiConstant::new_bytes(&value.as_ref()),
+            Constant::String(value) => FfiConstant::new_string(&value.as_ref()),
+            Constant::Duration(value) => FfiConstant::new_duration((*value).into()),
+            Constant::Timestamp(value) => FfiConstant::new_timestamp((*value).into()),
+        }
+    }
+}
+
+impl From<Constant> for cxx::UniquePtr<crate::ffi::Constant> {
+    fn from(constant: Constant) -> Self {
+        Self::from(&constant)
+    }
+}
+
+impl From<&crate::ffi::Constant> for Constant {
+    fn from(constant: &crate::ffi::Constant) -> Self {
+        use crate::ffi::ConstantKindCase;
+        match constant.kind_case() {
+            ConstantKindCase::Unspecified => Constant::Null,
+            ConstantKindCase::Null => Constant::Null,
+            ConstantKindCase::Bool => Constant::Bool(constant.bool_value()),
+            ConstantKindCase::Int => Constant::Int(constant.int_value()),
+            ConstantKindCase::Uint => Constant::Uint(constant.uint_value()),
+            ConstantKindCase::Double => Constant::Double(constant.double_value()),
+            ConstantKindCase::Bytes => Constant::Bytes(BytesValue::from(constant.bytes_value().as_bytes())),
+            ConstantKindCase::String => Constant::String(StringValue::from(constant.string_value().to_string())),
+            ConstantKindCase::Duration => Constant::Duration(constant.duration_value().into()),
+            ConstantKindCase::Timestamp => Constant::Timestamp(constant.timestamp_value().into()),
+        }
+    }
+}
+
+impl From<crate::ffi::Constant> for Constant {
+    fn from(constant: crate::ffi::Constant) -> Self {
+        Self::from(&constant)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

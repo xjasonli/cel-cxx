@@ -5,21 +5,6 @@ use std::pin::Pin;
 
 #[cxx::bridge]
 mod ffi {
-    #[namespace = "rust::cel_cxx"]
-    extern "Rust" {
-        type AnyFfiOpaqueValue<'a>;
-        #[cxx_name = "Clone"]
-        unsafe fn clone<'a>(self: &'a AnyFfiOpaqueValue<'a>) -> Box<AnyFfiOpaqueValue<'a>>;
-        #[cxx_name = "DebugString"]
-        unsafe fn to_string<'a>(self: &AnyFfiOpaqueValue<'a>) -> String;
-        #[cxx_name = "GetTypeName"]
-        unsafe fn type_name<'a>(self: &AnyFfiOpaqueValue<'a>) -> string_view<'a>;
-        #[cxx_name = "GetRuntimeType"]
-        unsafe fn runtime_type<'a>(self: &AnyFfiOpaqueValue<'a>) -> OpaqueType<'a>;
-        #[cxx_name = "Equal"]
-        unsafe fn equal<'a>(self: &AnyFfiOpaqueValue<'a>, other: &AnyFfiOpaqueValue<'a>) -> bool;
-    }
-
     #[namespace = "absl"]
     unsafe extern "C++" {
         include!(<absl/time/time.h>);
@@ -171,6 +156,9 @@ mod ffi {
         type ValueIterator<'a>;
         #[rust_name = "has_next"]
         fn HasNext(self: Pin<&mut ValueIterator>) -> bool;
+
+        // ValueBuilder
+        type ValueBuilder<'a>;
     }
 
     #[namespace = "rust::cel_cxx"]
@@ -327,6 +315,38 @@ mod ffi {
             key: &mut UniquePtr<Value<'b>>,
             value: &mut UniquePtr<Value<'b>>,
         ) -> Status;
+
+        // ValueBuilder
+        fn ValueBuilder_new<'a>(ffi: Box<AnyFfiValueBuilder<'a>>) -> UniquePtr<ValueBuilder<'a>>;
+        fn ValueBuilder_new_message<'a>(
+            arena: &'a Arena,
+            descriptor_pool: &'a DescriptorPool,
+            message_factory: &'a MessageFactory,
+            name: string_view<'_>,
+        ) -> UniquePtr<ValueBuilder<'a>>;
+    }
+
+    #[namespace = "rust::cel_cxx"]
+    extern "Rust" {
+        type AnyFfiOpaqueValue<'a>;
+        #[cxx_name = "Clone"]
+        unsafe fn clone<'a>(self: &'a AnyFfiOpaqueValue<'a>) -> Box<AnyFfiOpaqueValue<'a>>;
+        #[cxx_name = "DebugString"]
+        unsafe fn to_string<'a>(self: &AnyFfiOpaqueValue<'a>) -> String;
+        #[cxx_name = "GetTypeName"]
+        unsafe fn type_name<'a>(self: &AnyFfiOpaqueValue<'a>) -> string_view<'a>;
+        #[cxx_name = "GetRuntimeType"]
+        unsafe fn runtime_type<'a>(self: &AnyFfiOpaqueValue<'a>) -> OpaqueType<'a>;
+        #[cxx_name = "Equal"]
+        unsafe fn equal<'a>(self: &AnyFfiOpaqueValue<'a>, other: &AnyFfiOpaqueValue<'a>) -> bool;
+
+        type AnyFfiValueBuilder<'a>;
+        #[cxx_name = "SetFieldByName"]
+        unsafe fn set_field_by_name<'a>(self: &mut AnyFfiValueBuilder<'a>, name: string_view<'a>, value: &Value<'a>) -> Status;
+        #[cxx_name = "SetFieldByNumber"]
+        unsafe fn set_field_by_number<'a>(self: &mut AnyFfiValueBuilder<'a>, number: i64, value: &Value<'a>) -> Status;
+        #[cxx_name = "Build"]
+        unsafe fn build<'a>(self: &mut AnyFfiValueBuilder<'a>, result: &mut UniquePtr<Value<'a>>) -> Status;
     }
 }
 
@@ -900,5 +920,86 @@ impl<'a> ValueIterator<'a> {
         } else {
             Err(status)
         }
+    }
+}
+
+// ValueBuilder
+pub trait FfiValueBuilder<'a> {
+    fn set_field_by_name(
+        &mut self,
+        name: StringView<'_>,
+        value: &Value<'a>,
+    ) -> Result<(), Status>;
+    fn set_field_by_number(
+        &mut self,
+        number: i64,
+        value: &Value<'a>,
+    ) -> Result<(), Status>;
+
+    fn build(self: Box<Self>) -> Result<cxx::UniquePtr<Value<'a>>, Status>;
+}
+
+struct AnyFfiValueBuilder<'a>(Option<Box<dyn FfiValueBuilder<'a> + 'a>>);
+
+impl<'a> AnyFfiValueBuilder<'a> {
+    fn new<T: FfiValueBuilder<'a> + 'a>(ffi_value_builder: T) -> Self {
+        Self(Some(Box::new(ffi_value_builder)))
+    }
+
+    fn set_field_by_name(
+        &mut self,
+        name: StringView<'_>,
+        value: &Value<'a>,
+    ) -> Status {
+        let ffi = self.0.as_mut().expect("ffi_value_builder is not set");
+        match ffi.set_field_by_name(name, value) {
+            Ok(_) => {
+                Status::ok()
+            }
+            Err(status) => status,
+        }
+    }
+    fn set_field_by_number(
+        &mut self,
+        number: i64,
+        value: &Value<'a>,
+    ) -> Status {
+        let ffi = self.0.as_mut().expect("ffi_value_builder is not set");
+        match ffi.set_field_by_number(number, value) {
+            Ok(_) => {
+                Status::ok()
+            }
+            Err(status) => status,
+        }
+    }
+
+    fn build(&mut self, result: &mut cxx::UniquePtr<Value<'a>>) -> Status {
+        let ffi = self.0.take().expect("ffi_value_builder is not set");
+        match ffi.build() {
+            Ok(value) => {
+                *result = value;
+                Status::ok()
+            }
+            Err(status) => status,
+        }
+    }
+}
+
+pub use ffi::ValueBuilder;
+unsafe impl<'a> Send for ValueBuilder<'a> {}
+unsafe impl<'a> Sync for ValueBuilder<'a> {}
+
+impl<'a> ValueBuilder<'a> {
+    pub fn new<T: FfiValueBuilder<'a> + 'a>(ffi_value_builder: T) -> cxx::UniquePtr<Self> {
+        ffi::ValueBuilder_new(Box::new(AnyFfiValueBuilder::new(ffi_value_builder)))
+    }
+
+    pub fn new_message(
+        arena: &'a Arena,
+        descriptor_pool: &'a DescriptorPool,
+        message_factory: &'a MessageFactory,
+        name: StringView<'_>,
+    ) -> cxx::UniquePtr<Self> {
+        ffi::ValueBuilder_new_message(arena, descriptor_pool, message_factory, name)
     }
 }

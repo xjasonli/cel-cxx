@@ -662,3 +662,82 @@ impl<E: std::error::Error + Send + Sync + 'static> IntoError for E {
         Error::from_std_error_generic(Box::new(self))
     }
 }
+
+
+impl From<&crate::ffi::Status> for Error {
+    fn from(value: &crate::ffi::Status) -> Self {
+        use crate::ffi::StatusCode;
+        match value.code() {
+            StatusCode::Ok => Error::ok(value.message().to_string_lossy()),
+            StatusCode::Cancelled => Error::cancelled(value.message().to_string_lossy()),
+            StatusCode::Unknown => Error::unknown(value.message().to_string_lossy()),
+            StatusCode::InvalidArgument => {
+                Error::invalid_argument(value.message().to_string_lossy())
+            }
+            StatusCode::DeadlineExceeded => {
+                Error::deadline_exceeded(value.message().to_string_lossy())
+            }
+            StatusCode::NotFound => Error::not_found(value.message().to_string_lossy()),
+            StatusCode::AlreadyExists => {
+                Error::already_exists(value.message().to_string_lossy())
+            }
+            StatusCode::PermissionDenied => {
+                Error::permission_denied(value.message().to_string_lossy())
+            }
+            StatusCode::ResourceExhausted => {
+                Error::resource_exhausted(value.message().to_string_lossy())
+            }
+            StatusCode::FailedPrecondition => {
+                Error::failed_precondition(value.message().to_string_lossy())
+            }
+            StatusCode::Aborted => Error::aborted(value.message().to_string_lossy()),
+            StatusCode::OutOfRange => Error::out_of_range(value.message().to_string_lossy()),
+            StatusCode::Unimplemented => {
+                Error::unimplemented(value.message().to_string_lossy())
+            }
+            StatusCode::Internal => Error::internal(value.message().to_string_lossy()),
+            StatusCode::Unavailable => Error::unavailable(value.message().to_string_lossy()),
+            StatusCode::DataLoss => Error::data_loss(value.message().to_string_lossy()),
+            StatusCode::Unauthenticated => {
+                Error::unauthenticated(value.message().to_string_lossy())
+            }
+        }
+    }
+}
+
+impl From<crate::ffi::Status> for Error {
+    fn from(value: crate::ffi::Status) -> Self {
+        Self::from(&value)
+    }
+}
+
+impl From<&Error> for crate::ffi::Status {
+    fn from(value: &Error) -> Self {
+        use crate::ffi::Status;
+        match value.code() {
+            Code::Ok => Status::ok(),
+            Code::Cancelled => Status::cancelled(value.message()),
+            Code::Unknown => Status::unknown(value.message()),
+            Code::InvalidArgument => Status::invalid_argument(value.message()),
+            Code::DeadlineExceeded => Status::deadline_exceeded(value.message()),
+            Code::NotFound => Status::not_found(value.message()),
+            Code::AlreadyExists => Status::already_exists(value.message()),
+            Code::PermissionDenied => Status::permission_denied(value.message()),
+            Code::ResourceExhausted => Status::resource_exhausted(value.message()),
+            Code::FailedPrecondition => Status::failed_precondition(value.message()),
+            Code::Aborted => Status::aborted(value.message()),
+            Code::OutOfRange => Status::out_of_range(value.message()),
+            Code::Unimplemented => Status::unimplemented(value.message()),
+            Code::Internal => Status::internal(value.message()),
+            Code::Unavailable => Status::unavailable(value.message()),
+            Code::DataLoss => Status::data_loss(value.message()),
+            Code::Unauthenticated => Status::unauthenticated(value.message()),
+        }
+    }
+}
+
+impl From<Error> for crate::ffi::Status {
+    fn from(value: Error) -> Self {
+        Self::from(&value)
+    }
+}

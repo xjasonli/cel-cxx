@@ -78,7 +78,7 @@ pub(crate) fn value_from_rust<'a>(
             Value::new_type(&type_value)
         }
         rust::Value::Error(e) => {
-            let status = super::error_from_rust(e);
+            let status = e.into();
             let error_value = ErrorValue::new(status);
             Value::new_error(&error_value)
         }
@@ -146,12 +146,12 @@ pub(crate) fn value_to_rust<'a>(
             let list_value = value.get_list();
             let mut iter = list_value
                 .new_iterator()
-                .map_err(|e| super::error_to_rust(&e))?;
+                .map_err(|e| rust::Error::from(&e))?;
             while iter.pin_mut().has_next() {
                 let item = iter
                     .pin_mut()
                     .next1(descriptor_pool, message_factory, arena)
-                    .map_err(|e| super::error_to_rust(&e))?;
+                    .map_err(|e| rust::Error::from(&e))?;
                 result.push(value_to_rust(
                     &item,
                     arena,
@@ -166,12 +166,12 @@ pub(crate) fn value_to_rust<'a>(
             let map_value = value.get_map();
             let mut iter = map_value
                 .new_iterator()
-                .map_err(|e| super::error_to_rust(&e))?;
+                .map_err(|e| rust::Error::from(&e))?;
             while iter.pin_mut().has_next() {
                 let (key, value) = iter
                     .pin_mut()
                     .next2(descriptor_pool, message_factory, arena)
-                    .map_err(|e| super::error_to_rust(&e))?;
+                    .map_err(|e| rust::Error::from(&e))?;
                 result.insert(
                     rust::MapKey::from_value(value_to_rust(
                         &key,
@@ -194,9 +194,7 @@ pub(crate) fn value_to_rust<'a>(
         }
         ValueKind::Error => {
             let error_value = value.get_error();
-            Ok(rust::Value::Error(error_to_rust(
-                &error_value.native_value(),
-            )))
+            Ok(rust::Value::Error(rust::Error::from(&error_value.native_value())))
         }
         ValueKind::Opaque => {
             if value.is_optional() {

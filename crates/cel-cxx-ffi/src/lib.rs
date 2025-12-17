@@ -13,6 +13,7 @@ pub use checker::*;
 pub use common::*;
 pub use compiler::*;
 pub use extensions::*;
+pub use cxx::*;
 pub use parser::*;
 pub use protobuf::*;
 pub use runtime::*;
