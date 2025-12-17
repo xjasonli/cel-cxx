@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2025-12-17
+
 ### Added
 - **Macro System**: Compile-time expression expansion support
   - Global macros for function-like invocations

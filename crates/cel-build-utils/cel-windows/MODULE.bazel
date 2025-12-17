@@ -37,7 +37,7 @@ git_override(
     module_name = "cel-cpp",
     # We need some patches
     remote = "https://github.com/xjasonli/cel-cpp.git",
-    commit = "fc0442628d3f3a65b3a31906509b2a20ffc3f869",
+    commit = "8b19895358bf83dad95b6b79430d93394a7ee15a",
     patches = [
         "//:fix_msvc.patch",
     ],

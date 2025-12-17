@@ -4,6 +4,7 @@ build:
 
 test:
 	cargo test --all-targets
+	cargo test --features tokio --test tokio
 
 check:
 	CEL_CXX_FFI_SKIP_BUILD=1 cargo check

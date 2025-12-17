@@ -135,7 +135,7 @@ impl<'f> ProgramInner<'f> {
                     Some(eval_ctx.message_factory()),
                     &ffi_activation,
                 )
-                .map_err(|ffi_status| ffi::error_to_rust(&ffi_status))?;
+                .map_err(|ffi_status| Error::from(ffi_status))?;
             let value = ffi::value_to_rust(
                 &ffi_value,
                 eval_ctx.arena(),

@@ -5,7 +5,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 authors = ["Jason Li <xjason.li@gmail.com>"]
 license = "Apache-2.0"
@@ -16,9 +16,9 @@ keywords = ["cel", "expression", "language", "ffi", "cxx"]
 
 [workspace.dependencies]
 cel-cxx = { path = "." }
-cel-cxx-ffi = { path = "crates/cel-cxx-ffi", version = "=0.2.3" }
-cel-build-utils = { path = "crates/cel-build-utils", version = "=0.2.3" }
-cel-cxx-macros = { path = "crates/cel-cxx-macros", version = "0.2.3" }
+cel-cxx-ffi = { path = "crates/cel-cxx-ffi", version = "=0.2.4" }
+cel-build-utils = { path = "crates/cel-build-utils", version = "=0.2.4" }
+cel-cxx-macros = { path = "crates/cel-cxx-macros", version = "0.2.4" }
 
 cxx = { version = "1.0.189", features = ["c++17"] }
 cxx-build = { version = "1.0.189", features = ["parallel"] }
