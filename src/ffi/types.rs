@@ -13,8 +13,9 @@ pub(crate) fn type_from_rust<'a>(
         rust::ValueType::Double => Type::new_double(),
         rust::ValueType::String => Type::new_string(),
         rust::ValueType::Bytes => Type::new_bytes(),
-        rust::ValueType::Struct(_struct_type) => {
-            todo!()
+        rust::ValueType::Struct(struct_type) => {
+            let message_type = message_type_from_rust(&struct_type.name, descriptor_pool);
+            Type::new_message(&message_type)
         }
         rust::ValueType::Duration => Type::new_duration(),
         rust::ValueType::Timestamp => Type::new_timestamp(),
@@ -111,7 +112,6 @@ fn type_type_from_rust<'a>(
     }
 }
 
-#[allow(dead_code)]
 fn message_type_from_rust<'a>(
     message: &str,
     descriptor_pool: &'a DescriptorPool,
@@ -241,7 +241,10 @@ fn mapkey_type_to_rust<'a>(type_: &Type<'a>) -> rust::MapKeyType {
             let type_param_type = type_.get_type_param();
             rust::MapKeyType::TypeParam(type_param_type_to_rust(&type_param_type))
         }
-        _ => rust::MapKeyType::Dyn,
+        other => {
+            debug_assert!(false, "unexpected map key type kind: {:?}", other);
+            rust::MapKeyType::Dyn
+        }
     }
 }
 

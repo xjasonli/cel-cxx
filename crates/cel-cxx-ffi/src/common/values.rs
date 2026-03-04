@@ -262,7 +262,31 @@ mod ffi {
         ) -> UniquePtr<MapValue<'a>>;
 
         // MessageValue
-        // todo: implement
+        fn MessageValue_from_bytes<'a>(
+            arena: &'a Arena,
+            descriptor_pool: &'a DescriptorPool,
+            message_factory: &MessageFactory,
+            type_name: &str,
+            bytes: &[u8],
+            result: &mut UniquePtr<MessageValue<'a>>,
+        ) -> Status;
+        fn MessageValue_to_bytes(
+            message_value: &MessageValue,
+            result_vec: &mut Vec<u8>,
+        ) -> Status;
+        fn MessageValue_get_type_name(message_value: &MessageValue) -> String;
+        fn MessageValue_get_field_by_name<'a>(
+            message_value: &MessageValue<'a>,
+            descriptor_pool: &'a DescriptorPool,
+            message_factory: &MessageFactory,
+            arena: &'a Arena,
+            field_name: &str,
+            result: &mut UniquePtr<Value<'a>>,
+        ) -> Status;
+        fn MessageValue_has_field_by_name(
+            message_value: &MessageValue,
+            field_name: &str,
+        ) -> bool;
 
         // NullValue
         fn NullValue_new() -> UniquePtr<NullValue>;
@@ -669,7 +693,71 @@ pub use ffi::MessageValue;
 unsafe impl<'a> Send for MessageValue<'a> {}
 unsafe impl<'a> Sync for MessageValue<'a> {}
 
-impl<'a> MessageValue<'a> {}
+impl<'a> MessageValue<'a> {
+    pub fn from_bytes(
+        arena: &'a Arena,
+        descriptor_pool: &'a DescriptorPool,
+        message_factory: &'a MessageFactory,
+        type_name: &str,
+        bytes: &[u8],
+    ) -> Result<cxx::UniquePtr<Self>, Status> {
+        let mut result = cxx::UniquePtr::null();
+        let status =
+            ffi::MessageValue_from_bytes(arena, descriptor_pool, message_factory, type_name, bytes, &mut result);
+        if status.is_ok() {
+            Ok(result)
+        } else {
+            Err(status)
+        }
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, Status> {
+        let mut result = Vec::new();
+        let status = ffi::MessageValue_to_bytes(self, &mut result);
+        if status.is_ok() {
+            Ok(result)
+        } else {
+            Err(status)
+        }
+    }
+
+    pub fn type_name(&self) -> String {
+        ffi::MessageValue_get_type_name(self)
+    }
+
+    pub fn get_field_by_name(
+        &self,
+        descriptor_pool: &'a DescriptorPool,
+        message_factory: &'a MessageFactory,
+        arena: &'a Arena,
+        field_name: &str,
+    ) -> Result<cxx::UniquePtr<Value<'a>>, Status> {
+        let mut result = cxx::UniquePtr::null();
+        let status = ffi::MessageValue_get_field_by_name(
+            self,
+            descriptor_pool,
+            message_factory,
+            arena,
+            field_name,
+            &mut result,
+        );
+        if status.is_ok() {
+            Ok(result)
+        } else {
+            Err(status)
+        }
+    }
+
+    /// Check if a field is set on the message.
+    ///
+    /// Note: the underlying C++ `HasFieldByName` returns `StatusOr<bool>` but
+    /// this bridge swallows the error and returns `false`. An invalid field name
+    /// is indistinguishable from an unset field. This is a limitation of the
+    /// current C++ bridge; fixing it requires changing the C++ signature.
+    pub fn has_field_by_name(&self, field_name: &str) -> bool {
+        ffi::MessageValue_has_field_by_name(self, field_name)
+    }
+}
 
 pub use ffi::NullValue;
 unsafe impl Send for NullValue {}

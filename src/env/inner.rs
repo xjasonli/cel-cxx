@@ -25,6 +25,7 @@ pub struct EnvInner<'f> {
 #[derive(Debug)]
 pub struct EnvInnerOptions {
     pub container: String,
+    pub file_descriptor_set: Option<Vec<u8>>,
     pub enable_standard: bool,
     pub enable_optional: bool,
     pub enable_ext_bindings: bool,
@@ -44,6 +45,7 @@ impl Default for EnvInnerOptions {
     fn default() -> Self {
         Self {
             container: "".to_string(),
+            file_descriptor_set: None,
             enable_standard: true,
             enable_optional: false,
             enable_ext_bindings: false,
@@ -89,11 +91,16 @@ impl<'f> EnvInner<'f> {
             macros: macros.clone(),
             function_registry: function_registry.clone(),
             variable_registry: variable_registry.clone(),
-            ffi_ctx: ffi::Ctx::new_generated(),
+            ffi_ctx: match &env_options.file_descriptor_set {
+                Some(fds) => ffi::Ctx::new_dynamic(fds).map_err(|e| {
+                    ffi::Status::invalid_argument(e)
+                })?,
+                None => ffi::Ctx::new_generated(),
+            },
             ffi_compiler_builder: |ffi_ctx: &ffi::Ctx| {
                 let options = ffi::CompilerOptions::new();
                 let mut builder =
-                    ffi::CompilerBuilder::new(ffi::DescriptorPool::generated(), &options)?;
+                    ffi::CompilerBuilder::new(ffi_ctx.shared_descriptor_pool().clone(), &options)?;
                 
                 if !env_options.container.is_empty() {
                     builder
@@ -256,7 +263,11 @@ impl<'f> EnvInner<'f> {
                         .push_str(&env_options.container);
                 }
 
-                if env_options.enable_optional {
+                // Qualified type identifiers are required for:
+                // - Optional values: enables optional.of(), optional.none(), etc.
+                // - Custom descriptor pools: enables fully-qualified enum constant
+                //   resolution (e.g. package.EnumType.ENUM_VALUE) via the runtime Resolver.
+                if env_options.enable_optional || env_options.file_descriptor_set.is_some() {
                     *options.pin_mut().enable_qualified_type_identifiers_mut() = true;
                 }
 
@@ -268,6 +279,19 @@ impl<'f> EnvInner<'f> {
                 }
                 if env_options.enable_optional {
                     builder.pin_mut().enable_optional(&options)?;
+                }
+
+                // Register enum constants from the custom descriptor pool so that
+                // named enum references (e.g. test.Status.STATUS_ACTIVE) resolve
+                // at plan time.
+                if let Some(fds) = &env_options.file_descriptor_set {
+                    builder
+                        .pin_mut()
+                        .type_registry()
+                        .register_enums_from_file_descriptor_set(
+                            ffi_ctx.descriptor_pool(),
+                            fds,
+                        )?;
                 }
 
                 if env_options.enable_ext_comprehensions {

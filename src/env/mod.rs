@@ -118,6 +118,80 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
     pub fn compile<S: AsRef<[u8]>>(&self, source: S) -> Result<Program<'f, Fm, Rm>, Error> {
         self.inner.clone().compile::<Fm, Rm, _>(source)
     }
+
+    /// Reads a field from a protobuf `StructValue` by name, returning it as a Rust `Value`.
+    ///
+    /// This allows programmatic field access on protobuf messages returned from
+    /// CEL evaluation, without needing to compile and evaluate another CEL expression
+    /// or deserialize with prost.
+    ///
+    /// # Arguments
+    ///
+    /// * `struct_value` - The protobuf struct value to read from
+    /// * `field_name` - The field name to access
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the field does not exist or the message cannot be deserialized.
+    pub fn get_protobuf_field(
+        &self,
+        struct_value: &crate::StructValue,
+        field_name: &str,
+    ) -> Result<crate::Value, Error> {
+        let ctx = self.inner.ctx().clone_with_new_arena();
+        let msg = crate::ffi::MessageValue::from_bytes(
+            ctx.arena(),
+            ctx.descriptor_pool(),
+            ctx.message_factory(),
+            &struct_value.type_name,
+            &struct_value.bytes,
+        )
+        .map_err(|e| Error::from(&e))?;
+        let ffi_value = msg
+            .get_field_by_name(
+                ctx.descriptor_pool(),
+                ctx.message_factory(),
+                ctx.arena(),
+                field_name,
+            )
+            .map_err(|e| Error::from(&e))?;
+        crate::ffi::value_to_rust(
+            &ffi_value,
+            ctx.arena(),
+            ctx.descriptor_pool(),
+            ctx.message_factory(),
+        )
+    }
+
+    /// Checks whether a field is set on a protobuf `StructValue`.
+    ///
+    /// For proto3 messages, this checks whether the field has a non-default value.
+    /// For proto3 optional fields, this checks field presence.
+    ///
+    /// # Arguments
+    ///
+    /// * `struct_value` - The protobuf struct value to check
+    /// * `field_name` - The field name to check
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be deserialized.
+    pub fn has_protobuf_field(
+        &self,
+        struct_value: &crate::StructValue,
+        field_name: &str,
+    ) -> Result<bool, Error> {
+        let ctx = self.inner.ctx().clone_with_new_arena();
+        let msg = crate::ffi::MessageValue::from_bytes(
+            ctx.arena(),
+            ctx.descriptor_pool(),
+            ctx.message_factory(),
+            &struct_value.type_name,
+            &struct_value.bytes,
+        )
+        .map_err(|e| Error::from(&e))?;
+        Ok(msg.has_field_by_name(field_name))
+    }
 }
 
 /// Builder for creating CEL environments.
@@ -211,6 +285,35 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ```
     pub fn with_container(mut self, container: impl Into<String>) -> Self {
         self.options.container = container.into();
+        self
+    }
+
+    /// Sets a custom `FileDescriptorSet` for the environment's protobuf descriptor pool.
+    ///
+    /// **Default**: `None` (uses the generated/built-in descriptor pool)
+    ///
+    /// When set, the environment will use a custom descriptor pool built from the provided
+    /// serialized `FileDescriptorSet` bytes. This allows CEL expressions to reference
+    /// user-defined protobuf message types. Well-known types (Duration, Timestamp, etc.)
+    /// remain available as the generated pool is used as an underlay.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_descriptor_set` - Serialized `FileDescriptorSet` proto bytes, produced by
+    ///   [`protox::compile`](https://docs.rs/protox) or `protoc --descriptor_set_out`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    ///
+    /// let env = Env::builder()
+    ///     .with_file_descriptor_set(include_bytes!("descriptors.bin"))
+    ///     .build()?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
+    pub fn with_file_descriptor_set(mut self, file_descriptor_set: &[u8]) -> Self {
+        self.options.file_descriptor_set = Some(file_descriptor_set.to_vec());
         self
     }
 
@@ -1651,6 +1754,51 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         T: TypedValue,
     {
         self.variable_registry.declare::<T>(name)?;
+        Ok(EnvBuilder {
+            macros: self.macros,
+            function_registry: self.function_registry,
+            variable_registry: self.variable_registry,
+            options: self.options,
+            _fn_marker: std::marker::PhantomData,
+            _rt_marker: std::marker::PhantomData,
+        })
+    }
+
+    /// Declares a protobuf message variable with the given fully-qualified type name.
+    ///
+    /// This declares that a variable of the given name will hold a protobuf message
+    /// of the specified type. The environment must have been configured with
+    /// [`with_file_descriptor_set`](Self::with_file_descriptor_set) containing the
+    /// type's descriptor.
+    ///
+    /// At evaluation time, bind the variable using
+    /// [`Activation::bind_protobuf_variable`](crate::Activation::bind_protobuf_variable).
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The variable name
+    /// * `type_name` - The fully qualified protobuf message type name (e.g. `"my.package.MyMessage"`)
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    ///
+    /// let env = Env::builder()
+    ///     .with_file_descriptor_set(include_bytes!("descriptors.bin"))
+    ///     .declare_protobuf_variable("msg", "my.package.MyMessage")?
+    ///     .build()?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
+    pub fn declare_protobuf_variable(
+        mut self,
+        name: impl Into<String>,
+        type_name: impl Into<String>,
+    ) -> Result<Self, Error> {
+        self.variable_registry.declare_with_type(
+            name,
+            crate::ValueType::Struct(crate::types::StructType::new(type_name)),
+        )?;
         Ok(EnvBuilder {
             macros: self.macros,
             function_registry: self.function_registry,

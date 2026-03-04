@@ -204,6 +204,29 @@ pub type ListValue = Vec<Value>;
 /// CEL map value type.
 pub type MapValue = HashMap<MapKey, Value>;
 
+/// CEL struct value representing a Protocol Buffers message.
+///
+/// The message is stored as its fully-qualified type name plus serialized bytes.
+/// Deserialization into C++ `MessageValue` happens at the FFI boundary when the
+/// value is passed to cel-cpp for evaluation.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StructValue {
+    /// The fully qualified protobuf message type name (e.g. `"my.package.MyMessage"`).
+    pub type_name: String,
+    /// The serialized protobuf bytes of the message.
+    pub bytes: Vec<u8>,
+}
+
+impl StructValue {
+    /// Creates a new `StructValue`.
+    pub fn new(type_name: impl Into<String>, bytes: impl Into<Vec<u8>>) -> Self {
+        Self {
+            type_name: type_name.into(),
+            bytes: bytes.into(),
+        }
+    }
+}
+
 /// CEL opaque value type.
 pub type OpaqueValue = Box<dyn Opaque>;
 
@@ -278,8 +301,8 @@ pub enum Value {
     /// Byte array
     Bytes(BytesValue),
 
-    /// Struct (not yet implemented)
-    Struct(()),
+    /// Struct (Protocol Buffers message)
+    Struct(StructValue),
 
     /// Duration (Protocol Buffers Duration)
     Duration(Duration),
@@ -382,8 +405,8 @@ impl Value {
             Value::Double(_) => ValueType::Double,
             Value::String(_) => ValueType::String,
             Value::Bytes(_) => ValueType::Bytes,
-            Value::Struct(_s) => {
-                todo!()
+            Value::Struct(s) => {
+                ValueType::Struct(crate::types::StructType::new(&s.type_name))
             }
             Value::Duration(_) => ValueType::Duration,
             Value::Timestamp(_) => ValueType::Timestamp,
@@ -574,10 +597,34 @@ impl Value {
     }
 
     /// Returns the struct value if this value is a struct value.
-    pub fn as_struct(&self) -> Option<&()> {
+    pub fn as_struct(&self) -> Option<&StructValue> {
         match self {
             Value::Struct(s) => Some(s),
             _ => None,
+        }
+    }
+
+    /// Extracts the protobuf type name and serialized bytes from a struct value.
+    ///
+    /// Returns an error if this value is not a `Value::Struct`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # use cel_cxx::Value;
+    /// # fn example(result: Value) -> Result<(), cel_cxx::Error> {
+    /// let (type_name, bytes) = result.as_protobuf_bytes()?;
+    /// assert_eq!(type_name, "my.package.MyMessage");
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn as_protobuf_bytes(&self) -> Result<(&str, &[u8]), Error> {
+        match self {
+            Value::Struct(s) => Ok((&s.type_name, &s.bytes)),
+            _ => Err(Error::invalid_argument(format!(
+                "expected struct value, got {}",
+                self.value_type()
+            ))),
         }
     }
 
@@ -702,7 +749,7 @@ impl Value {
     }
 
     /// Returns a mutable reference to the struct value if this value is a struct value.
-    pub fn as_struct_mut(&mut self) -> Option<&mut ()> {
+    pub fn as_struct_mut(&mut self) -> Option<&mut StructValue> {
         match self {
             Value::Struct(s) => Some(s),
             _ => None,
@@ -838,7 +885,7 @@ impl Value {
     }
 
     /// Converts the value to a struct value.
-    pub fn into_struct(self) -> Option<()> {
+    pub fn into_struct(self) -> Option<StructValue> {
         match self {
             Value::Struct(s) => Some(s),
             _ => None,
@@ -974,7 +1021,7 @@ impl Value {
     }
 
     /// Converts the value to a struct value and panics if the value is not a struct value.
-    pub fn unwrap_struct(self) {
+    pub fn unwrap_struct(self) -> StructValue {
         match self {
             Value::Struct(s) => s,
             _ => panic!("called `Value::unwrap_struct()` on a non-struct value: {self:?}",),
@@ -1110,7 +1157,7 @@ impl Value {
     }
 
     /// Converts the value to a struct value and panics if the value is not a struct value.
-    pub fn expect_struct(self, msg: &str) {
+    pub fn expect_struct(self, msg: &str) -> StructValue {
         match self {
             Value::Struct(s) => s,
             _ => panic!("{msg}: {self:?}"),

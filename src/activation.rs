@@ -100,7 +100,7 @@
 use crate::function::FunctionBindings;
 use crate::function::{Arguments, NonEmptyArguments, IntoFunction};
 use crate::marker::*;
-use crate::values::{IntoValue, TypedValue};
+use crate::values::{IntoValue, StructValue, TypedValue};
 use crate::variable::VariableBindings;
 use crate::Error;
 use std::marker::PhantomData;
@@ -315,6 +315,54 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
         T: IntoValue + TypedValue,
     {
         self.variables.bind(name, value)?;
+        Ok(Activation {
+            variables: self.variables,
+            functions: self.functions,
+            _fn_marker: PhantomData,
+        })
+    }
+
+    /// Binds a protobuf message variable from serialized bytes.
+    ///
+    /// This method creates a [`StructValue`] from the provided type name and
+    /// serialized bytes, and binds it as a variable. The type name must match
+    /// a type declared via
+    /// [`EnvBuilder::declare_protobuf_variable`](crate::EnvBuilder::declare_protobuf_variable),
+    /// and the environment must include the corresponding `FileDescriptorSet`.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The variable name (must match a declared protobuf variable)
+    /// * `type_name` - The fully qualified protobuf message type name (must match the
+    ///   type used in [`EnvBuilder::declare_protobuf_variable`](crate::EnvBuilder::declare_protobuf_variable);
+    ///   a mismatch will cause runtime evaluation errors, not compile-time errors)
+    /// * `bytes` - The serialized protobuf message bytes
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    ///
+    /// # let serialized_bytes: Vec<u8> = vec![];
+    /// let activation = Activation::new()
+    ///     .bind_protobuf_variable("msg", "my.package.MyMessage", &serialized_bytes)?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
+    pub fn bind_protobuf_variable<S>(
+        mut self,
+        name: S,
+        type_name: impl Into<String>,
+        bytes: &[u8],
+    ) -> Result<Self, Error>
+    where
+        S: Into<String>,
+    {
+        let struct_value = StructValue::new(type_name, bytes);
+        self.variables.bind_with_value(
+            name,
+            crate::ValueType::Struct(crate::types::StructType::new(&struct_value.type_name)),
+            struct_value.into_value(),
+        )?;
         Ok(Activation {
             variables: self.variables,
             functions: self.functions,

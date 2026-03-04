@@ -5,10 +5,10 @@
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/message.h>
 #include <google/protobuf/dynamic_message.h>
-#include <google/protobuf/descriptor_database.h>
 #include <google/protobuf/descriptor.pb.h>
 #include <rust/cxx.h>
 #include <internal/noop_delete.h>
+#include <limits>
 
 namespace rust::cel_cxx {
 
@@ -28,15 +28,20 @@ inline std::shared_ptr<DescriptorPool> generated_pool() {
 }
 
 inline std::shared_ptr<DescriptorPool> NewDescriptorPool(Slice<const uint8_t> file_descriptor_set) {
-    google::protobuf::FileDescriptorSet fds;
-    if (!fds.ParseFromArray(file_descriptor_set.data(), file_descriptor_set.size())) {
+    if (file_descriptor_set.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
         return nullptr;
     }
-    google::protobuf::SimpleDescriptorDatabase db;
-    for (const auto& file : fds.file()) {
-        db.Add(file);
+    google::protobuf::FileDescriptorSet fds;
+    if (!fds.ParseFromArray(file_descriptor_set.data(), static_cast<int>(file_descriptor_set.size()))) {
+        return nullptr;
     }
-    return std::make_shared<DescriptorPool>(&db);
+    auto pool = std::make_shared<DescriptorPool>(DescriptorPool::generated_pool());
+    for (const auto& file : fds.file()) {
+        if (pool->BuildFile(file) == nullptr) {
+            return nullptr;
+        }
+    }
+    return pool;
 }
 
 inline std::shared_ptr<MessageFactory> generated_factory() {

@@ -60,8 +60,17 @@ impl DescriptorPool {
         ffi::generated_pool()
     }
 
-    pub fn new(file_descriptor_set: &[u8]) -> cxx::SharedPtr<Self> {
-        ffi::NewDescriptorPool(file_descriptor_set)
+    /// Build a `DescriptorPool` from a serialized `FileDescriptorSet`.
+    ///
+    /// Returns `Err` if the bytes are malformed or a file descriptor fails to build.
+    /// The C++ side returns a null `shared_ptr` on any of these failures without
+    /// further detail, so the error message is generic.
+    pub fn new(file_descriptor_set: &[u8]) -> Result<cxx::SharedPtr<Self>, &'static str> {
+        let pool = ffi::NewDescriptorPool(file_descriptor_set);
+        if pool.is_null() {
+            return Err("failed to build DescriptorPool from FileDescriptorSet");
+        }
+        Ok(pool)
     }
 }
 
@@ -84,6 +93,12 @@ impl std::fmt::Debug for DescriptorPool {
 
 // MessageFactory
 pub use ffi::MessageFactory;
+// SAFETY: The generated MessageFactory (singleton) is truly thread-safe.
+// DynamicMessageFactory::GetPrototype() mutates internal caches without synchronization,
+// so it is NOT safe for concurrent shared access. However, the Ctx architecture ensures
+// DynamicMessageFactory is never shared: Ctx::clone_with_new_arena() creates a fresh
+// instance per evaluation context, so each thread gets exclusive access. This invariant
+// is critical — do NOT share a DynamicMessageFactory across threads.
 unsafe impl Send for MessageFactory {}
 unsafe impl Sync for MessageFactory {}
 
