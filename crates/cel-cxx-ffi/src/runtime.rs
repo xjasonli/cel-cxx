@@ -306,6 +306,13 @@ mod ffi {
         // Function
         fn Function_new<'a>(ffi_function: Box<AnyFfiFunction<'a>>) -> UniquePtr<Function<'a>>;
 
+        // TypeRegistry — enum registration
+        fn TypeRegistry_register_enums_from_file_descriptor_set<'d, 'a>(
+            type_registry: Pin<&mut TypeRegistry<'d, 'a>>,
+            descriptor_pool: &DescriptorPool,
+            file_descriptor_set_bytes: &[u8],
+        ) -> Status;
+
         include!(<cel-cxx-ffi/include/optional.h>);
         fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
     }
@@ -970,3 +977,22 @@ impl<'f> AnyFfiFunction<'f> {
 pub use ffi::TypeRegistry;
 unsafe impl<'d, 'a> Send for TypeRegistry<'d, 'a> {}
 unsafe impl<'d, 'a> Sync for TypeRegistry<'d, 'a> {}
+
+impl<'d, 'a> TypeRegistry<'d, 'a> {
+    pub fn register_enums_from_file_descriptor_set(
+        self: Pin<&mut Self>,
+        descriptor_pool: &DescriptorPool,
+        file_descriptor_set_bytes: &[u8],
+    ) -> Result<(), Status> {
+        let status = ffi::TypeRegistry_register_enums_from_file_descriptor_set(
+            self,
+            descriptor_pool,
+            file_descriptor_set_bytes,
+        );
+        if status.is_ok() {
+            Ok(())
+        } else {
+            Err(status)
+        }
+    }
+}

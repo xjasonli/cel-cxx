@@ -32,8 +32,23 @@ pub(crate) fn value_from_rust<'a>(
             let bytes_value = BytesValue::new(arena, b);
             Value::new_bytes(&bytes_value)
         }
-        rust::Value::Struct(_s) => {
-            todo!()
+        rust::Value::Struct(s) => {
+            // Deserialization errors become CEL error values rather than Rust errors.
+            // This follows CEL semantics: expressions can observe errors as values
+            // (e.g., via `try()` or short-circuit evaluation) rather than aborting.
+            match MessageValue::from_bytes(
+                arena,
+                descriptor_pool,
+                message_factory,
+                &s.type_name,
+                &s.bytes,
+            ) {
+                Ok(message_value) => Value::new_message(&message_value),
+                Err(status) => {
+                    let error_value = ErrorValue::new(status);
+                    Value::new_error(&error_value)
+                }
+            }
         }
         rust::Value::Duration(d) => {
             let duration = (*d).into();
@@ -70,7 +85,10 @@ pub(crate) fn value_from_rust<'a>(
             Value::new_map(&map_value)
         }
         rust::Value::Unknown(..) => {
-            todo!()
+            let error_value = ErrorValue::new(
+                super::Status::internal("cannot convert Unknown value to FFI"),
+            );
+            Value::new_error(&error_value)
         }
         rust::Value::Type(t) => {
             let type_ = super::type_from_rust(t, arena, descriptor_pool);
@@ -127,9 +145,15 @@ pub(crate) fn value_to_rust<'a>(
             Ok(rust::Value::Bytes(bytes_value.native_value().into()))
         }
         ValueKind::Struct => {
-            todo!()
-            //let struct_value = value.get_message();
-            //rust::Value::Message(struct_value.native_value())
+            let message_value = value.get_message();
+            let type_name = message_value.type_name();
+            let bytes = message_value
+                .to_bytes()
+                .map_err(|e| rust::Error::from(&e))?;
+            Ok(rust::Value::Struct(rust::StructValue {
+                type_name,
+                bytes,
+            }))
         }
         ValueKind::Duration => {
             let duration_value = value.get_duration();
@@ -186,7 +210,7 @@ pub(crate) fn value_to_rust<'a>(
             Ok(rust::Value::Map(result))
         }
         ValueKind::Unknown => {
-            todo!()
+            Err(rust::Error::internal("Unknown values are not supported"))
         }
         ValueKind::Type => {
             let type_value = value.get_type();

@@ -136,6 +136,9 @@ impl<'f> ProgramInner<'f> {
                     &ffi_activation,
                 )
                 .map_err(|ffi_status| Error::from(ffi_status))?;
+            if ffi_value.is_null() {
+                return Err(Error::unknown("evaluation returned null"));
+            }
             let value = ffi::value_to_rust(
                 &ffi_value,
                 eval_ctx.arena(),

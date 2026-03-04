@@ -99,6 +99,8 @@ arc-slice = { workspace = true, features = ["default-layout-any-buffer"] }
 [dev-dependencies]
 tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros"] }
 async-std = { workspace = true, features = ["attributes"] }
+prost = "0.14"
+protox = "0.9"
 
 [[example]]
 name = "basic"
@@ -128,3 +130,11 @@ required-features = ["derive", "async-std"]
 name = "smol"
 path = "examples/async/smol.rs"
 required-features = ["derive", "smol"]
+
+[[example]]
+name = "protobuf"
+path = "examples/protobuf.rs"
+
+[[example]]
+name = "protobuf-advanced"
+path = "examples/protobuf-advanced.rs"

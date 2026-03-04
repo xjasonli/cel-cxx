@@ -106,6 +106,22 @@ impl<'f> VariableBindings<'f> {
         Ok(self)
     }
 
+    /// Binds a variable with an explicit type and pre-converted value.
+    ///
+    /// Unlike [`bind`](Self::bind) which infers the type from the value, this method
+    /// takes the type and value separately. This is useful for types like protobuf
+    /// messages where the concrete type name is not known at compile time.
+    pub fn bind_with_value(
+        &mut self,
+        name: impl Into<String>,
+        value_type: ValueType,
+        value: Value,
+    ) -> Result<&mut Self, Error> {
+        self.entries
+            .insert(name.into(), VariableBinding::Value((value_type, value)));
+        Ok(self)
+    }
+
     /// Binds a variable to a value provider.
     ///
     /// Binds a variable name to a provider function that computes the value dynamically.

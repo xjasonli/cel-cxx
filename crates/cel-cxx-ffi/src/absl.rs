@@ -549,10 +549,18 @@ impl<'a, T: 'a + SpanElement> Span<'a, T> {
 
 impl<'a, T: 'a + SpanElement + cxx::vector::VectorElement> Span<'a, T> {
     pub fn from_vector(vector: &'a cxx::CxxVector<T>) -> Self {
-        Self {
-            ptr: unsafe { vector.get_unchecked(0) as *const T },
-            len: vector.len(),
-            _marker: std::marker::PhantomData,
+        if vector.is_empty() {
+            Self {
+                ptr: std::ptr::NonNull::dangling().as_ptr(),
+                len: 0,
+                _marker: std::marker::PhantomData,
+            }
+        } else {
+            Self {
+                ptr: unsafe { vector.get_unchecked(0) as *const T },
+                len: vector.len(),
+                _marker: std::marker::PhantomData,
+            }
         }
     }
 }
@@ -589,10 +597,8 @@ impl<'a, T: 'a + SpanElement> std::iter::Iterator for SpanIter<'a, T> {
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (
-            self.span.len() - self.index,
-            Some(self.span.len() - self.index),
-        )
+        let remaining = self.span.len().saturating_sub(self.index);
+        (remaining, Some(remaining))
     }
 }
 
@@ -627,6 +633,10 @@ pub struct MutSpan<'a, T: 'a + MutSpanElement> {
     _marker: std::marker::PhantomData<&'a mut T>,
 }
 
+// Copy + Clone are required by cxx::kind::Trivial for FFI interop.
+// SAFETY: callers must not use a copied MutSpan to produce aliased &mut references.
+// In practice, MutSpan is only iterated once via iter()/into_iter() immediately after
+// creation from from_vector(), so no aliasing occurs.
 impl<'a, T: 'a + MutSpanElement> Copy for MutSpan<'a, T> {}
 impl<'a, T: 'a + MutSpanElement> Clone for MutSpan<'a, T> {
     fn clone(&self) -> Self {
@@ -662,18 +672,29 @@ impl<'a, T: 'a + MutSpanElement> MutSpan<'a, T> {
 
     pub fn iter(&self) -> MutSpanIter<'a, T> {
         MutSpanIter {
-            span: *self,
+            ptr: self.ptr,
+            len: self.len,
             index: 0,
+            _marker: std::marker::PhantomData,
         }
     }
 }
 
 impl<'a, T: 'a + MutSpanElement + cxx::vector::VectorElement> MutSpan<'a, T> {
     pub fn from_vector(mut vector: Pin<&'a mut cxx::CxxVector<T>>) -> Self {
-        Self {
-            ptr: unsafe { vector.as_mut().index_unchecked_mut(0).get_unchecked_mut() as *mut T },
-            len: vector.len(),
-            _marker: std::marker::PhantomData,
+        let len = vector.len();
+        if len == 0 {
+            Self {
+                ptr: std::ptr::NonNull::dangling().as_ptr(),
+                len: 0,
+                _marker: std::marker::PhantomData,
+            }
+        } else {
+            Self {
+                ptr: unsafe { vector.as_mut().index_unchecked_mut(0).get_unchecked_mut() as *mut T },
+                len,
+                _marker: std::marker::PhantomData,
+            }
         }
     }
 }
@@ -693,27 +714,32 @@ impl<'a, T: 'a + MutSpanElement + cxx::ExternType<Kind = cxx::kind::Trivial>> Mu
 }
 
 pub struct MutSpanIter<'a, T: 'a + MutSpanElement> {
-    span: MutSpan<'a, T>,
+    ptr: *mut T,
+    len: usize,
     index: usize,
+    _marker: std::marker::PhantomData<&'a mut T>,
 }
 
 impl<'a, T: 'a + MutSpanElement> std::iter::Iterator for MutSpanIter<'a, T> {
     type Item = Pin<&'a mut T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(item) = self.span.get(self.index) {
+        if self.index < self.len {
+            let item = unsafe {
+                self.ptr.byte_add(self.index * T::size_of())
+                    .as_mut()
+                    .map(|ptr| Pin::new_unchecked(ptr))
+            };
             self.index += 1;
-            Some(item)
+            item
         } else {
             None
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (
-            self.span.len() - self.index,
-            Some(self.span.len() - self.index),
-        )
+        let remaining = self.len.saturating_sub(self.index);
+        (remaining, Some(remaining))
     }
 }
 impl<'a, T: 'a + MutSpanElement> std::iter::FusedIterator for MutSpanIter<'a, T> {}
@@ -722,7 +748,12 @@ impl<'a, T: 'a + MutSpanElement> std::iter::IntoIterator for &MutSpan<'a, T> {
     type Item = Pin<&'a mut T>;
     type IntoIter = MutSpanIter<'a, T>;
     fn into_iter(self) -> Self::IntoIter {
-        MutSpanIter { span: *self, index: 0 }
+        MutSpanIter {
+            ptr: self.ptr,
+            len: self.len,
+            index: 0,
+            _marker: std::marker::PhantomData,
+        }
     }
 }
 

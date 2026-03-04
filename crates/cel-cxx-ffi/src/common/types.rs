@@ -513,13 +513,14 @@ impl<'a> OptionalType<'a> {
     }
 }
 
-// StructType contains a StructTypeVariant, which largest member is
-// BasicStructType contains a std::string_view.
+// StructType contains a StructTypeVariant = absl::variant<monostate, BasicStructType, MessageType>.
+// sizeof(StructType) = 24 bytes on 64-bit: 16 bytes payload (BasicStructType = string_view)
+// + 8 bytes variant index (with alignment padding).
 //
-// So we use 2 pointers size to store the type.
+// So we use 3 pointers size to store the type.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
-pub struct StructType<'a>(Rep<'a, usize, 2>);
+pub struct StructType<'a>(Rep<'a, usize, 3>);
 
 unsafe impl<'a> cxx::ExternType for StructType<'a> {
     type Id = cxx::type_id!("cel::StructType");
@@ -644,7 +645,7 @@ impl<'a> std::ops::Index<usize> for TypeParameters<'a> {
     type Output = Type<'a>;
 
     fn index(&self, index: usize) -> &Self::Output {
-        unsafe { self.get_unchecked(index) }
+        self.get(index).expect("TypeParameters index out of bounds")
     }
 }
 

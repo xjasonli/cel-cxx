@@ -146,6 +146,30 @@ impl VariableRegistry {
         Ok(self)
     }
 
+    /// Declares a variable with an explicit type.
+    ///
+    /// Unlike [`declare`](Self::declare) which infers the type from a generic parameter,
+    /// this method takes a [`ValueType`] directly. This is useful for types that
+    /// cannot be expressed via the `TypedValue` trait, such as protobuf message types.
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: The variable name
+    /// - `value_type`: The explicit type for this variable
+    ///
+    /// # Returns
+    ///
+    /// Returns `&mut Self` to support method chaining, or [`Error`] if an error occurs
+    pub fn declare_with_type(
+        &mut self,
+        name: impl Into<String>,
+        value_type: ValueType,
+    ) -> Result<&mut Self, Error> {
+        self.entries
+            .insert(name.into(), VariableDeclOrConstant::new(value_type));
+        Ok(self)
+    }
+
     /// Returns an iterator over all variable entries.
     ///
     /// The iterator yields `(name, entry)` pairs for all registered variables and constants.

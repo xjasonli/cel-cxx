@@ -53,13 +53,13 @@ impl std::ops::Deref for Expr {
     type Target = ExprKind;
 
     fn deref(&self) -> &Self::Target {
-        self.kind.as_ref().unwrap()
+        self.kind.as_ref().expect("Expr has no kind set")
     }
 }
 
 impl std::ops::DerefMut for Expr {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.kind.as_mut().unwrap()
+        self.kind.as_mut().expect("Expr has no kind set")
     }
 }
 
