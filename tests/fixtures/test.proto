@@ -1,0 +1,60 @@
+// Compiled at runtime using protox (pure-Rust protobuf compiler).
+// No pre-compiled binary needed.
+
+syntax = "proto3";
+
+package test;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/any.proto";
+import "google/protobuf/struct.proto";
+
+message SimpleMessage {
+  string name = 1;
+  int32 id = 2;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string zip = 3;
+}
+
+message Person {
+  string name = 1;
+  int32 age = 2;
+  Address address = 3;
+  Status status = 4;
+  repeated string tags = 5;
+  bool active = 6;
+}
+
+message Item {
+  string name = 1;
+  int32 price = 2;
+}
+
+message Order {
+  Person buyer = 1;
+  repeated Item items = 2;
+  map<string, string> labels = 3;
+}
+
+message Event {
+  string name = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Duration ttl = 3;
+  google.protobuf.Int64Value optional_count = 4;
+  google.protobuf.StringValue optional_label = 5;
+  google.protobuf.BoolValue optional_flag = 6;
+  google.protobuf.Struct metadata = 7;
+  google.protobuf.Any payload = 8;
+}
