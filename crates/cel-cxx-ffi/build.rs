@@ -70,6 +70,7 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         .flag_if_supported("-Wno-return-type")
         .flag_if_supported("-Wno-sign-compare")
         .flag_if_supported("-Wno-missing-requires")
+        .flag_if_supported("-Wno-nullability-completeness")
         .flag_if_supported("/nologo")
         .flag_if_supported("/EHsc")
         .flag_if_supported("/D_CRT_SECURE_NO_DEPRECATE")
