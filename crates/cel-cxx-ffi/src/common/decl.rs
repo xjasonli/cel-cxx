@@ -1,4 +1,4 @@
-use crate::absl::{Duration, Status, Timestamp};
+use crate::absl::Status;
 use crate::common::{Type, Constant};
 
 #[cxx::bridge]
@@ -6,10 +6,7 @@ mod ffi {
     #[namespace = "absl"]
     unsafe extern "C++" {
         include!(<absl/status/status.h>);
-        include!(<absl/time/time.h>);
         type Status = super::Status;
-        type Time = super::Timestamp;
-        type Duration = super::Duration;
     }
 
     #[namespace = "cel"]
