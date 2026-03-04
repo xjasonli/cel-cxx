@@ -70,7 +70,10 @@ pub(crate) fn value_from_rust<'a>(
             Value::new_map(&map_value)
         }
         rust::Value::Unknown(..) => {
-            todo!()
+            let error_value = ErrorValue::new(
+                super::Status::internal("cannot convert Unknown value to FFI"),
+            );
+            Value::new_error(&error_value)
         }
         rust::Value::Type(t) => {
             let type_ = super::type_from_rust(t, arena, descriptor_pool);
@@ -186,7 +189,7 @@ pub(crate) fn value_to_rust<'a>(
             Ok(rust::Value::Map(result))
         }
         ValueKind::Unknown => {
-            todo!()
+            Err(rust::Error::internal("Unknown values are not supported"))
         }
         ValueKind::Type => {
             let type_value = value.get_type();

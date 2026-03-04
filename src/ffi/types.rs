@@ -241,7 +241,10 @@ fn mapkey_type_to_rust<'a>(type_: &Type<'a>) -> rust::MapKeyType {
             let type_param_type = type_.get_type_param();
             rust::MapKeyType::TypeParam(type_param_type_to_rust(&type_param_type))
         }
-        _ => rust::MapKeyType::Dyn,
+        other => {
+            debug_assert!(false, "unexpected map key type kind: {:?}", other);
+            rust::MapKeyType::Dyn
+        }
     }
 }
 

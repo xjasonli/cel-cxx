@@ -644,7 +644,7 @@ impl<'a> std::ops::Index<usize> for TypeParameters<'a> {
     type Output = Type<'a>;
 
     fn index(&self, index: usize) -> &Self::Output {
-        unsafe { self.get_unchecked(index) }
+        self.get(index).expect("TypeParameters index out of bounds")
     }
 }
 
