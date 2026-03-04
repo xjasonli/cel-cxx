@@ -715,6 +715,7 @@ impl From<&Error> for crate::ffi::Status {
     fn from(value: &Error) -> Self {
         use crate::ffi::Status;
         match value.code() {
+            // OK status carries no message by convention; the message is intentionally dropped.
             Code::Ok => Status::ok(),
             Code::Cancelled => Status::cancelled(value.message()),
             Code::Unknown => Status::unknown(value.message()),
