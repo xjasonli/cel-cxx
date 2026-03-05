@@ -73,6 +73,9 @@ targets = []
 [features]
 default = ["derive"]
 derive = ["dep:cel-cxx-macros"]
+prost = ["cel-cxx-macros/prost", "dep:prost-build"]
+protobuf-legacy = ["cel-cxx-macros/protobuf-legacy", "dep:protobuf-codegen", "dep:protobuf"]
+protobuf = ["cel-cxx-macros/protobuf"]
 async = ["dep:async-scoped", "dep:futures", "dep:pin-project-lite"]
 tokio = ["async", "dep:tokio", "async-scoped/use-tokio"]
 async-std = ["async", "dep:async-std", "async-scoped/use-async-std"]
@@ -96,9 +99,18 @@ async-scoped = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
 arc-slice = { workspace = true, features = ["default-layout-any-buffer"] }
 
+[build-dependencies]
+prost-build = { version = "0.14", optional = true }
+protobuf-codegen = { version = "3", optional = true }
+protobuf = { version = "3", optional = true }
+
 [dev-dependencies]
 tokio = { workspace = true, features = ["time", "rt-multi-thread", "macros"] }
 async-std = { workspace = true, features = ["attributes"] }
+prost = "0.14"
+prost-types = "0.14"
+protobuf = "3"
+protox = "0.9"
 
 [[example]]
 name = "basic"
@@ -128,3 +140,21 @@ required-features = ["derive", "async-std"]
 name = "smol"
 path = "examples/async/smol.rs"
 required-features = ["derive", "smol"]
+
+[[example]]
+name = "protobuf"
+path = "examples/protobuf.rs"
+
+[[example]]
+name = "protobuf-advanced"
+path = "examples/protobuf-advanced.rs"
+
+[[example]]
+name = "protobuf-prost-derive"
+path = "examples/protobuf-prost-derive.rs"
+required-features = ["prost"]
+
+[[example]]
+name = "protobuf-legacy-derive"
+path = "examples/protobuf-legacy-derive.rs"
+required-features = ["protobuf-legacy"]

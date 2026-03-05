@@ -118,6 +118,80 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
     pub fn compile<S: AsRef<[u8]>>(&self, source: S) -> Result<Program<'f, Fm, Rm>, Error> {
         self.inner.clone().compile::<Fm, Rm, _>(source)
     }
+
+    /// Reads a field from a [`StructValue`](crate::StructValue) by name, returning it as a Rust [`Value`](crate::Value).
+    ///
+    /// This allows programmatic field access on struct values returned from
+    /// CEL evaluation, without needing to compile and evaluate another CEL expression
+    /// or deserialize the message externally.
+    ///
+    /// # Arguments
+    ///
+    /// * `struct_value` - The struct value to read from
+    /// * `field_name` - The field name to access
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the field does not exist or the message cannot be deserialized.
+    pub fn get_struct_field(
+        &self,
+        struct_value: &crate::StructValue,
+        field_name: &str,
+    ) -> Result<crate::Value, Error> {
+        let ctx = self.inner.ctx().clone_with_new_arena();
+        let msg = crate::ffi::MessageValue::from_bytes(
+            ctx.arena(),
+            ctx.descriptor_pool(),
+            ctx.message_factory(),
+            struct_value.type_name(),
+            struct_value.to_bytes(),
+        )
+        .map_err(|e| Error::from(&e))?;
+        let ffi_value = msg
+            .get_field_by_name(
+                ctx.descriptor_pool(),
+                ctx.message_factory(),
+                ctx.arena(),
+                field_name,
+            )
+            .map_err(|e| Error::from(&e))?;
+        crate::ffi::value_to_rust(
+            &ffi_value,
+            ctx.arena(),
+            ctx.descriptor_pool(),
+            ctx.message_factory(),
+        )
+    }
+
+    /// Checks whether a field is set on a [`StructValue`](crate::StructValue).
+    ///
+    /// The exact semantics are determined by cel-cpp based on the field's
+    /// presence rules in the proto schema (e.g. implicit vs. explicit field presence).
+    ///
+    /// # Arguments
+    ///
+    /// * `struct_value` - The struct value to check
+    /// * `field_name` - The field name to check
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the message cannot be deserialized.
+    pub fn has_struct_field(
+        &self,
+        struct_value: &crate::StructValue,
+        field_name: &str,
+    ) -> Result<bool, Error> {
+        let ctx = self.inner.ctx().clone_with_new_arena();
+        let msg = crate::ffi::MessageValue::from_bytes(
+            ctx.arena(),
+            ctx.descriptor_pool(),
+            ctx.message_factory(),
+            struct_value.type_name(),
+            struct_value.to_bytes(),
+        )
+        .map_err(|e| Error::from(&e))?;
+        Ok(msg.has_field_by_name(field_name))
+    }
 }
 
 /// Builder for creating CEL environments.
@@ -214,6 +288,36 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         self
     }
 
+    /// Sets a custom `FileDescriptorSet` for the environment's protobuf descriptor pool.
+    ///
+    /// **Default**: `None` (uses the generated/built-in descriptor pool)
+    ///
+    /// When set, the environment will use a custom descriptor pool built from the provided
+    /// serialized `FileDescriptorSet` bytes. This allows CEL expressions to reference
+    /// user-defined protobuf message types. Well-known types (Duration, Timestamp, etc.)
+    /// remain available as the generated pool is used as an underlay.
+    ///
+    /// # Arguments
+    ///
+    /// * `file_descriptor_set` - Serialized `FileDescriptorSet` proto bytes, produced by
+    ///   [`protox::compile`](https://docs.rs/protox) or `protoc --descriptor_set_out`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    ///
+    /// # let descriptor_bytes: &[u8] = &[];
+    /// let env = Env::builder()
+    ///     .with_file_descriptor_set(descriptor_bytes)
+    ///     .build()?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
+    pub fn with_file_descriptor_set(mut self, file_descriptor_set: &[u8]) -> Self {
+        self.options.file_descriptor_set = Some(file_descriptor_set.to_vec());
+        self
+    }
+
     /// Enables or disables the CEL standard library of functions and macros.
     ///
     /// **Default**: Enabled (`true`)
@@ -284,19 +388,19 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let env = Env::builder()
     ///     .with_optional(true)
     ///     .build()?;
-    /// 
+    ///
     /// // Optional field selection
     /// let program = env.compile("msg.?field.orValue('default')")?;
-    /// 
+    ///
     /// // Optional map construction
     /// let program2 = env.compile("{'name': 'bob', ?'age': optional.of(25)}")?;
-    /// 
+    ///
     /// // Optional indexing
     /// let program3 = env.compile("list[?5].hasValue()")?;
     /// # Ok::<(), cel_cxx::Error>(())
@@ -554,7 +658,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// // Decode Base64 to bytes
     /// let program2 = env.compile("base64.decode('aGVsbG8=')")?;
     /// let result2 = program2.evaluate(&Activation::new())?;
-    /// assert_eq!(result2, Value::Bytes(b"hello".to_vec()));
+    /// assert_eq!(result2, Value::Bytes(b"hello".to_vec().into()));
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_encoders(mut self, enable: bool) -> Self {
@@ -1033,17 +1137,17 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let env = Env::builder()
     ///     .with_ext_select_optimization(true)
     ///     .build()?;
-    /// 
+    ///
     /// // Field access operations may be optimized
     /// let program = env.compile("user.profile.settings.theme")?;
-    /// 
-    /// // Map access patterns may be optimized  
+    ///
+    /// // Map access patterns may be optimized
     /// let program2 = env.compile("config['database']['host']")?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
@@ -1084,7 +1188,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ## Registering a global macro
     ///
     /// ```rust,no_run
-    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::{Env, EnvBuilder, Error};
     /// # use cel_cxx::macros::Macro;
     /// # fn example() -> Result<(), Error> {
     /// // Create a macro that expands not_zero(x) to x != 0
@@ -1093,7 +1197,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///     Some(factory.new_call("_!=_", &[arg, factory.new_const(0)]))
     /// })?;
     ///
-    /// let env = EnvBuilder::new()
+    /// let env: Env = EnvBuilder::new()
     ///     .register_macro(not_zero)?
     ///     .build()?;
     ///
@@ -1106,21 +1210,22 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ## Registering a receiver macro
     ///
     /// ```rust,no_run
-    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::{Env, EnvBuilder, Error};
     /// # use cel_cxx::macros::Macro;
     /// # fn example() -> Result<(), Error> {
     /// // Create a macro for optional chaining: target.get_or(default)
     /// let get_or = Macro::new_receiver("get_or", 1, |factory, target, mut args| {
     ///     let default_val = args.pop()?;
     ///     // Expand to: target != null ? target : default_val
+    ///     let target_copy = factory.copy_expr(&target);
     ///     let null_check = factory.new_call("_!=_", &[
-    ///         target.clone(),
+    ///         target_copy,
     ///         factory.new_const(())
     ///     ]);
     ///     Some(factory.new_call("_?_:_", &[null_check, target, default_val]))
     /// })?;
     ///
-    /// let env = EnvBuilder::new()
+    /// let env: Env = EnvBuilder::new()
     ///     .register_macro(get_or)?
     ///     .build()?;
     ///
@@ -1133,7 +1238,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ## Multiple macros
     ///
     /// ```rust,no_run
-    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::{Env, EnvBuilder, Error};
     /// # use cel_cxx::macros::Macro;
     /// # fn example() -> Result<(), Error> {
     /// let macro1 = Macro::new_global("custom_op", 2, |factory, args| {
@@ -1146,7 +1251,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///     None
     /// })?;
     ///
-    /// let env = EnvBuilder::new()
+    /// let env: Env = EnvBuilder::new()
     ///     .register_macro(macro1)?
     ///     .register_macro(macro2)?
     ///     .build()?;
@@ -1651,6 +1756,53 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         T: TypedValue,
     {
         self.variable_registry.declare::<T>(name)?;
+        Ok(EnvBuilder {
+            macros: self.macros,
+            function_registry: self.function_registry,
+            variable_registry: self.variable_registry,
+            options: self.options,
+            _fn_marker: std::marker::PhantomData,
+            _rt_marker: std::marker::PhantomData,
+        })
+    }
+
+    /// Declares a variable with an explicit [`ValueType`].
+    ///
+    /// This is useful for declaring variables whose types are not statically known
+    /// at compile time, such as struct types loaded from a `FileDescriptorSet`.
+    /// The environment must have been configured with
+    /// [`with_file_descriptor_set`](Self::with_file_descriptor_set) when using
+    /// struct types.
+    ///
+    /// At evaluation time, bind the variable using
+    /// [`Activation::bind_variable_dynamic`](crate::Activation::bind_variable_dynamic).
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The variable name
+    /// * `value_type` - The [`ValueType`] of the variable
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    ///
+    /// # let descriptor_bytes: &[u8] = &[];
+    /// let env = Env::builder()
+    ///     .with_file_descriptor_set(descriptor_bytes)
+    ///     .declare_variable_with_type("msg", ValueType::Struct(StructType::new("my.package.MyMessage")))?
+    ///     .build()?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
+    pub fn declare_variable_with_type(
+        mut self,
+        name: impl Into<String>,
+        value_type: crate::ValueType,
+    ) -> Result<Self, Error> {
+        self.variable_registry.declare_with_type(
+            name,
+            value_type,
+        )?;
         Ok(EnvBuilder {
             macros: self.macros,
             function_registry: self.function_registry,

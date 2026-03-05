@@ -23,6 +23,8 @@
     - [Optional Value Support](#optional-value-support)
     - [Extension Libraries](#extension-libraries)
     - [Runtime Features](#runtime-features)
+  - [Protobuf Integration](#protobuf-integration)
+    - [Typed API with Derive Macros](#typed-api-with-derive-macros)
   - [License](#license)
   - [Acknowledgements](#acknowledgements)
 
@@ -49,6 +51,10 @@ cel-cxx = "0.2.4"
 
 # Optional features
 cel-cxx = { version = "0.2.4", features = ["tokio"] }
+
+# Protobuf derive macros (choose your backend)
+cel-cxx = { version = "0.2.4", features = ["prost"] }
+cel-cxx = { version = "0.2.4", features = ["protobuf-legacy"] }
 ```
 
 ### Basic Expression Evaluation
@@ -354,7 +360,7 @@ cargo ndk --target i686-linux-android build
 | **Conditionals** | ✅ | Ternary operator and logical short-circuiting |
 | **Comprehensions** | ✅ | List and map comprehensions with filtering |
 | **Custom Types** | ✅ | Opaque types via `#[derive(Opaque)]` |
-| **Protobuf Message Type** | 🚧 Planned | Direct support for protobuf messages and enums as native CEL types with field access (e.g., `p.x`). See [issue #1](https://github.com/xjasonli/cel-cxx/issues/1) |
+| **Protobuf Message Type** | ✅ | Native protobuf messages and enums as first-class CEL types with field access, message construction, and round-trip serialization |
 | **Macros** | ✅ | CEL macro expansion support |
 | **Function Overloads** | ✅ | Multiple function signatures with automatic resolution |
 | **Type Checking** | ✅ | Compile-time type validation |
@@ -400,6 +406,142 @@ cargo ndk --target i686-linux-android build
 | **Async Support** | ✅ | Async function calls and evaluation with Tokio integration |
 | **Custom Extensions** | ✅ | Build and register custom CEL extensions |
 | **Performance Optimization** | ✅ | Optimized evaluation with caching and short-circuiting |
+
+## Protobuf Integration
+
+cel-cxx supports native Protocol Buffer messages as first-class CEL types. You can bind serialized protobuf messages as variables, access their fields in CEL expressions, construct new messages, and extract results back to Rust.
+
+### Compiling Proto Descriptors
+
+CEL needs a `FileDescriptorSet` (a binary descriptor file) to understand your `.proto` types.
+The recommended approach is [`protox`](https://crates.io/crates/protox), a pure-Rust protobuf
+compiler that requires no external binary:
+
+```rust,no_run
+use prost::Message;
+
+let fds = protox::compile(["proto/my_service.proto"], ["proto/"]).unwrap();
+let descriptor_bytes = fds.encode_to_vec();
+```
+
+Alternatively, you can use `protoc` directly:
+
+```bash
+protoc --descriptor_set_out=descriptors.bin \
+       --include_imports \
+       --proto_path=proto \
+       proto/my_service.proto
+```
+
+### Setting Up the Environment
+
+```rust,no_run
+use cel_cxx::*;
+
+# let descriptor_bytes: Vec<u8> = vec![];
+let env = Env::builder()
+    .with_file_descriptor_set(&descriptor_bytes)
+    .declare_variable_with_type("msg", ValueType::Struct(StructType::new("my.package.MyMessage")))?
+    .build()?;
+# Ok::<(), cel_cxx::Error>(())
+```
+
+### Binding Protobuf Input
+
+Serialize your message to bytes (e.g., via `prost`) and bind it:
+
+```rust,no_run
+# use cel_cxx::*;
+# let serialized_bytes: Vec<u8> = vec![];
+let activation = Activation::new()
+    .bind_variable_dynamic("msg", StructValue::from_bytes("my.package.MyMessage", serialized_bytes))?;
+# Ok::<(), cel_cxx::Error>(())
+```
+
+### Accessing Fields in CEL
+
+CEL expressions can access all protobuf field types:
+
+```cel
+msg.name                              // scalar fields
+msg.address.city                      // nested message fields
+msg.tags[0]                           // repeated fields
+msg.labels["env"]                     // map fields
+msg.status == my.package.Status.ACTIVE // enum constants
+has(msg.optional_field)               // field presence
+```
+
+### Message Construction
+
+Construct new protobuf messages directly in CEL:
+
+```cel
+my.package.MyMessage{name: "Alice", id: 42}
+```
+
+### Extracting Results
+
+```rust,no_run
+# use cel_cxx::*;
+# fn example(result: Value, env: Env) -> Result<(), Error> {
+// Borrow via as_struct()
+let sv = result.as_struct().unwrap();
+let type_name = sv.type_name();
+let bytes = sv.to_bytes();
+
+// Or extract an owned StructValue
+let sv = StructValue::from_value(&result)?;
+
+// Read individual fields from Rust
+let name = env.get_struct_field(&sv, "name")?;
+let has_name = env.has_struct_field(&sv, "name")?;
+# Ok(())
+# }
+```
+
+### Typed API with Derive Macros
+
+If you have compile-time protobuf types (via `prost-build` or `protobuf-codegen`), derive
+macros let you skip the manual `StructValue::from_bytes` plumbing and use the standard
+typed API instead:
+
+```rust,ignore
+// With the `prost` or `protobuf-legacy` feature enabled:
+let env = Env::builder()
+    .with_file_descriptor_set(&descriptors)
+    .declare_variable::<MyMessage>("msg")?  // instead of declare_variable_with_type(...)
+    .build()?;
+
+let activation = Activation::new()
+    .bind_variable("msg", my_message)?;  // instead of bind_variable_dynamic(...)
+
+let result = program.evaluate(&activation)?;
+let recovered = MyMessage::from_value(&result)?;  // instead of StructValue::from_value(...)
+```
+
+The derives are injected during code generation in your `build.rs` -- one line per type
+for prost, or a small `CustomizeCallback` for protobuf-codegen.
+
+See the **[Protobuf Derive Macros Guide](docs/protobuf-derive.md)** for full setup
+instructions, feature flags, and examples.
+
+### Well-Known Type Handling
+
+cel-cpp automatically converts well-known types to their CEL equivalents:
+
+| Protobuf Type | CEL Type | Notes |
+|--------------|----------|-------|
+| `google.protobuf.Duration` | `duration` | Full arithmetic and comparison support |
+| `google.protobuf.Timestamp` | `timestamp` | Full arithmetic and comparison support |
+| `google.protobuf.Int64Value`, `StringValue`, `BoolValue`, ... | Primitives | Auto-unboxed to `int`, `string`, `bool`, etc. |
+| `google.protobuf.Struct` | `map` | Dynamic map with dot-notation access |
+| `google.protobuf.Any` | — | `has()` works; full unpacking depends on cel-cpp support |
+
+### Performance Note
+
+Protobuf messages cross the Rust/C++ FFI boundary via serialization: messages are serialized to bytes on the Rust side and deserialized into arena-allocated C++ messages for evaluation, then serialized back when extracting results. This adds overhead proportional to message size.
+
+Zero-copy is not currently implemented for two reasons. First, the architectural change to keep C++ arena-allocated messages alive across the FFI boundary would be significant. Second, true zero-copy would require both cel-cxx and the Rust protobuf library to link against the *exact same* C++ protobuf library instance so that message pointers can be passed directly across the boundary. The official Google Rust protobuf crate ([`protobuf`](https://crates.io/crates/protobuf)) supports a C++ kernel backend that would make this possible in theory, but it currently requires Bazel (not cargo), and there is no shared `protobuf-cpp-sys` crate that both libraries could depend on. cel-cxx also compiles its own copy of C++ protobuf as part of cel-cpp via cmake, so integrating a shared dependency would require reworking the build. Until the ecosystem converges, serialization/deserialization is the only correct approach.
 
 ## License
 

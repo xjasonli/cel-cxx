@@ -100,7 +100,7 @@
 use crate::function::FunctionBindings;
 use crate::function::{Arguments, NonEmptyArguments, IntoFunction};
 use crate::marker::*;
-use crate::values::{IntoValue, TypedValue};
+use crate::values::{IntoValue, StructValue, TypedValue};
 use crate::variable::VariableBindings;
 use crate::Error;
 use std::marker::PhantomData;
@@ -315,6 +315,53 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
         T: IntoValue + TypedValue,
     {
         self.variables.bind(name, value)?;
+        Ok(Activation {
+            variables: self.variables,
+            functions: self.functions,
+            _fn_marker: PhantomData,
+        })
+    }
+
+    /// Binds a runtime-typed variable from a [`StructValue`].
+    ///
+    /// Unlike [`bind_variable`](Self::bind_variable), which infers the CEL type
+    /// from the Rust type via the `TypedValue` trait, this method accepts a
+    /// [`StructValue`] whose type name and serialized bytes are supplied at
+    /// runtime. The type name must match a type declared via
+    /// [`EnvBuilder::declare_variable_with_type`](crate::EnvBuilder::declare_variable_with_type),
+    /// and the environment must include the corresponding `FileDescriptorSet`.
+    ///
+    /// For lazily-computed values, see
+    /// [`bind_variable_provider`](Self::bind_variable_provider) instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The variable name (must match a declared variable)
+    /// * `value` - The [`StructValue`] to bind
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use cel_cxx::*;
+    ///
+    /// # let serialized_bytes: Vec<u8> = vec![];
+    /// let activation = Activation::new()
+    ///     .bind_variable_dynamic("msg", StructValue::from_bytes("my.package.MyMessage", serialized_bytes))?;
+    /// # Ok::<(), cel_cxx::Error>(())
+    /// ```
+    pub fn bind_variable_dynamic<S>(
+        mut self,
+        name: S,
+        value: StructValue,
+    ) -> Result<Self, Error>
+    where
+        S: Into<String>,
+    {
+        self.variables.bind_with_value(
+            name,
+            crate::ValueType::Struct(crate::types::StructType::new(value.type_name())),
+            value.into_value(),
+        )?;
         Ok(Activation {
             variables: self.variables,
             functions: self.functions,

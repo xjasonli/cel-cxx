@@ -122,6 +122,9 @@ let env = Env::builder()
 | Feature | Description | Default |
 |---------|-------------|---------|
 | `derive` | Derive macros for custom types (`#[derive(Opaque)]`) | ✅ |
+| `prost` | `#[derive(ProstValue)]` for [prost](https://crates.io/crates/prost) protobuf types | ❌ |
+| `protobuf-legacy` | `#[derive(ProtobufLegacyValue)]` for [protobuf](https://crates.io/crates/protobuf) v3 types | ❌ |
+| `protobuf` | `#[derive(ProtobufValue)]` for protobuf v4 types (stub, not yet implemented) | ❌ |
 | `async` | Async/await support for expressions and functions | ❌ |
 | `tokio` | Tokio async runtime integration (requires `async`) | ❌ |
 | `smol` | smol runtime integration (requires `async`) | ❌ |
@@ -156,6 +159,11 @@ cargo run --example tokio --features="tokio"
 
 Comprehensive guide to zero-annotation function registration using Generic Associated Types (GATs).
 Learn how to register functions with owned types, reference types, async functions, and more.
+
+### [Protobuf Derive Macros](protobuf-derive.md)
+
+Setup and usage guide for `#[derive(ProstValue)]` and `#[derive(ProtobufLegacyValue)]`,
+enabling the typed API for protobuf-generated message types.
 
 ### [Advanced Features](advanced-features.md)
 

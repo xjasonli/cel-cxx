@@ -1,4 +1,4 @@
-use crate::absl::{Status, StringView, MutSpan};
+use crate::absl::{Status, StringView};
 use crate::common::{Expr, ListExprElement, StructExprField, MapExprEntry};
 use std::pin::Pin;
 
@@ -56,11 +56,6 @@ mod ffi {
         include!(<cel-cxx-ffi/include/parser.h>);
 
         type MacroPredicate;
-
-        type MutSpan_Expr<'a> = super::MutSpan<'a, Expr>;
-        type MutSpan_ListExprElement<'a> = super::MutSpan<'a, ListExprElement>;
-        type MutSpan_StructExprField<'a> = super::MutSpan<'a, StructExprField>;
-        type MutSpan_MapExprEntry<'a> = super::MutSpan<'a, MapExprEntry>;
 
         // GlobalMacroExpander
         fn GlobalMacroExpander_new(ffi_expander: Box<AnyFfiGlobalMacroExpander>) -> UniquePtr<GlobalMacroExpander>;

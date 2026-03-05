@@ -1,6 +1,7 @@
 #ifndef CEL_CXX_FFI_INCLUDE_RUNTIME_H_
 #define CEL_CXX_FFI_INCLUDE_RUNTIME_H_
 
+#include <limits>
 #include <rust/cxx.h>
 #include <runtime/runtime.h>
 #include <runtime/function.h>
@@ -9,6 +10,8 @@
 #include <runtime/internal/runtime_impl.h>
 #include <runtime/internal/runtime_friend_access.h>
 #include <cel-cxx-ffi/include/absl.h>
+#include <google/protobuf/descriptor.h>
+#include <google/protobuf/descriptor.pb.h>
 
 namespace rust { inline namespace cxxbridge1 {
 using LazyOverload = ::cel::FunctionRegistry::LazyOverload;
@@ -508,6 +511,72 @@ private:
 
 inline std::unique_ptr<Function> Function_new(Box<AnyFfiFunction> ffi_function) {
     return std::make_unique<AnyFfiFunctionWrapper>(std::move(ffi_function));
+}
+
+// Enum registration helpers
+
+inline void register_enums_from_message(
+    TypeRegistry& type_registry,
+    const google::protobuf::Descriptor* message)
+{
+    if (message == nullptr) return;
+    for (int i = 0; i < message->enum_type_count(); i++) {
+        const auto* enum_desc = message->enum_type(i);
+        std::vector<TypeRegistry::Enumerator> enumerators;
+        for (int j = 0; j < enum_desc->value_count(); j++) {
+            const auto* value = enum_desc->value(j);
+            enumerators.push_back({
+                std::string(value->name()),
+                static_cast<int64_t>(value->number())
+            });
+        }
+        type_registry.RegisterEnum(enum_desc->full_name(), std::move(enumerators));
+    }
+    for (int i = 0; i < message->nested_type_count(); i++) {
+        register_enums_from_message(type_registry, message->nested_type(i));
+    }
+}
+
+inline Status TypeRegistry_register_enums_from_file_descriptor_set(
+    TypeRegistry& type_registry,
+    const google::protobuf::DescriptorPool& descriptor_pool,
+    Slice<const uint8_t> file_descriptor_set_bytes)
+{
+    if (file_descriptor_set_bytes.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        return absl::InvalidArgumentError("FileDescriptorSet exceeds maximum size");
+    }
+    google::protobuf::FileDescriptorSet fds;
+    if (!fds.ParseFromArray(file_descriptor_set_bytes.data(),
+                            static_cast<int>(file_descriptor_set_bytes.size()))) {
+        return absl::InvalidArgumentError("Failed to parse FileDescriptorSet");
+    }
+
+    for (const auto& file_proto : fds.file()) {
+        const google::protobuf::FileDescriptor* file =
+            descriptor_pool.FindFileByName(file_proto.name());
+        if (file == nullptr) continue;
+
+        // Register top-level enums
+        for (int i = 0; i < file->enum_type_count(); i++) {
+            const auto* enum_desc = file->enum_type(i);
+            std::vector<TypeRegistry::Enumerator> enumerators;
+            for (int j = 0; j < enum_desc->value_count(); j++) {
+                const auto* value = enum_desc->value(j);
+                enumerators.push_back({
+                    std::string(value->name()),
+                    static_cast<int64_t>(value->number())
+                });
+            }
+            type_registry.RegisterEnum(enum_desc->full_name(), std::move(enumerators));
+        }
+
+        // Register enums nested inside messages
+        for (int i = 0; i < file->message_type_count(); i++) {
+            register_enums_from_message(type_registry, file->message_type(i));
+        }
+    }
+
+    return Status();
 }
 
 } // namespace rust::cel_cxx

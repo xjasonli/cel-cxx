@@ -1,9 +1,12 @@
 #ifndef CEL_CXX_FFI_INCLUDE_COMMON_VALUES_H_
 #define CEL_CXX_FFI_INCLUDE_COMMON_VALUES_H_
 
+#include <limits>
 #include <rust/cxx.h>
 #include <common/value.h>
 #include <common/values/value_builder.h>
+#include <common/values/parsed_message_value.h>
+#include <absl/strings/str_cat.h>
 
 namespace rust::cel_cxx {
 
@@ -313,6 +316,90 @@ inline std::unique_ptr<MapValue> MapValueBuilder_build(
 
 
 // MessageValue
+inline Status MessageValue_from_bytes(
+    const Arena& arena,
+    const DescriptorPool& descriptor_pool,
+    const MessageFactory& message_factory,
+    Str type_name,
+    Slice<const uint8_t> bytes,
+    std::unique_ptr<MessageValue>& result
+) {
+    std::string_view name(type_name.data(), type_name.size());
+    auto descriptor = descriptor_pool.FindMessageTypeByName(name);
+    if (descriptor == nullptr) {
+        return absl::NotFoundError(
+            absl::StrCat("Message type not found: ", name));
+    }
+    // GetPrototype is semantically const but not declared as such in protobuf C++.
+    auto prototype = const_cast<MessageFactory&>(message_factory).GetPrototype(descriptor);
+    if (prototype == nullptr) {
+        return absl::InternalError(
+            absl::StrCat("Failed to get prototype for: ", name));
+    }
+    auto* arena_ptr = &const_cast<Arena&>(arena);
+    auto* message = prototype->New(arena_ptr);
+    if (bytes.size() > static_cast<size_t>(std::numeric_limits<int>::max())) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("Message bytes too large for: ", name));
+    }
+    if (!message->ParseFromArray(bytes.data(), static_cast<int>(bytes.size()))) {
+        return absl::InvalidArgumentError(
+            absl::StrCat("Failed to parse bytes as: ", name));
+    }
+    result = std::make_unique<MessageValue>(
+        cel::ParsedMessageValue(message, arena_ptr));
+    return Status();
+}
+
+inline Status MessageValue_to_bytes(
+    const MessageValue& message_value,
+    Vec<uint8_t>& result_vec
+) {
+    const auto& parsed = message_value.GetParsed();
+    std::string serialized;
+    if (!(*parsed).SerializeToString(&serialized)) {
+        return absl::InternalError("Failed to serialize MessageValue to bytes");
+    }
+    result_vec.reserve(serialized.size());
+    std::move(serialized.begin(), serialized.end(), std::back_inserter(result_vec));
+    return Status();
+}
+
+inline String MessageValue_get_type_name(const MessageValue& message_value) {
+    auto name = message_value.GetTypeName();
+    return String(std::string(name));
+}
+
+// MessageValue field access
+inline Status MessageValue_get_field_by_name(
+    const MessageValue& message_value,
+    const DescriptorPool& descriptor_pool,
+    const MessageFactory& message_factory,
+    const Arena& arena,
+    Str field_name,
+    std::unique_ptr<Value>& result
+) {
+    auto value = std::make_unique<Value>();
+    std::string_view name(field_name.data(), field_name.size());
+    auto status = message_value.GetFieldByName(
+        name, &descriptor_pool,
+        &const_cast<MessageFactory&>(message_factory),
+        &const_cast<Arena&>(arena),
+        value.get());
+    if (!status.ok()) return status;
+    result.swap(value);
+    return Status();
+}
+
+inline bool MessageValue_has_field_by_name(
+    const MessageValue& message_value,
+    Str field_name
+) {
+    std::string_view name(field_name.data(), field_name.size());
+    auto result = message_value.HasFieldByName(name);
+    if (!result.ok()) return false;
+    return result.value();
+}
 
 // NullValue
 inline std::unique_ptr<NullValue> NullValue_new() {

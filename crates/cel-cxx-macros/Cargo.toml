@@ -17,6 +17,11 @@ keywords.workspace = true
 name = "cel_cxx_macros"
 proc-macro = true
 
+[features]
+prost = []
+protobuf-legacy = []
+protobuf = []
+
 [dependencies]
 syn = { workspace = true }
 quote = { workspace = true }

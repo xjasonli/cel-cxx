@@ -11,7 +11,7 @@ impl std::fmt::Display for Value {
             Value::Double(d) => write!(f, "{d}"),
             Value::String(s) => write!(f, "{s:?}"),
             Value::Bytes(b) => write!(f, "{}", display_bytes(b)),
-            Value::Struct(_s) => write!(f, ""),
+            Value::Struct(s) => write!(f, "{}{{...}}", s.type_name()),
             Value::Duration(d) => write!(f, "{d}"),
             Value::Timestamp(t) => write!(f, "{t}"),
             Value::List(l) => write!(f, "[{}]", l.iter().format(", ")),
