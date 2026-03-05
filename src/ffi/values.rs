@@ -40,8 +40,8 @@ pub(crate) fn value_from_rust<'a>(
                 arena,
                 descriptor_pool,
                 message_factory,
-                &s.type_name,
-                &s.bytes,
+                s.type_name(),
+                s.to_bytes(),
             ) {
                 Ok(message_value) => Value::new_message(&message_value),
                 Err(status) => {
@@ -150,10 +150,10 @@ pub(crate) fn value_to_rust<'a>(
             let bytes = message_value
                 .to_bytes()
                 .map_err(|e| rust::Error::from(&e))?;
-            Ok(rust::Value::Struct(rust::StructValue {
+            Ok(rust::Value::Struct(rust::StructValue::from_bytes(
                 type_name,
                 bytes,
-            }))
+            )))
         }
         ValueKind::Duration => {
             let duration_value = value.get_duration();

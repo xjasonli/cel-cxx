@@ -322,21 +322,22 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
         })
     }
 
-    /// Binds a protobuf message variable from serialized bytes.
+    /// Binds a runtime-typed variable from a [`StructValue`].
     ///
-    /// This method creates a [`StructValue`] from the provided type name and
-    /// serialized bytes, and binds it as a variable. The type name must match
-    /// a type declared via
-    /// [`EnvBuilder::declare_protobuf_variable`](crate::EnvBuilder::declare_protobuf_variable),
+    /// Unlike [`bind_variable`](Self::bind_variable), which infers the CEL type
+    /// from the Rust type via the `TypedValue` trait, this method accepts a
+    /// [`StructValue`] whose type name and serialized bytes are supplied at
+    /// runtime. The type name must match a type declared via
+    /// [`EnvBuilder::declare_variable_with_type`](crate::EnvBuilder::declare_variable_with_type),
     /// and the environment must include the corresponding `FileDescriptorSet`.
+    ///
+    /// For lazily-computed values, see
+    /// [`bind_variable_provider`](Self::bind_variable_provider) instead.
     ///
     /// # Arguments
     ///
-    /// * `name` - The variable name (must match a declared protobuf variable)
-    /// * `type_name` - The fully qualified protobuf message type name (must match the
-    ///   type used in [`EnvBuilder::declare_protobuf_variable`](crate::EnvBuilder::declare_protobuf_variable);
-    ///   a mismatch will cause runtime evaluation errors, not compile-time errors)
-    /// * `bytes` - The serialized protobuf message bytes
+    /// * `name` - The variable name (must match a declared variable)
+    /// * `value` - The [`StructValue`] to bind
     ///
     /// # Examples
     ///
@@ -345,23 +346,21 @@ impl<'f, Fm: FnMarker> Activation<'f, Fm> {
     ///
     /// # let serialized_bytes: Vec<u8> = vec![];
     /// let activation = Activation::new()
-    ///     .bind_protobuf_variable("msg", "my.package.MyMessage", &serialized_bytes)?;
+    ///     .bind_variable_dynamic("msg", StructValue::from_bytes("my.package.MyMessage", serialized_bytes))?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn bind_protobuf_variable<S>(
+    pub fn bind_variable_dynamic<S>(
         mut self,
         name: S,
-        type_name: impl Into<String>,
-        bytes: &[u8],
+        value: StructValue,
     ) -> Result<Self, Error>
     where
         S: Into<String>,
     {
-        let struct_value = StructValue::new(type_name, bytes);
         self.variables.bind_with_value(
             name,
-            crate::ValueType::Struct(crate::types::StructType::new(&struct_value.type_name)),
-            struct_value.into_value(),
+            crate::ValueType::Struct(crate::types::StructType::new(value.type_name())),
+            value.into_value(),
         )?;
         Ok(Activation {
             variables: self.variables,

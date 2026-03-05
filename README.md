@@ -435,7 +435,7 @@ use cel_cxx::*;
 # let descriptor_bytes: Vec<u8> = vec![];
 let env = Env::builder()
     .with_file_descriptor_set(&descriptor_bytes)
-    .declare_protobuf_variable("msg", "my.package.MyMessage")?
+    .declare_variable_with_type("msg", ValueType::Struct(StructType::new("my.package.MyMessage")))?
     .build()?;
 # Ok::<(), cel_cxx::Error>(())
 ```
@@ -448,7 +448,7 @@ Serialize your message to bytes (e.g., via `prost`) and bind it:
 # use cel_cxx::*;
 # let serialized_bytes: Vec<u8> = vec![];
 let activation = Activation::new()
-    .bind_protobuf_variable("msg", "my.package.MyMessage", &serialized_bytes)?;
+    .bind_variable_dynamic("msg", StructValue::from_bytes("my.package.MyMessage", serialized_bytes))?;
 # Ok::<(), cel_cxx::Error>(())
 ```
 
@@ -478,15 +478,17 @@ my.package.MyMessage{name: "Alice", id: 42}
 ```rust,no_run
 # use cel_cxx::*;
 # fn example(result: Value, env: Env) -> Result<(), Error> {
-// Borrow type name and bytes
-let (type_name, bytes) = result.as_protobuf_bytes()?;
+// Borrow via as_struct()
+let sv = result.as_struct().unwrap();
+let type_name = sv.type_name();
+let bytes = sv.to_bytes();
 
 // Or extract an owned StructValue
 let sv = StructValue::from_value(&result)?;
 
 // Read individual fields from Rust
-let name = env.get_protobuf_field(&sv, "name")?;
-let has_name = env.has_protobuf_field(&sv, "name")?;
+let name = env.get_struct_field(&sv, "name")?;
+let has_name = env.has_struct_field(&sv, "name")?;
 # Ok(())
 # }
 ```

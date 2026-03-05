@@ -24,7 +24,7 @@
 //! ## Composite Types
 //! - **List**: Ordered collections of values (`Vec<Value>`)
 //! - **Map**: Key-value mappings (`HashMap<MapKey, Value>`)
-//! - **Struct**: Protocol Buffers message types (not yet implemented)
+//! - **Struct**: Serialized message types (e.g. Protocol Buffers messages)
 //! - **Optional**: Wrapper for optional values
 //!
 //! ## Special Types
@@ -204,26 +204,43 @@ pub type ListValue = Vec<Value>;
 /// CEL map value type.
 pub type MapValue = HashMap<MapKey, Value>;
 
-/// CEL struct value representing a Protocol Buffers message.
+/// CEL struct value representing a serialized message.
 ///
 /// The message is stored as its fully-qualified type name plus serialized bytes.
 /// Deserialization into C++ `MessageValue` happens at the FFI boundary when the
 /// value is passed to cel-cpp for evaluation.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct StructValue {
-    /// The fully qualified protobuf message type name (e.g. `"my.package.MyMessage"`).
-    pub type_name: String,
-    /// The serialized protobuf bytes of the message.
-    pub bytes: Vec<u8>,
+    type_name: String,
+    bytes: Vec<u8>,
 }
 
 impl StructValue {
-    /// Creates a new `StructValue`.
-    pub fn new(type_name: impl Into<String>, bytes: impl Into<Vec<u8>>) -> Self {
+    /// Creates a new `StructValue` from a type name and serialized bytes.
+    pub fn from_bytes(type_name: impl Into<String>, bytes: impl Into<Vec<u8>>) -> Self {
         Self {
             type_name: type_name.into(),
             bytes: bytes.into(),
         }
+    }
+
+    /// Returns the fully qualified message type name (e.g. `"my.package.MyMessage"`).
+    pub fn type_name(&self) -> &str {
+        &self.type_name
+    }
+
+    /// Returns the serialized bytes of the message.
+    pub fn to_bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+
+impl std::fmt::Debug for StructValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StructValue")
+            .field("type_name", &self.type_name())
+            .field("bytes_len", &self.to_bytes().len())
+            .finish()
     }
 }
 
@@ -301,7 +318,7 @@ pub enum Value {
     /// Byte array
     Bytes(BytesValue),
 
-    /// Struct (Protocol Buffers message)
+    /// Struct (serialized message)
     Struct(StructValue),
 
     /// Duration (Protocol Buffers Duration)
@@ -406,7 +423,7 @@ impl Value {
             Value::String(_) => ValueType::String,
             Value::Bytes(_) => ValueType::Bytes,
             Value::Struct(s) => {
-                ValueType::Struct(crate::types::StructType::new(&s.type_name))
+                ValueType::Struct(crate::types::StructType::new(s.type_name()))
             }
             Value::Duration(_) => ValueType::Duration,
             Value::Timestamp(_) => ValueType::Timestamp,
@@ -604,30 +621,6 @@ impl Value {
         }
     }
 
-    /// Extracts the protobuf type name and serialized bytes from a struct value.
-    ///
-    /// Returns an error if this value is not a `Value::Struct`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// # use cel_cxx::Value;
-    /// # fn example(result: Value) -> Result<(), cel_cxx::Error> {
-    /// let (type_name, bytes) = result.as_protobuf_bytes()?;
-    /// assert_eq!(type_name, "my.package.MyMessage");
-    /// # Ok(())
-    /// # }
-    /// ```
-    pub fn as_protobuf_bytes(&self) -> Result<(&str, &[u8]), Error> {
-        match self {
-            Value::Struct(s) => Ok((&s.type_name, &s.bytes)),
-            _ => Err(Error::invalid_argument(format!(
-                "expected struct value, got {}",
-                self.value_type()
-            ))),
-        }
-    }
-
     /// Returns the duration value if this value is a duration value.
     pub fn as_duration(&self) -> Option<&Duration> {
         match self {
@@ -744,14 +737,6 @@ impl Value {
     pub fn as_bytes_mut(&mut self) -> Option<&mut BytesValue> {
         match self {
             Value::Bytes(b) => Some(b),
-            _ => None,
-        }
-    }
-
-    /// Returns a mutable reference to the struct value if this value is a struct value.
-    pub fn as_struct_mut(&mut self) -> Option<&mut StructValue> {
-        match self {
-            Value::Struct(s) => Some(s),
             _ => None,
         }
     }

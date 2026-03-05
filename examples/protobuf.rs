@@ -8,11 +8,11 @@
 //!    [`protox`](https://crates.io/crates/protox) (pure Rust, no external binary needed),
 //!    or offline via `protoc --descriptor_set_out`.
 //!
-//! 2. **Build** an environment with the descriptors and declare protobuf variables.
+//! 2. **Build** an environment with the descriptors and declare struct variables.
 //! 3. **Serialize** protobuf messages and bind them as CEL variables.
 //! 4. **Evaluate** CEL expressions that access message fields.
-//! 5. **Extract** results — scalars directly, or protobuf messages via `as_protobuf_bytes()`.
-//! 6. **Read fields** from Rust with `env.get_protobuf_field()` / `env.has_protobuf_field()`.
+//! 5. **Extract** results — scalars directly, or struct values via `as_struct()`.
+//! 6. **Read fields** from Rust with `env.get_struct_field()` / `env.has_struct_field()`.
 //!
 //! Run with: `cargo run --example protobuf`
 
@@ -48,7 +48,7 @@ fn main() -> Result<(), Error> {
     // =========================================================================
     let env = Env::builder()
         .with_file_descriptor_set(&compile_descriptors())
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     // =========================================================================
@@ -58,7 +58,7 @@ fn main() -> Result<(), Error> {
     println!("Serialized message: {} bytes", bytes.len());
 
     let activation =
-        Activation::new().bind_protobuf_variable("msg", "test.SimpleMessage", &bytes)?;
+        Activation::new().bind_variable_dynamic("msg", StructValue::from_bytes("test.SimpleMessage", bytes))?;
 
     // =========================================================================
     // 3. Evaluate CEL expressions with field access
@@ -79,37 +79,37 @@ fn main() -> Result<(), Error> {
     }
 
     // =========================================================================
-    // 4. Extract protobuf results with as_protobuf_bytes() and StructValue
+    // 4. Extract struct results with as_struct() and StructValue
     // =========================================================================
-    println!("\n--- Extracting protobuf results ---");
+    println!("\n--- Extracting struct results ---");
     let program = env.compile("msg")?;
     let result = program.evaluate(&activation)?;
 
-    // Option A: borrow type name and bytes directly
-    let (type_name, result_bytes) = result.as_protobuf_bytes()?;
-    println!("Type: {type_name}, bytes length: {}", result_bytes.len());
+    // Option A: borrow via as_struct()
+    let sv_ref = result.as_struct().unwrap();
+    println!("Type: {}, bytes length: {}", sv_ref.type_name(), sv_ref.to_bytes().len());
 
     // Option B: extract an owned StructValue via FromValue
     let sv = StructValue::from_value(&result)?;
     println!(
         "StructValue {{ type_name: {:?}, bytes: {} bytes }}",
-        sv.type_name,
-        sv.bytes.len()
+        sv.type_name(),
+        sv.to_bytes().len()
     );
 
     // =========================================================================
-    // 5. Rust-side field access with get_protobuf_field / has_protobuf_field
+    // 5. Rust-side field access with get_struct_field / has_struct_field
     // =========================================================================
     println!("\n--- Rust-side field access ---");
-    let name_value = env.get_protobuf_field(&sv, "name")?;
-    let id_value = env.get_protobuf_field(&sv, "id")?;
-    println!("get_protobuf_field(name) => {name_value}");
-    println!("get_protobuf_field(id)   => {id_value}");
+    let name_value = env.get_struct_field(&sv, "name")?;
+    let id_value = env.get_struct_field(&sv, "id")?;
+    println!("get_struct_field(name) => {name_value}");
+    println!("get_struct_field(id)   => {id_value}");
 
-    let has_name = env.has_protobuf_field(&sv, "name")?;
-    let has_id = env.has_protobuf_field(&sv, "id")?;
-    println!("has_protobuf_field(name) => {has_name}");
-    println!("has_protobuf_field(id)   => {has_id}");
+    let has_name = env.has_struct_field(&sv, "name")?;
+    let has_id = env.has_struct_field(&sv, "id")?;
+    println!("has_struct_field(name) => {has_name}");
+    println!("has_struct_field(id)   => {has_id}");
 
     // =========================================================================
     // 6. Message construction in CEL expressions (Type{field: value} syntax)
@@ -122,8 +122,8 @@ fn main() -> Result<(), Error> {
     let program = env2.compile("test.SimpleMessage{name: 'Bob', id: 99}")?;
     let constructed = program.evaluate(&Activation::new())?;
 
-    let (type_name, bytes) = constructed.as_protobuf_bytes()?;
-    println!("Constructed {type_name}: {} bytes", bytes.len());
+    let constructed_sv = constructed.as_struct().unwrap();
+    println!("Constructed {}: {} bytes", constructed_sv.type_name(), constructed_sv.to_bytes().len());
 
     // Inline field access on constructed message
     let program = env2.compile("test.SimpleMessage{name: 'Bob', id: 99}.name")?;

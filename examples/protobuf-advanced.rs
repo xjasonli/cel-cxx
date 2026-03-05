@@ -67,11 +67,9 @@ mod proto {
     }
 
     pub fn nested(buf: &mut Vec<u8>, field: u32, msg: &[u8]) {
-        if !msg.is_empty() {
-            encode_key(field, WireType::LengthDelimited, buf);
-            encode_varint(msg.len() as u64, buf);
-            buf.extend_from_slice(msg);
-        }
+        encode_key(field, WireType::LengthDelimited, buf);
+        encode_varint(msg.len() as u64, buf);
+        buf.extend_from_slice(msg);
     }
 
     pub fn repeated_nested(buf: &mut Vec<u8>, field: u32, items: &[Vec<u8>]) {
@@ -259,7 +257,7 @@ fn main() -> Result<(), Error> {
 
     let env = Env::builder()
         .with_file_descriptor_set(&compile_descriptors())
-        .declare_protobuf_variable("order", "test.Order")?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
         // CEL has no built-in reduce/fold, so register helpers for aggregation
         .register_global_function("sum_ints", |v: Vec<i64>| -> i64 { v.iter().sum() })?
         .build()?;
@@ -284,7 +282,7 @@ fn main() -> Result<(), Error> {
 
     let order_bytes = proto::order(&buyer, &items, &labels);
     let activation = Activation::new()
-        .bind_protobuf_variable("order", "test.Order", &order_bytes)?;
+        .bind_variable_dynamic("order", StructValue::from_bytes("test.Order", order_bytes))?;
 
     // Deep field access
     eval(&env, &activation, "order.buyer.name")?;
@@ -372,7 +370,7 @@ fn main() -> Result<(), Error> {
     let buyer_no_addr = proto::person("Bob", 25, None, 0, &[], false);
     let minimal_order = proto::order(&buyer_no_addr, &[], &[]);
     let activation2 = Activation::new()
-        .bind_protobuf_variable("order", "test.Order", &minimal_order)?;
+        .bind_variable_dynamic("order", StructValue::from_bytes("test.Order", minimal_order))?;
 
     eval(&env, &activation2, "has(order.buyer.address)")?;
     eval(&env, &activation2, "has(order.buyer.address) ? order.buyer.address.city : 'N/A'")?;
@@ -395,7 +393,7 @@ fn main() -> Result<(), Error> {
 
     let env_event = Env::builder()
         .with_file_descriptor_set(&compile_descriptors())
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let event_bytes = proto::event(
@@ -414,7 +412,7 @@ fn main() -> Result<(), Error> {
     );
 
     let act_event = Activation::new()
-        .bind_protobuf_variable("event", "test.Event", &event_bytes)?;
+        .bind_variable_dynamic("event", StructValue::from_bytes("test.Event", event_bytes))?;
 
     // Timestamp — auto-converts to CEL timestamp type
     eval(&env_event, &act_event, "event.name")?;
@@ -465,7 +463,7 @@ fn main() -> Result<(), Error> {
     // Event without optional fields
     let sparse_event = proto::event("bare-event", None, None, None, None, None, None, None);
     let act_sparse = Activation::new()
-        .bind_protobuf_variable("event", "test.Event", &sparse_event)?;
+        .bind_variable_dynamic("event", StructValue::from_bytes("test.Event", sparse_event))?;
     eval(&env_event, &act_sparse, "has(event.optional_count)")?;
     eval(&env_event, &act_sparse, "has(event.ttl)")?;
 
@@ -516,21 +514,21 @@ fn main() -> Result<(), Error> {
     let program = env.compile("order.buyer")?;
     let buyer_result = program.evaluate(&activation)?;
     let buyer_sv = StructValue::from_value(&buyer_result)?;
-    println!("  Extracted buyer: type={}, {} bytes", buyer_sv.type_name, buyer_sv.bytes.len());
+    println!("  Extracted buyer: type={}, {} bytes", buyer_sv.type_name(), buyer_sv.to_bytes().len());
 
     // Read individual fields from the extracted message
-    let name = env.get_protobuf_field(&buyer_sv, "name")?;
-    let age = env.get_protobuf_field(&buyer_sv, "age")?;
-    let has_addr = env.has_protobuf_field(&buyer_sv, "address")?;
+    let name = env.get_struct_field(&buyer_sv, "name")?;
+    let age = env.get_struct_field(&buyer_sv, "age")?;
+    let has_addr = env.has_struct_field(&buyer_sv, "address")?;
     println!("  buyer.name  = {name}");
     println!("  buyer.age   = {age}");
     println!("  has(buyer.address) = {has_addr}");
 
     // Extract the nested address
-    let addr_result = env.get_protobuf_field(&buyer_sv, "address")?;
+    let addr_result = env.get_struct_field(&buyer_sv, "address")?;
     let addr_sv = StructValue::from_value(&addr_result)?;
-    let city = env.get_protobuf_field(&addr_sv, "city")?;
-    let zip = env.get_protobuf_field(&addr_sv, "zip")?;
+    let city = env.get_struct_field(&addr_sv, "city")?;
+    let zip = env.get_struct_field(&addr_sv, "zip")?;
     println!("  buyer.address.city = {city}");
     println!("  buyer.address.zip  = {zip}");
 
