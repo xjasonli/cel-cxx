@@ -34,7 +34,8 @@ use std::pin::Pin;
 ///     let const_expr = factory.new_const(42);
 ///     
 ///     // Create a function call expression
-///     let call_expr = factory.new_call("size", &[args[0].clone()]);
+///     let arg_copy = factory.copy_expr(&args[0]);
+///     let call_expr = factory.new_call("size", &[arg_copy]);
 ///     
 ///     // Create a binary operation
 ///     let result = factory.new_call("_>_", &[call_expr, const_expr]);

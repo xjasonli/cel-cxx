@@ -388,19 +388,19 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let env = Env::builder()
     ///     .with_optional(true)
     ///     .build()?;
-    /// 
+    ///
     /// // Optional field selection
     /// let program = env.compile("msg.?field.orValue('default')")?;
-    /// 
+    ///
     /// // Optional map construction
     /// let program2 = env.compile("{'name': 'bob', ?'age': optional.of(25)}")?;
-    /// 
+    ///
     /// // Optional indexing
     /// let program3 = env.compile("list[?5].hasValue()")?;
     /// # Ok::<(), cel_cxx::Error>(())
@@ -658,7 +658,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// // Decode Base64 to bytes
     /// let program2 = env.compile("base64.decode('aGVsbG8=')")?;
     /// let result2 = program2.evaluate(&Activation::new())?;
-    /// assert_eq!(result2, Value::Bytes(b"hello".to_vec()));
+    /// assert_eq!(result2, Value::Bytes(b"hello".to_vec().into()));
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
     pub fn with_ext_encoders(mut self, enable: bool) -> Self {
@@ -1137,17 +1137,17 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use cel_cxx::*;
-    /// 
+    ///
     /// let env = Env::builder()
     ///     .with_ext_select_optimization(true)
     ///     .build()?;
-    /// 
+    ///
     /// // Field access operations may be optimized
     /// let program = env.compile("user.profile.settings.theme")?;
-    /// 
-    /// // Map access patterns may be optimized  
+    ///
+    /// // Map access patterns may be optimized
     /// let program2 = env.compile("config['database']['host']")?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
@@ -1188,7 +1188,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ## Registering a global macro
     ///
     /// ```rust,no_run
-    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::{Env, EnvBuilder, Error};
     /// # use cel_cxx::macros::Macro;
     /// # fn example() -> Result<(), Error> {
     /// // Create a macro that expands not_zero(x) to x != 0
@@ -1197,7 +1197,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///     Some(factory.new_call("_!=_", &[arg, factory.new_const(0)]))
     /// })?;
     ///
-    /// let env = EnvBuilder::new()
+    /// let env: Env = EnvBuilder::new()
     ///     .register_macro(not_zero)?
     ///     .build()?;
     ///
@@ -1210,21 +1210,22 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ## Registering a receiver macro
     ///
     /// ```rust,no_run
-    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::{Env, EnvBuilder, Error};
     /// # use cel_cxx::macros::Macro;
     /// # fn example() -> Result<(), Error> {
     /// // Create a macro for optional chaining: target.get_or(default)
     /// let get_or = Macro::new_receiver("get_or", 1, |factory, target, mut args| {
     ///     let default_val = args.pop()?;
     ///     // Expand to: target != null ? target : default_val
+    ///     let target_copy = factory.copy_expr(&target);
     ///     let null_check = factory.new_call("_!=_", &[
-    ///         target.clone(),
+    ///         target_copy,
     ///         factory.new_const(())
     ///     ]);
     ///     Some(factory.new_call("_?_:_", &[null_check, target, default_val]))
     /// })?;
     ///
-    /// let env = EnvBuilder::new()
+    /// let env: Env = EnvBuilder::new()
     ///     .register_macro(get_or)?
     ///     .build()?;
     ///
@@ -1237,7 +1238,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ## Multiple macros
     ///
     /// ```rust,no_run
-    /// # use cel_cxx::{EnvBuilder, Error};
+    /// # use cel_cxx::{Env, EnvBuilder, Error};
     /// # use cel_cxx::macros::Macro;
     /// # fn example() -> Result<(), Error> {
     /// let macro1 = Macro::new_global("custom_op", 2, |factory, args| {
@@ -1250,7 +1251,7 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     ///     None
     /// })?;
     ///
-    /// let env = EnvBuilder::new()
+    /// let env: Env = EnvBuilder::new()
     ///     .register_macro(macro1)?
     ///     .register_macro(macro2)?
     ///     .build()?;

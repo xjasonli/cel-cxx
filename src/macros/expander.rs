@@ -21,16 +21,17 @@ use super::{MacroExprFactory, Expr};
 ///
 /// ```rust,no_run
 /// # use cel_cxx::macros::{GlobalMacroExpander, MacroExprFactory, Expr};
+/// # use cel_cxx::Constant;
 /// // Simple constant-folding macro
 /// fn optimize_add(factory: &mut MacroExprFactory, args: Vec<Expr>) -> Option<Expr> {
 ///     if args.len() != 2 {
 ///         return None;
 ///     }
-///     
+///
 ///     // If both args are constant integers, fold them
-///     let left = args[0].kind()?.as_constant()?.as_int()?;
-///     let right = args[1].kind()?.as_constant()?.as_int()?;
-///     
+///     let left = match args[0].kind()?.as_constant()? { Constant::Int(n) => *n, _ => return None };
+///     let right = match args[1].kind()?.as_constant()? { Constant::Int(n) => *n, _ => return None };
+///
 ///     Some(factory.new_const(left + right))
 /// }
 /// ```
@@ -84,8 +85,9 @@ impl<'f, F> GlobalMacroExpander for F where F
 ///     let default_value = args.pop()?;
 ///     
 ///     // Expand to: target != null ? target : default_value
+///     let target_copy = factory.copy_expr(&target);
 ///     Some(factory.new_call("_?_:_", &[
-///         factory.new_call("_!=_", &[target.clone(), factory.new_const(())]),
+///         factory.new_call("_!=_", &[target_copy, factory.new_const(())]),
 ///         target,
 ///         default_value,
 ///     ]))

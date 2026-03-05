@@ -55,19 +55,23 @@ pub fn derive_opaque(input: TokenStream) -> TokenStream {
 /// # Requirements
 ///
 /// The type must implement `prost::Message` and `prost::Name`.
+/// Enable `prost::Name` generation via `.enable_type_names()` in prost-build.
 ///
 /// # Attributes
 /// - `type_name = "..."`: Override the protobuf type name (default: `prost::Name::full_name()`).
 /// - `crate = ...`: Custom path to the cel_cxx crate.
 ///
-/// # Example
+/// # Setup
 ///
-/// ```ignore
-/// #[derive(Clone, PartialEq, prost::Message, cel_cxx::ProstValue)]
-/// pub struct MyMessage {
-///     #[prost(string, tag = "1")]
-///     pub name: String,
-/// }
+/// In your `build.rs`, inject the derive via `type_attribute()`:
+///
+/// ```rust,ignore
+/// // build.rs
+/// prost_build::Config::new()
+///     .enable_type_names()
+///     .type_attribute("my.package.MyMessage", "#[derive(::cel_cxx::ProstValue)]")
+///     .compile_protos(&["proto/my.proto"], &["proto/"])
+///     .unwrap();
 /// ```
 #[cfg(feature = "prost")]
 #[proc_macro_derive(ProstValue, attributes(cel_cxx))]
@@ -91,12 +95,31 @@ pub fn derive_prost_value(input: TokenStream) -> TokenStream {
 /// - `type_name = "..."`: Override the protobuf type name (default: from descriptor).
 /// - `crate = ...`: Custom path to the cel_cxx crate.
 ///
-/// # Example
+/// # Setup
 ///
-/// ```ignore
-/// // On a protobuf-codegen generated type:
-/// #[derive(cel_cxx::ProtobufLegacyValue)]
-/// pub struct MyMessage { ... }
+/// In your `build.rs`, inject the derive via `customize_callback()`:
+///
+/// ```rust,ignore
+/// // build.rs
+/// use protobuf::reflect::MessageDescriptor;
+/// use protobuf_codegen::{Codegen, Customize, CustomizeCallback};
+///
+/// struct DeriveProtobufLegacyValue;
+///
+/// impl CustomizeCallback for DeriveProtobufLegacyValue {
+///     fn message(&self, _message: &MessageDescriptor) -> Customize {
+///         Customize::default().before("#[derive(::cel_cxx::ProtobufLegacyValue)]")
+///     }
+/// }
+///
+/// fn main() {
+///     Codegen::new()
+///         .cargo_out_dir("protos")
+///         .input("proto/my.proto")
+///         .include("proto/")
+///         .customize_callback(DeriveProtobufLegacyValue)
+///         .run_from_script();
+/// }
 /// ```
 #[cfg(feature = "protobuf-legacy")]
 #[proc_macro_derive(ProtobufLegacyValue, attributes(cel_cxx))]

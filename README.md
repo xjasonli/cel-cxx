@@ -23,6 +23,8 @@
     - [Optional Value Support](#optional-value-support)
     - [Extension Libraries](#extension-libraries)
     - [Runtime Features](#runtime-features)
+  - [Protobuf Integration](#protobuf-integration)
+    - [Typed API with Derive Macros](#typed-api-with-derive-macros)
   - [License](#license)
   - [Acknowledgements](#acknowledgements)
 
@@ -49,6 +51,10 @@ cel-cxx = "0.2.4"
 
 # Optional features
 cel-cxx = { version = "0.2.4", features = ["tokio"] }
+
+# Protobuf derive macros (choose your backend)
+cel-cxx = { version = "0.2.4", features = ["prost"] }
+cel-cxx = { version = "0.2.4", features = ["protobuf-legacy"] }
 ```
 
 ### Basic Expression Evaluation
@@ -492,6 +498,32 @@ let has_name = env.has_struct_field(&sv, "name")?;
 # Ok(())
 # }
 ```
+
+### Typed API with Derive Macros
+
+If you have compile-time protobuf types (via `prost-build` or `protobuf-codegen`), derive
+macros let you skip the manual `StructValue::from_bytes` plumbing and use the standard
+typed API instead:
+
+```rust,ignore
+// With the `prost` or `protobuf-legacy` feature enabled:
+let env = Env::builder()
+    .with_file_descriptor_set(&descriptors)
+    .declare_variable::<MyMessage>("msg")?  // instead of declare_variable_with_type(...)
+    .build()?;
+
+let activation = Activation::new()
+    .bind_variable("msg", my_message)?;  // instead of bind_variable_dynamic(...)
+
+let result = program.evaluate(&activation)?;
+let recovered = MyMessage::from_value(&result)?;  // instead of StructValue::from_value(...)
+```
+
+The derives are injected during code generation in your `build.rs` -- one line per type
+for prost, or a small `CustomizeCallback` for protobuf-codegen.
+
+See the **[Protobuf Derive Macros Guide](docs/protobuf-derive.md)** for full setup
+instructions, feature flags, and examples.
 
 ### Well-Known Type Handling
 
