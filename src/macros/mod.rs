@@ -29,13 +29,14 @@
 //!
 //! ```rust,no_run
 //! use cel_cxx::macros::{Macro, MacroExprFactory, Expr};
+//! use cel_cxx::Constant;
 //!
 //! // Macro that creates a constant expression with doubled value
 //! let double_macro = Macro::new_global("double", 1, |factory, args| {
 //!     if let Some(expr) = args.first() {
 //!         if let Some(val) = expr.kind().and_then(|k| k.as_constant()) {
-//!             if let Some(int_val) = val.as_int() {
-//!                 return Some(factory.new_const(int_val * 2));
+//!             if let Constant::Int(int_val) = val {
+//!                 return Some(factory.new_const(*int_val * 2));
 //!             }
 //!         }
 //!     }
@@ -50,7 +51,8 @@
 //! // Macro for optional element access: list.maybe_get(index)
 //! let maybe_get_macro = Macro::new_receiver("maybe_get", 1, |factory, target, args| {
 //!     // Implementation would handle optional list indexing
-//!     Some(factory.new_call("_?.[]", &[target, args[0].clone()]))
+//!     let arg_copy = factory.copy_expr(&args[0]);
+//!     Some(factory.new_call("_?.[]", &[target, arg_copy]))
 //! });
 //! ```
 
@@ -229,7 +231,9 @@ impl Macro {
     ///     }
     ///     // Implementation would build comparison chain
     ///     Some(args.into_iter().reduce(|acc, arg| {
-    ///         factory.new_call("_>_?_:_", &[acc, arg.clone(), acc.clone(), arg])
+    ///         let arg_copy = factory.copy_expr(&arg);
+    ///         let acc_copy = factory.copy_expr(&acc);
+    ///         factory.new_call("_>_?_:_", &[acc, arg_copy, acc_copy, arg])
     ///     })?)
     /// })?;
     /// # Ok(())
