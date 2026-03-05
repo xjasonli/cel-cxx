@@ -119,21 +119,21 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
         self.inner.clone().compile::<Fm, Rm, _>(source)
     }
 
-    /// Reads a field from a protobuf `StructValue` by name, returning it as a Rust `Value`.
+    /// Reads a field from a [`StructValue`](crate::StructValue) by name, returning it as a Rust [`Value`](crate::Value).
     ///
-    /// This allows programmatic field access on protobuf messages returned from
+    /// This allows programmatic field access on struct values returned from
     /// CEL evaluation, without needing to compile and evaluate another CEL expression
-    /// or deserialize with prost.
+    /// or deserialize the message externally.
     ///
     /// # Arguments
     ///
-    /// * `struct_value` - The protobuf struct value to read from
+    /// * `struct_value` - The struct value to read from
     /// * `field_name` - The field name to access
     ///
     /// # Errors
     ///
     /// Returns an error if the field does not exist or the message cannot be deserialized.
-    pub fn get_protobuf_field(
+    pub fn get_struct_field(
         &self,
         struct_value: &crate::StructValue,
         field_name: &str,
@@ -143,8 +143,8 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
             ctx.arena(),
             ctx.descriptor_pool(),
             ctx.message_factory(),
-            &struct_value.type_name,
-            &struct_value.bytes,
+            struct_value.type_name(),
+            struct_value.to_bytes(),
         )
         .map_err(|e| Error::from(&e))?;
         let ffi_value = msg
@@ -163,20 +163,20 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
         )
     }
 
-    /// Checks whether a field is set on a protobuf `StructValue`.
+    /// Checks whether a field is set on a [`StructValue`](crate::StructValue).
     ///
-    /// For proto3 messages, this checks whether the field has a non-default value.
-    /// For proto3 optional fields, this checks field presence.
+    /// The exact semantics are determined by cel-cpp based on the field's
+    /// presence rules in the proto schema (e.g. implicit vs. explicit field presence).
     ///
     /// # Arguments
     ///
-    /// * `struct_value` - The protobuf struct value to check
+    /// * `struct_value` - The struct value to check
     /// * `field_name` - The field name to check
     ///
     /// # Errors
     ///
     /// Returns an error if the message cannot be deserialized.
-    pub fn has_protobuf_field(
+    pub fn has_struct_field(
         &self,
         struct_value: &crate::StructValue,
         field_name: &str,
@@ -186,8 +186,8 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Env<'f, Fm, Rm> {
             ctx.arena(),
             ctx.descriptor_pool(),
             ctx.message_factory(),
-            &struct_value.type_name,
-            &struct_value.bytes,
+            struct_value.type_name(),
+            struct_value.to_bytes(),
         )
         .map_err(|e| Error::from(&e))?;
         Ok(msg.has_field_by_name(field_name))
@@ -307,8 +307,9 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
     /// ```rust,no_run
     /// use cel_cxx::*;
     ///
+    /// # let descriptor_bytes: &[u8] = &[];
     /// let env = Env::builder()
-    ///     .with_file_descriptor_set(include_bytes!("descriptors.bin"))
+    ///     .with_file_descriptor_set(descriptor_bytes)
     ///     .build()?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
@@ -1764,40 +1765,42 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> EnvBuilder<'f, Fm, Rm> {
         })
     }
 
-    /// Declares a protobuf message variable with the given fully-qualified type name.
+    /// Declares a variable with an explicit [`ValueType`].
     ///
-    /// This declares that a variable of the given name will hold a protobuf message
-    /// of the specified type. The environment must have been configured with
-    /// [`with_file_descriptor_set`](Self::with_file_descriptor_set) containing the
-    /// type's descriptor.
+    /// This is useful for declaring variables whose types are not statically known
+    /// at compile time, such as struct types loaded from a `FileDescriptorSet`.
+    /// The environment must have been configured with
+    /// [`with_file_descriptor_set`](Self::with_file_descriptor_set) when using
+    /// struct types.
     ///
     /// At evaluation time, bind the variable using
-    /// [`Activation::bind_protobuf_variable`](crate::Activation::bind_protobuf_variable).
+    /// [`Activation::bind_variable_dynamic`](crate::Activation::bind_variable_dynamic).
     ///
     /// # Arguments
     ///
     /// * `name` - The variable name
-    /// * `type_name` - The fully qualified protobuf message type name (e.g. `"my.package.MyMessage"`)
+    /// * `value_type` - The [`ValueType`] of the variable
     ///
     /// # Examples
     ///
     /// ```rust,no_run
     /// use cel_cxx::*;
     ///
+    /// # let descriptor_bytes: &[u8] = &[];
     /// let env = Env::builder()
-    ///     .with_file_descriptor_set(include_bytes!("descriptors.bin"))
-    ///     .declare_protobuf_variable("msg", "my.package.MyMessage")?
+    ///     .with_file_descriptor_set(descriptor_bytes)
+    ///     .declare_variable_with_type("msg", ValueType::Struct(StructType::new("my.package.MyMessage")))?
     ///     .build()?;
     /// # Ok::<(), cel_cxx::Error>(())
     /// ```
-    pub fn declare_protobuf_variable(
+    pub fn declare_variable_with_type(
         mut self,
         name: impl Into<String>,
-        type_name: impl Into<String>,
+        value_type: crate::ValueType,
     ) -> Result<Self, Error> {
         self.variable_registry.declare_with_type(
             name,
-            crate::ValueType::Struct(crate::types::StructType::new(type_name)),
+            value_type,
         )?;
         Ok(EnvBuilder {
             macros: self.macros,

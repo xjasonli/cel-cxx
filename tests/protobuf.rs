@@ -303,18 +303,17 @@ fn encode_event(
 }
 
 #[test]
-fn test_bind_protobuf_variable_field_access() -> Result<(), Error> {
+fn test_bind_variable_dynamic_field_access() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Alice", 42);
 
-    let activation = Activation::new().bind_protobuf_variable(
+    let activation = Activation::new().bind_variable_dynamic(
         "msg",
-        "test.SimpleMessage",
-        &bytes,
+        StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()),
     )?;
 
     // Test string field access
@@ -339,15 +338,14 @@ fn test_bind_protobuf_variable_field_access() -> Result<(), Error> {
 fn test_protobuf_value_roundtrip() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Bob", 99);
 
-    let activation = Activation::new().bind_protobuf_variable(
+    let activation = Activation::new().bind_variable_dynamic(
         "msg",
-        "test.SimpleMessage",
-        &bytes,
+        StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()),
     )?;
 
     // Evaluate `msg` directly — should get a Value::Struct back
@@ -356,9 +354,9 @@ fn test_protobuf_value_roundtrip() -> Result<(), Error> {
 
     match &result {
         Value::Struct(s) => {
-            assert_eq!(s.type_name, "test.SimpleMessage");
+            assert_eq!(s.type_name(), "test.SimpleMessage");
             // The bytes should round-trip (serialize the same message back)
-            assert!(!s.bytes.is_empty());
+            assert!(!s.to_bytes().is_empty());
         }
         other => panic!("Expected Value::Struct, got: {other:?}"),
     }
@@ -370,15 +368,14 @@ fn test_protobuf_value_roundtrip() -> Result<(), Error> {
 fn test_protobuf_field_access_string_result() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Charlie", 7);
 
-    let activation = Activation::new().bind_protobuf_variable(
+    let activation = Activation::new().bind_variable_dynamic(
         "msg",
-        "test.SimpleMessage",
-        &bytes,
+        StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()),
     )?;
 
     // Access a string field directly
@@ -404,14 +401,14 @@ fn test_protobuf_field_access_string_result() -> Result<(), Error> {
 fn test_scalar_bool_field() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let addr = encode_address("123 Main St", "Springfield", "62704");
     let bytes = encode_person("Alice", 30, Some(&addr), 1, &["rust"], true);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.active == true")?;
     let result = program.evaluate(&activation)?;
@@ -424,14 +421,14 @@ fn test_scalar_bool_field() -> Result<(), Error> {
 fn test_scalar_default_values() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     // Empty person — all fields at defaults
     let bytes = encode_person("", 0, None, 0, &[], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.age == 0 && person.active == false")?;
     let result = program.evaluate(&activation)?;
@@ -446,14 +443,14 @@ fn test_scalar_default_values() -> Result<(), Error> {
 fn test_nested_message_field_access() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let addr = encode_address("456 Market St", "San Francisco", "94105");
     let bytes = encode_person("Bob", 25, Some(&addr), 0, &[], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.address.city == 'San Francisco'")?;
     let result = program.evaluate(&activation)?;
@@ -466,7 +463,7 @@ fn test_nested_message_field_access() -> Result<(), Error> {
 fn test_deeply_nested_field_access() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("order", "test.Order")?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
         .build()?;
 
     let addr = encode_address("789 Broadway", "NYC", "10001");
@@ -474,7 +471,7 @@ fn test_deeply_nested_field_access() -> Result<(), Error> {
     let bytes = encode_order(Some(&buyer), &[], &[]);
 
     let activation =
-        Activation::new().bind_protobuf_variable("order", "test.Order", &bytes)?;
+        Activation::new().bind_variable_dynamic("order", StructValue::from_bytes("test.Order", bytes.as_slice()))?;
 
     let program = env.compile("order.buyer.address.city == 'NYC'")?;
     let result = program.evaluate(&activation)?;
@@ -489,13 +486,13 @@ fn test_deeply_nested_field_access() -> Result<(), Error> {
 fn test_repeated_string_size() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let bytes = encode_person("Dave", 28, None, 0, &["rust", "cel", "proto"], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.tags.size() == 3")?;
     let result = program.evaluate(&activation)?;
@@ -508,13 +505,13 @@ fn test_repeated_string_size() -> Result<(), Error> {
 fn test_repeated_string_index() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let bytes = encode_person("Dave", 28, None, 0, &["rust", "cel", "proto"], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.tags[0] == 'rust'")?;
     let result = program.evaluate(&activation)?;
@@ -527,13 +524,13 @@ fn test_repeated_string_index() -> Result<(), Error> {
 fn test_repeated_string_exists() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let bytes = encode_person("Dave", 28, None, 0, &["rust", "cel", "proto"], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.tags.exists(t, t == 'cel')")?;
     let result = program.evaluate(&activation)?;
@@ -546,7 +543,7 @@ fn test_repeated_string_exists() -> Result<(), Error> {
 fn test_repeated_message_field() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("order", "test.Order")?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
         .build()?;
 
     let item1 = encode_item("Widget", 100);
@@ -554,7 +551,7 @@ fn test_repeated_message_field() -> Result<(), Error> {
     let bytes = encode_order(None, &[&item1, &item2], &[]);
 
     let activation =
-        Activation::new().bind_protobuf_variable("order", "test.Order", &bytes)?;
+        Activation::new().bind_variable_dynamic("order", StructValue::from_bytes("test.Order", bytes.as_slice()))?;
 
     let program = env.compile("order.items[0].name == 'Widget'")?;
     let result = program.evaluate(&activation)?;
@@ -567,7 +564,7 @@ fn test_repeated_message_field() -> Result<(), Error> {
 fn test_repeated_message_exists() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("order", "test.Order")?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
         .build()?;
 
     let item1 = encode_item("Widget", 100);
@@ -575,7 +572,7 @@ fn test_repeated_message_exists() -> Result<(), Error> {
     let bytes = encode_order(None, &[&item1, &item2], &[]);
 
     let activation =
-        Activation::new().bind_protobuf_variable("order", "test.Order", &bytes)?;
+        Activation::new().bind_variable_dynamic("order", StructValue::from_bytes("test.Order", bytes.as_slice()))?;
 
     let program = env.compile("order.items.exists(i, i.price > 200)")?;
     let result = program.evaluate(&activation)?;
@@ -588,13 +585,13 @@ fn test_repeated_message_exists() -> Result<(), Error> {
 fn test_repeated_empty() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let bytes = encode_person("Eve", 22, None, 0, &[], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.tags.size() == 0")?;
     let result = program.evaluate(&activation)?;
@@ -609,13 +606,13 @@ fn test_repeated_empty() -> Result<(), Error> {
 fn test_map_field_access() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("order", "test.Order")?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
         .build()?;
 
     let bytes = encode_order(None, &[], &[("env", "prod"), ("region", "us-east")]);
 
     let activation =
-        Activation::new().bind_protobuf_variable("order", "test.Order", &bytes)?;
+        Activation::new().bind_variable_dynamic("order", StructValue::from_bytes("test.Order", bytes.as_slice()))?;
 
     let program = env.compile(r#"order.labels["env"] == "prod""#)?;
     let result = program.evaluate(&activation)?;
@@ -628,13 +625,13 @@ fn test_map_field_access() -> Result<(), Error> {
 fn test_map_contains_key() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("order", "test.Order")?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
         .build()?;
 
     let bytes = encode_order(None, &[], &[("env", "prod"), ("region", "us-east")]);
 
     let activation =
-        Activation::new().bind_protobuf_variable("order", "test.Order", &bytes)?;
+        Activation::new().bind_variable_dynamic("order", StructValue::from_bytes("test.Order", bytes.as_slice()))?;
 
     let program = env.compile(r#""env" in order.labels"#)?;
     let result = program.evaluate(&activation)?;
@@ -647,13 +644,13 @@ fn test_map_contains_key() -> Result<(), Error> {
 fn test_map_size() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("order", "test.Order")?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
         .build()?;
 
     let bytes = encode_order(None, &[], &[("env", "prod"), ("region", "us-east")]);
 
     let activation =
-        Activation::new().bind_protobuf_variable("order", "test.Order", &bytes)?;
+        Activation::new().bind_variable_dynamic("order", StructValue::from_bytes("test.Order", bytes.as_slice()))?;
 
     let program = env.compile("order.labels.size() == 2")?;
     let result = program.evaluate(&activation)?;
@@ -668,14 +665,14 @@ fn test_map_size() -> Result<(), Error> {
 fn test_enum_field_as_int() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     // status = STATUS_ACTIVE = 1
     let bytes = encode_person("Frank", 35, None, 1, &[], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.status == 1")?;
     let result = program.evaluate(&activation)?;
@@ -688,14 +685,14 @@ fn test_enum_field_as_int() -> Result<(), Error> {
 fn test_enum_field_named_constant() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     // status = STATUS_ACTIVE = 1
     let bytes = encode_person("Grace", 29, None, 1, &[], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.status == test.Status.STATUS_ACTIVE")?;
     let result = program.evaluate(&activation)?;
@@ -708,14 +705,14 @@ fn test_enum_field_named_constant() -> Result<(), Error> {
 fn test_enum_field_default() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     // status = STATUS_UNSPECIFIED = 0 (default)
     let bytes = encode_person("Hank", 50, None, 0, &[], false);
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let program = env.compile("person.status == 0")?;
     let result = program.evaluate(&activation)?;
@@ -734,14 +731,14 @@ fn test_enum_field_default() -> Result<(), Error> {
 fn test_wkt_duration_field() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let ttl = encode_duration(3600, 0);
     let bytes = encode_event("test", None, Some(&ttl), None, None, None, None, None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let program = env.compile("event.ttl == duration('3600s')")?;
     let result = program.evaluate(&activation)?;
@@ -754,14 +751,14 @@ fn test_wkt_duration_field() -> Result<(), Error> {
 fn test_wkt_duration_comparison() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let ttl = encode_duration(3600, 0); // 1 hour
     let bytes = encode_event("test", None, Some(&ttl), None, None, None, None, None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     // 30m = 1800s, so 3600s > 1800s
     let program = env.compile("event.ttl > duration('1800s')")?;
@@ -777,7 +774,7 @@ fn test_wkt_duration_comparison() -> Result<(), Error> {
 fn test_wkt_timestamp_field() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     // 2024-01-01T00:00:00Z = 1704067200 seconds since epoch
@@ -785,7 +782,7 @@ fn test_wkt_timestamp_field() -> Result<(), Error> {
     let bytes = encode_event("test", Some(&created_at), None, None, None, None, None, None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let program = env.compile("event.created_at == timestamp('2024-01-01T00:00:00Z')")?;
     let result = program.evaluate(&activation)?;
@@ -798,7 +795,7 @@ fn test_wkt_timestamp_field() -> Result<(), Error> {
 fn test_wkt_timestamp_comparison() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     // 2024-01-01T00:00:00Z
@@ -806,7 +803,7 @@ fn test_wkt_timestamp_comparison() -> Result<(), Error> {
     let bytes = encode_event("test", Some(&created_at), None, None, None, None, None, None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let program = env.compile("event.created_at > timestamp('2023-01-01T00:00:00Z')")?;
     let result = program.evaluate(&activation)?;
@@ -821,14 +818,14 @@ fn test_wkt_timestamp_comparison() -> Result<(), Error> {
 fn test_wkt_int64_wrapper() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let count = encode_int64_value(42);
     let bytes = encode_event("test", None, None, Some(&count), None, None, None, None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let program = env.compile("event.optional_count == 42")?;
     let result = program.evaluate(&activation)?;
@@ -841,14 +838,14 @@ fn test_wkt_int64_wrapper() -> Result<(), Error> {
 fn test_wkt_string_wrapper() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let label = encode_string_value("important");
     let bytes = encode_event("test", None, None, None, Some(&label), None, None, None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let program = env.compile("event.optional_label == 'important'")?;
     let result = program.evaluate(&activation)?;
@@ -861,14 +858,14 @@ fn test_wkt_string_wrapper() -> Result<(), Error> {
 fn test_wkt_bool_wrapper() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let flag = encode_bool_value(true);
     let bytes = encode_event("test", None, None, None, None, Some(&flag), None, None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let program = env.compile("event.optional_flag == true")?;
     let result = program.evaluate(&activation)?;
@@ -883,14 +880,14 @@ fn test_wkt_bool_wrapper() -> Result<(), Error> {
 fn test_wkt_struct_field_access() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let metadata = encode_struct_with_string_values(&[("env", "prod"), ("version", "1.0")]);
     let bytes = encode_event("test", None, None, None, None, None, Some(&metadata), None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let program = env.compile("event.metadata.env == 'prod'")?;
     let result = program.evaluate(&activation)?;
@@ -903,14 +900,14 @@ fn test_wkt_struct_field_access() -> Result<(), Error> {
 fn test_wkt_struct_has_key() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let metadata = encode_struct_with_string_values(&[("env", "prod"), ("version", "1.0")]);
     let bytes = encode_event("test", None, None, None, None, None, Some(&metadata), None);
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let program = env.compile("has(event.metadata.env)")?;
     let result = program.evaluate(&activation)?;
@@ -925,7 +922,7 @@ fn test_wkt_struct_has_key() -> Result<(), Error> {
 fn test_wkt_any_type_url() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     // Pack a SimpleMessage into Any
@@ -934,7 +931,7 @@ fn test_wkt_any_type_url() -> Result<(), Error> {
     let bytes = encode_event("test", None, None, None, None, None, None, Some(&payload));
 
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     // Try to check if the Any field is present via has()
     let program = env.compile("has(event.payload)")?;
@@ -949,38 +946,37 @@ fn test_wkt_any_type_url() -> Result<(), Error> {
 // =============================================================================
 
 #[test]
-fn test_as_protobuf_bytes() -> Result<(), Error> {
+fn test_as_struct_accessors() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Alice", 42);
 
-    let activation = Activation::new().bind_protobuf_variable(
+    let activation = Activation::new().bind_variable_dynamic(
         "msg",
-        "test.SimpleMessage",
-        &bytes,
+        StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()),
     )?;
 
     let program = env.compile("msg")?;
     let result = program.evaluate(&activation)?;
 
-    let (type_name, result_bytes) = result.as_protobuf_bytes()?;
-    assert_eq!(type_name, "test.SimpleMessage");
-    assert!(!result_bytes.is_empty());
+    let sv = result.as_struct().unwrap();
+    assert_eq!(sv.type_name(), "test.SimpleMessage");
+    assert!(!sv.to_bytes().is_empty());
 
     Ok(())
 }
 
 #[test]
-fn test_as_protobuf_bytes_error_on_non_struct() -> Result<(), Error> {
+fn test_as_struct_none_on_non_struct() -> Result<(), Error> {
     let env = Env::builder().build()?;
 
     let program = env.compile("42")?;
     let result = program.evaluate(&Activation::new())?;
 
-    assert!(result.as_protobuf_bytes().is_err());
+    assert!(result.as_struct().is_none());
 
     Ok(())
 }
@@ -989,15 +985,14 @@ fn test_as_protobuf_bytes_error_on_non_struct() -> Result<(), Error> {
 fn test_struct_value_from_value() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Bob", 99);
 
-    let activation = Activation::new().bind_protobuf_variable(
+    let activation = Activation::new().bind_variable_dynamic(
         "msg",
-        "test.SimpleMessage",
-        &bytes,
+        StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()),
     )?;
 
     let program = env.compile("msg")?;
@@ -1005,12 +1000,12 @@ fn test_struct_value_from_value() -> Result<(), Error> {
 
     // Extract via FromValue
     let sv = StructValue::from_value(&result)?;
-    assert_eq!(sv.type_name, "test.SimpleMessage");
-    assert!(!sv.bytes.is_empty());
+    assert_eq!(sv.type_name(), "test.SimpleMessage");
+    assert!(!sv.to_bytes().is_empty());
 
     // Extract via borrowed reference
     let sv_ref = <&StructValue>::from_value(&result)?;
-    assert_eq!(sv_ref.type_name, "test.SimpleMessage");
+    assert_eq!(sv_ref.type_name(), "test.SimpleMessage");
 
     Ok(())
 }
@@ -1030,87 +1025,87 @@ fn test_struct_value_from_value_error_on_non_struct() -> Result<(), Error> {
 // =============================================================================
 
 #[test]
-fn test_get_protobuf_field_string() -> Result<(), Error> {
+fn test_get_struct_field_string() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Alice", 42);
     let activation =
-        Activation::new().bind_protobuf_variable("msg", "test.SimpleMessage", &bytes)?;
+        Activation::new().bind_variable_dynamic("msg", StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()))?;
 
     let result = env.compile("msg")?.evaluate(&activation)?;
     let sv = StructValue::from_value(&result)?;
 
-    let name = env.get_protobuf_field(&sv, "name")?;
+    let name = env.get_struct_field(&sv, "name")?;
     assert_eq!(name, Value::String("Alice".into()));
 
     Ok(())
 }
 
 #[test]
-fn test_get_protobuf_field_int() -> Result<(), Error> {
+fn test_get_struct_field_int() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Bob", 99);
     let activation =
-        Activation::new().bind_protobuf_variable("msg", "test.SimpleMessage", &bytes)?;
+        Activation::new().bind_variable_dynamic("msg", StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()))?;
 
     let result = env.compile("msg")?.evaluate(&activation)?;
     let sv = StructValue::from_value(&result)?;
 
-    let id = env.get_protobuf_field(&sv, "id")?;
+    let id = env.get_struct_field(&sv, "id")?;
     assert_eq!(id, Value::Int(99));
 
     Ok(())
 }
 
 #[test]
-fn test_get_protobuf_field_nested() -> Result<(), Error> {
+fn test_get_struct_field_nested() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let addr = encode_address("123 Main St", "Springfield", "62704");
     let bytes = encode_person("Alice", 30, Some(&addr), 1, &["rust"], true);
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let result = env.compile("person")?.evaluate(&activation)?;
     let sv = StructValue::from_value(&result)?;
 
     // Get the nested address field
-    let address_value = env.get_protobuf_field(&sv, "address")?;
+    let address_value = env.get_struct_field(&sv, "address")?;
     let address_sv = StructValue::from_value(&address_value)?;
 
     // Now get city from the nested address
-    let city = env.get_protobuf_field(&address_sv, "city")?;
+    let city = env.get_struct_field(&address_sv, "city")?;
     assert_eq!(city, Value::String("Springfield".into()));
 
     Ok(())
 }
 
 #[test]
-fn test_get_protobuf_field_not_found() -> Result<(), Error> {
+fn test_get_struct_field_not_found() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Alice", 42);
     let activation =
-        Activation::new().bind_protobuf_variable("msg", "test.SimpleMessage", &bytes)?;
+        Activation::new().bind_variable_dynamic("msg", StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()))?;
 
     let result = env.compile("msg")?.evaluate(&activation)?;
     let sv = StructValue::from_value(&result)?;
 
     // cel-cpp returns an error Value for non-existent fields
-    let field = env.get_protobuf_field(&sv, "nonexistent");
+    let field = env.get_struct_field(&sv, "nonexistent");
     match field {
         Err(_) => {} // status error
         Ok(Value::Error(_)) => {} // error value
@@ -1121,45 +1116,45 @@ fn test_get_protobuf_field_not_found() -> Result<(), Error> {
 }
 
 #[test]
-fn test_has_protobuf_field() -> Result<(), Error> {
+fn test_has_struct_field() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let addr = encode_address("123 Main St", "Springfield", "62704");
     let bytes = encode_person("Alice", 30, Some(&addr), 1, &["rust"], true);
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     let result = env.compile("person")?.evaluate(&activation)?;
     let sv = StructValue::from_value(&result)?;
 
-    assert!(env.has_protobuf_field(&sv, "name")?);
-    assert!(env.has_protobuf_field(&sv, "address")?);
+    assert!(env.has_struct_field(&sv, "name")?);
+    assert!(env.has_struct_field(&sv, "address")?);
     // "active" is true, so has() returns true
-    assert!(env.has_protobuf_field(&sv, "active")?);
+    assert!(env.has_struct_field(&sv, "active")?);
 
     // Empty person — fields at defaults
     let empty_bytes = encode_person("", 0, None, 0, &[], false);
     let activation2 =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &empty_bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", empty_bytes.as_slice()))?;
     let result2 = env.compile("person")?.evaluate(&activation2)?;
     let sv2 = StructValue::from_value(&result2)?;
 
     // Proto3 default values: has() returns false for default-valued fields
-    assert!(!env.has_protobuf_field(&sv2, "name")?);
-    assert!(!env.has_protobuf_field(&sv2, "address")?);
-    assert!(!env.has_protobuf_field(&sv2, "active")?);
+    assert!(!env.has_struct_field(&sv2, "name")?);
+    assert!(!env.has_struct_field(&sv2, "address")?);
+    assert!(!env.has_struct_field(&sv2, "active")?);
 
     Ok(())
 }
 
 #[test]
-fn test_get_protobuf_field_wkt() -> Result<(), Error> {
+fn test_get_struct_field_wkt() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("event", "test.Event")?
+        .declare_variable_with_type("event", ValueType::Struct(StructType::new("test.Event")))?
         .build()?;
 
     let ttl = encode_duration(3600, 0);
@@ -1175,13 +1170,13 @@ fn test_get_protobuf_field_wkt() -> Result<(), Error> {
         None,
     );
     let activation =
-        Activation::new().bind_protobuf_variable("event", "test.Event", &bytes)?;
+        Activation::new().bind_variable_dynamic("event", StructValue::from_bytes("test.Event", bytes.as_slice()))?;
 
     let result = env.compile("event")?.evaluate(&activation)?;
     let sv = StructValue::from_value(&result)?;
 
     // Duration field should return a CEL duration value
-    let ttl_value = env.get_protobuf_field(&sv, "ttl")?;
+    let ttl_value = env.get_struct_field(&sv, "ttl")?;
     match &ttl_value {
         Value::Duration(d) => {
             assert_eq!(d.num_seconds(), 3600);
@@ -1190,7 +1185,7 @@ fn test_get_protobuf_field_wkt() -> Result<(), Error> {
     }
 
     // Timestamp field should return a CEL timestamp value
-    let ts_value = env.get_protobuf_field(&sv, "created_at")?;
+    let ts_value = env.get_struct_field(&sv, "created_at")?;
     match &ts_value {
         Value::Timestamp(_) => {} // ok, it's a timestamp
         other => panic!("Expected Value::Timestamp, got: {other:?}"),
@@ -1212,18 +1207,18 @@ fn test_message_construction_simple() -> Result<(), Error> {
     let program = env.compile("test.SimpleMessage{name: 'Bob', id: 25}")?;
     let result = program.evaluate(&Activation::new())?;
 
-    let (type_name, bytes) = result.as_protobuf_bytes()?;
-    assert_eq!(type_name, "test.SimpleMessage");
-    assert!(!bytes.is_empty());
+    let sv = result.as_struct().unwrap();
+    assert_eq!(sv.type_name(), "test.SimpleMessage");
+    assert!(!sv.to_bytes().is_empty());
 
     // Verify by binding the result back and reading fields
     let env2 = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let activation =
-        Activation::new().bind_protobuf_variable("msg", "test.SimpleMessage", bytes)?;
+        Activation::new().bind_variable_dynamic("msg", StructValue::from_bytes("test.SimpleMessage", sv.to_bytes()))?;
 
     let program = env2.compile("msg.name == 'Bob' && msg.id == 25")?;
     let result = program.evaluate(&activation)?;
@@ -1243,17 +1238,17 @@ fn test_message_construction_with_nested() -> Result<(), Error> {
     )?;
     let result = program.evaluate(&Activation::new())?;
 
-    let (type_name, bytes) = result.as_protobuf_bytes()?;
-    assert_eq!(type_name, "test.Person");
+    let sv = result.as_struct().unwrap();
+    assert_eq!(sv.type_name(), "test.Person");
 
     // Verify nested field access
     let env2 = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", sv.to_bytes()))?;
 
     let program = env2.compile("person.address.city == 'NYC' && person.active == true")?;
     let result = program.evaluate(&activation)?;
@@ -1273,17 +1268,17 @@ fn test_message_construction_with_repeated() -> Result<(), Error> {
     )?;
     let result = program.evaluate(&Activation::new())?;
 
-    let (type_name, bytes) = result.as_protobuf_bytes()?;
-    assert_eq!(type_name, "test.Order");
+    let sv = result.as_struct().unwrap();
+    assert_eq!(sv.type_name(), "test.Order");
 
     // Verify round-trip
     let env2 = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("order", "test.Order")?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
         .build()?;
 
     let activation =
-        Activation::new().bind_protobuf_variable("order", "test.Order", bytes)?;
+        Activation::new().bind_variable_dynamic("order", StructValue::from_bytes("test.Order", sv.to_bytes()))?;
 
     let program = env2.compile("order.buyer.name == 'Carol' && order.items.size() == 2 && order.items[1].price == 250")?;
     let result = program.evaluate(&activation)?;
@@ -1310,12 +1305,12 @@ fn test_message_construction_field_access_inline() -> Result<(), Error> {
 fn test_message_construction_equality() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.SimpleMessage")?
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.SimpleMessage")))?
         .build()?;
 
     let bytes = encode_simple_message("Dan", 42);
     let activation =
-        Activation::new().bind_protobuf_variable("msg", "test.SimpleMessage", &bytes)?;
+        Activation::new().bind_variable_dynamic("msg", StructValue::from_bytes("test.SimpleMessage", bytes.as_slice()))?;
 
     // Constructed message should equal the bound variable with same content
     let program = env.compile("msg == test.SimpleMessage{name: 'Dan', id: 42}")?;
@@ -1335,14 +1330,14 @@ fn test_message_construction_equality() -> Result<(), Error> {
 fn test_has_proto3_field_presence() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     // Person with all fields set
     let addr = encode_address("123 Main St", "Springfield", "62704");
     let bytes = encode_person("Alice", 30, Some(&addr), 1, &["rust"], true);
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     // has() returns true for non-default fields
     let cases = [
@@ -1359,7 +1354,7 @@ fn test_has_proto3_field_presence() -> Result<(), Error> {
     // Empty person — all fields at proto3 defaults
     let empty_bytes = encode_person("", 0, None, 0, &[], false);
     let activation2 =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &empty_bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", empty_bytes.as_slice()))?;
 
     // has() returns false for default-valued proto3 fields
     let default_cases = [
@@ -1382,13 +1377,13 @@ fn test_has_proto3_field_presence() -> Result<(), Error> {
 fn test_type_on_message_value() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("person", "test.Person")?
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
         .build()?;
 
     let addr = encode_address("123 Main St", "Springfield", "62704");
     let bytes = encode_person("Alice", 30, Some(&addr), 1, &["rust"], true);
     let activation =
-        Activation::new().bind_protobuf_variable("person", "test.Person", &bytes)?;
+        Activation::new().bind_variable_dynamic("person", StructValue::from_bytes("test.Person", bytes.as_slice()))?;
 
     // type() should return the message type name
     let program = env.compile("type(person) == test.Person")?;
@@ -1404,7 +1399,7 @@ fn test_type_on_message_value() -> Result<(), Error> {
 fn test_error_unknown_type_compile() {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
-        .declare_protobuf_variable("msg", "test.DoesNotExist")
+        .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.DoesNotExist")))
         .unwrap()
         .build()
         .unwrap();
@@ -1421,16 +1416,16 @@ fn test_error_unknown_type_compile() {
 }
 
 #[test]
-fn test_error_get_protobuf_field_unknown_type() {
+fn test_error_get_struct_field_unknown_type() {
     let env = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
         .build()
         .unwrap();
 
     // Construct a StructValue with a type name not in the descriptor pool
-    let sv = StructValue::new("test.NonExistent", vec![]);
+    let sv = StructValue::from_bytes("test.NonExistent", vec![]);
 
-    let result = env.get_protobuf_field(&sv, "name");
+    let result = env.get_struct_field(&sv, "name");
     assert!(result.is_err(), "expected error for unknown type");
     let err_msg = result.unwrap_err().to_string();
     assert!(
