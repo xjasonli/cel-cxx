@@ -155,6 +155,17 @@ impl Build {
     }
 
     pub fn try_build(&mut self) -> Result<Artifacts> {
+        // Short-circuit: use pre-built artifacts if CEL_PREBUILT_DIR is set.
+        // This skips the entire Bazel build, useful for environments where
+        // Bazel cannot download dependencies (e.g. corporate networks).
+        //
+        // Expected layout:
+        //   $CEL_PREBUILT_DIR/lib/libcel.a
+        //   $CEL_PREBUILT_DIR/include/  (cel-cpp + abseil + protobuf headers)
+        if let Ok(prebuilt) = env::var("CEL_PREBUILT_DIR") {
+            return self.use_prebuilt(&prebuilt);
+        }
+
         let target = self.target.as_ref().context("TARGET dir not set")?;
         let out_dir = self.out_dir.as_ref().context("OUT_DIR not set")?;
         if !out_dir.exists() {
@@ -264,6 +275,55 @@ impl Build {
             include_dir: install_include_dir,
             libs,
             target: target.to_owned(),
+        })
+    }
+
+    /// Use pre-built CEL artifacts instead of building from source.
+    ///
+    /// Copies the pre-built `lib/` and `include/` trees into `$OUT_DIR/cel/install/`
+    /// so the rest of the build (cxx bridge compilation) finds them in the
+    /// same location as a normal Bazel build.
+    fn use_prebuilt(&self, prebuilt_dir: &str) -> Result<Artifacts> {
+        let dir = PathBuf::from(prebuilt_dir);
+        let src_lib = dir.join("lib");
+        let src_include = dir.join("include");
+
+        let libcel = if cfg!(windows) { "cel.lib" } else { "libcel.a" };
+        anyhow::ensure!(
+            src_lib.join(libcel).exists(),
+            "CEL_PREBUILT_DIR={prebuilt_dir}: {libcel} not found in {}",
+            src_lib.display()
+        );
+        anyhow::ensure!(
+            src_include.exists(),
+            "CEL_PREBUILT_DIR={prebuilt_dir}: include/ directory not found"
+        );
+
+        // Copy into $OUT_DIR/cel/install/ so cxx_build finds the headers
+        let out_dir = self.out_dir.as_ref().context("OUT_DIR not set")?;
+        let install_dir = out_dir.join("install");
+        if install_dir.exists() {
+            fs::remove_dir_all(&install_dir)?;
+        }
+        let install_lib = install_dir.join("lib");
+        let install_inc = install_dir.join("include");
+        fs::create_dir_all(&install_lib)?;
+        cp_r(&src_include, &install_inc)?;
+        fs::copy(src_lib.join(libcel), install_lib.join(libcel))?;
+
+        println!(
+            "cargo:warning=Using pre-built CEL from {} (skip Bazel)",
+            dir.display()
+        );
+
+        Ok(Artifacts {
+            lib_dir: install_lib,
+            include_dir: install_inc,
+            libs: vec!["cel".to_owned()],
+            target: self
+                .target
+                .clone()
+                .unwrap_or_else(|| "unknown".to_owned()),
         })
     }
 
