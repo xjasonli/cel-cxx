@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-07-01
+
+### Added
+- **Native protobuf support** for binding and evaluating protobuf messages through CEL-CPP type adapters
+  - Descriptor pool loading from serialized `FileDescriptorSet` data
+  - Dynamic `StructValue` values carrying protobuf type names and serialized bytes
+  - Protobuf variable declaration, dynamic variable binding, struct field access, enum constant registration, and per-thread dynamic message factories
+- **Protobuf derive macros** for generated Rust protobuf types
+  - Added `ProstValue`, `ProtobufLegacyValue`, and `ProtobufValue` derive support behind the `prost`, `protobuf-legacy`, and `protobuf` feature flags
+  - Added build integration plus examples for prost and protobuf-legacy backends
+- **Protobuf examples, tests, and documentation** covering basic and advanced evaluation, nested messages, repeated fields, maps, enums, well-known types, and multi-threaded evaluation
+- **Build override support** via `CEL_PREBUILT_DIR` to use prebuilt CEL artifacts and skip the Bazel build
+
+### Changed
+- Made `StructValue` opaque and exposed constructor/accessor methods (`from_bytes`, `type_name`, `to_bytes`) instead of public fields
+- Renamed protobuf-specific APIs to generic dynamic struct APIs:
+  - `declare_protobuf_variable` → `declare_variable_with_type`
+  - `bind_protobuf_variable` → `bind_variable_dynamic`
+  - `get_protobuf_field` / `has_protobuf_field` → `get_struct_field` / `has_struct_field`
+- Cleaned up unused CXX bridge type aliases and suppressed upstream nullability completeness warnings
+
+### Fixed
+- Fixed undefined behavior risks in `Span`/`MutSpan` for empty vectors and safer size hints
+- Fixed unchecked indexing in `TypeParameters`
+- Fixed async evaluation null-result handling to match synchronous evaluation
+- Replaced `Unknown` conversion `todo!()` panics with proper error values
+- Fixed 12 doctests and refreshed macro documentation/examples
+
 ## [0.2.4] - 2025-12-17
 
 ### Added
@@ -238,7 +266,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite and examples
 - CI/CD pipeline for automated testing
 
-[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/xjasonli/cel-cxx/compare/v0.2.5...HEAD
+[0.2.5]: https://github.com/xjasonli/cel-cxx/compare/v0.2.4...v0.2.5
+[0.2.4]: https://github.com/xjasonli/cel-cxx/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/xjasonli/cel-cxx/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/xjasonli/cel-cxx/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/xjasonli/cel-cxx/compare/v0.2.0...v0.2.1
