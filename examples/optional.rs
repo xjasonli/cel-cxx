@@ -1,13 +1,17 @@
+//! Optional access, construction, fallback, and Rust Option conversion.
+//!
+//! Run with `cargo run --example optional`.
+
 use cel_cxx::*;
 use std::collections::HashMap;
 
 fn main() -> Result<(), Error> {
-    println!("🔧 CEL Optional Types Example (Proposal-246 Syntax)");
-    println!("===================================================");
+    println!("CEL Optional Types Example\n");
 
-    // The `enable_optional_syntax` flag has been enabled in the FFI layer.
-    // Now we can directly use the optional syntax in CEL expressions.
+    // Enable optional syntax and the optional standard library together.
+    // Both Rust Option<T> and Optional<T> represent CEL optional_type(T).
     let env = Env::builder()
+        .with_optional(true)
         .declare_variable::<HashMap<String, String>>("person")?
         .declare_variable::<Vec<String>>("items")?
         .declare_variable::<HashMap<String, i64>>("scores")?
@@ -16,206 +20,160 @@ fn main() -> Result<(), Error> {
         .declare_variable::<HashMap<String, HashMap<String, String>>>("data")?
         .build()?;
 
-    // Demo 1: Optional Field Selection - msg.?field
-    println!("\n📌 Demo 1: Optional Field Selection (msg.?field)");
-    demo_optional_field_selection(&env)?;
-
-    // Demo 2: Optional Map Access - map[?key]
-    println!("\n📌 Demo 2: Optional Map Access (map[?key])");
-    demo_optional_map_access(&env)?;
-
-    // Demo 3: Optional List Access - list[?index]
-    println!("\n📌 Demo 3: Optional List Access (list[?index])");
-    demo_optional_list_access(&env)?;
-
-    // Demo 4: Optional Message Construction - Msg{?field: <expr>}
-    println!("\n📌 Demo 4: Optional Message Construction (Msg{{?field: <expr>}})");
-    demo_optional_message_construction(&env)?;
-
-    // Demo 5: Optional Map Construction - {?key: <expr>}
-    println!("\n📌 Demo 5: Optional Map Construction ({{?key: <expr>}})");
-    demo_optional_map_construction(&env)?;
-
-    // Demo 6: Chained Optional Operations
-    println!("\n📌 Demo 6: Chained Optional Operations");
-    demo_chained_optional_operations(&env)?;
-
-    println!("\n✅ All CEL proposal-246 optional syntax examples completed successfully!");
-    Ok(())
-}
-
-fn demo_optional_field_selection(env: &Env) -> Result<(), Error> {
-    println!("  Testing optional field selection: person.?name");
-
-    let mut person = HashMap::new();
-    person.insert("name".to_string(), "Alice".to_string());
-
-    let activation = Activation::new().bind_variable("person", person)?;
-
-    let test_cases = vec![
-        ("person.?name", "Existing field: 'name'"),
-        ("person.?age", "Missing field: 'age'"),
-        (
-            "person.?name.orValue('default')",
-            "Existing field with orValue",
-        ),
-        (
-            "person.?age.orValue('default_age')",
-            "Missing field with orValue",
-        ),
-        ("person.?name.hasValue()", "hasValue on existing field"),
-        ("person.?age.hasValue()", "hasValue on missing field"),
-    ];
-
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-
-    Ok(())
-}
-
-fn demo_optional_map_access(env: &Env) -> Result<(), Error> {
-    println!("  Testing optional map access: scores[?key]");
-
-    let mut scores = HashMap::new();
-    scores.insert("alice".to_string(), 100);
-
-    let activation = Activation::new().bind_variable("scores", scores)?;
-
-    let test_cases = vec![
-        ("scores[?'alice']", "Existing key: 'alice'"),
-        ("scores[?'bob']", "Missing key: 'bob'"),
-        ("scores[?'alice'].orValue(0)", "Existing key with orValue"),
-        ("scores[?'bob'].orValue(50)", "Missing key with orValue"),
-        ("scores[?'alice'].hasValue()", "hasValue on existing key"),
-        ("scores[?'bob'].hasValue()", "hasValue on missing key"),
-    ];
-
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-
-    Ok(())
-}
-
-fn demo_optional_list_access(env: &Env) -> Result<(), Error> {
-    println!("  Testing optional list access: items[?index]");
-
-    let items = vec!["apple".to_string(), "banana".to_string()];
-
-    let activation = Activation::new().bind_variable("items", items)?;
-
-    let test_cases = vec![
-        ("items[?0]", "Valid index: 0"),
-        ("items[?1]", "Valid index: 1"),
-        ("items[?2]", "Out of bounds index: 2"),
-        ("items[?-1]", "Negative index: -1"),
-        ("items[?0].orValue('default')", "Valid index with orValue"),
-        ("items[?2].orValue('default')", "Out of bounds with orValue"),
-        ("items[?1].hasValue()", "hasValue on valid index"),
-        ("items[?2].hasValue()", "hasValue on out of bounds index"),
-    ];
-
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-
-    Ok(())
-}
-
-fn demo_optional_message_construction(env: &Env) -> Result<(), Error> {
-    println!("  Testing optional message construction: Person{{?name: opt_name}} (simulated)");
-
     let activation = Activation::new()
-        .bind_variable("opt_name", Some("Bob".to_string()))?
-        .bind_variable("opt_age", None::<i64>)?;
+        .bind_variable("person", HashMap::from([("name", "Alice")]))?
+        .bind_variable("items", vec!["apple", "banana"])?
+        .bind_variable("scores", HashMap::from([("alice", 100i64)]))?
+        .bind_variable("opt_name", Some("Bob"))?
+        .bind_variable("opt_age", None::<i64>)?
+        .bind_variable(
+            "data",
+            HashMap::from([("profile", HashMap::from([("name", "Eve")]))]),
+        )?;
 
-    // NOTE: Direct message construction with optional fields is not easily demonstrable
-    // without a concrete message type. We simulate the logic with maps.
-    let test_cases = vec![
+    println!("Optional field, map, and list access:");
+    for (expr, expected) in [
+        ("person.?name", Some("Alice").into_value()),
+        ("person.?age", None::<String>.into_value()),
+        ("person.?name.orValue('default')", "Alice".into_value()),
+        ("person.?age.orValue('default')", "default".into_value()),
+        ("person.?name.hasValue()", true.into_value()),
+        ("person.?age.hasValue()", false.into_value()),
+        ("scores[?'alice']", Some(100i64).into_value()),
+        ("scores[?'bob']", None::<i64>.into_value()),
+        ("scores[?'bob'].orValue(50)", 50i64.into_value()),
+        ("items[?0]", Some("apple").into_value()),
+        ("items[?1]", Some("banana").into_value()),
+        ("items[?2]", None::<String>.into_value()),
+        ("items[?-1]", None::<String>.into_value()),
+        ("items[?2].orValue('default')", "default".into_value()),
+        ("data.?profile[?'name']", Some("Eve").into_value()),
+        ("data.?missing[?'name']", None::<String>.into_value()),
+    ] {
+        let result = env.compile(expr)?.evaluate(&activation)?;
+        assert_eq!(result, expected, "{expr}");
+        println!("  {expr} = {result}");
+    }
+
+    // Optional entries omit absent values; they do not insert null.
+    // Message construction uses the same ?field syntax when a protobuf type is declared.
+    println!("\nOptional map and list construction:");
+    for (expr, expected) in [
         (
             "{?'name': opt_name, ?'age': opt_age}",
-            "Construct with one present, one absent optional",
+            HashMap::from([("name", "Bob")]).into_value(),
         ),
         (
             "{?'name': optional.of('Chris')}",
-            "Construct with a present optional",
+            HashMap::from([("name", "Chris")]).into_value(),
         ),
         (
             "{?'age': optional.none()}",
-            "Construct with an absent optional",
-        ),
-    ];
-
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-
-    Ok(())
-}
-
-fn demo_optional_map_construction(env: &Env) -> Result<(), Error> {
-    println!("  Testing optional map construction: {{?key: <expr>}}");
-
-    // Test case 1: optional value is present
-    let activation1 = Activation::new().bind_variable("opt_name", Some("David".to_string()))?;
-
-    let prog1 = env.compile("{?'name': opt_name, 'status': 'active'}")?;
-    let result1 = prog1.evaluate(&activation1)?;
-    println!("    With present optional: `{{?'name': opt_name, 'status': 'active'}}` -> {result1}");
-
-    // Test case 2: optional value is absent
-    let activation2 = Activation::new().bind_variable("opt_name", None::<String>)?;
-
-    // We can reuse prog1
-    let result2 = prog1.evaluate(&activation2)?;
-    println!("    With absent optional: `{{?'name': opt_name, 'status': 'active'}}` -> {result2}");
-
-    // Test case 3: Mixed optional values
-    let activation3 = Activation::new(); // No variables needed
-    let prog3 = env.compile("{?'a': optional.of(1), ?'b': optional.none()}")?;
-    let result3 = prog3.evaluate(&activation3)?;
-    println!(
-        "    With mixed literals: `{{?'a': optional.of(1), ?'b': optional.none()}}` -> {result3}"
-    );
-
-    Ok(())
-}
-
-fn demo_chained_optional_operations(env: &Env) -> Result<(), Error> {
-    println!("  Testing chained optional operations");
-
-    let mut data = HashMap::new();
-    let inner_map = HashMap::from([("name".to_string(), "Eve".to_string())]);
-    data.insert("maybe_map".to_string(), inner_map);
-
-    let activation = Activation::new().bind_variable("data", data)?;
-
-    // This simulates something like `data.?maybe_map[?'name']`
-    let test_cases = vec![
-        (
-            "data.?maybe_map.orValue({})[?'name']",
-            "Chain of optional selection and map access",
+            HashMap::<String, i64>::new().into_value(),
         ),
         (
-            "data.?non_existent_map.orValue({})[?'name']",
-            "Chain with missing first part",
+            "[?opt_name, ?optional.none(), 'fixed']",
+            vec!["Bob", "fixed"].into_value(),
         ),
-    ];
-
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
+        ("[?opt_age, 0]", vec![0i64].into_value()),
+    ] {
+        let result = env.compile(expr)?.evaluate(&activation)?;
+        assert_eq!(result, expected, "{expr}");
+        println!("  {expr} = {result}");
     }
 
+    // Reuse the same program with present, empty, and absent values.
+    let program = env.compile("{?'name': opt_name, 'status': 'active'}")?;
+    for name in [Some("David"), Some(""), None] {
+        let request = Activation::new().bind_variable("opt_name", name)?;
+        let mut expected = HashMap::from([("status", "active")]);
+        if let Some(name) = name {
+            expected.insert("name", name);
+        }
+        let result = program.evaluate(&request)?;
+        assert_eq!(result, expected.into_value());
+        println!("  name = {name:?}: {result}");
+    }
+
+    // Absence and a present null value are different states.
+    for (expr, expected) in [
+        ("optional.none().hasValue()", false),
+        ("optional.of(null).hasValue()", true),
+        ("optional.of(null).value() == null", true),
+        ("optional.of(7).orValue(1 / 0) == 7", true),
+    ] {
+        let result = env.compile(expr)?.evaluate(())?;
+        assert_eq!(result, expected.into_value(), "{expr}");
+        println!("  {expr} = {result}");
+    }
+
+    // ofNonZeroValue wraps non-default values; zero values become none.
+    println!("\nOptional creation, chaining, and list access:");
+    for (expr, expected) in [
+        ("optional.ofNonZeroValue(42).value()", 42i64.into_value()),
+        (
+            "optional.ofNonZeroValue(0).hasValue()",
+            false.into_value(),
+        ),
+        (
+            "optional.ofNonZeroValue('').hasValue()",
+            false.into_value(),
+        ),
+        // or() falls back to another optional and stays lazy.
+        (
+            "optional.of('Alice').or(optional.of('Bob')).value()",
+            "Alice".into_value(),
+        ),
+        (
+            "optional.none().or(optional.of('Bob')).value()",
+            "Bob".into_value(),
+        ),
+        (
+            "optional.none().or(optional.none()).hasValue()",
+            false.into_value(),
+        ),
+        // optMap transforms the wrapped value; optFlatMap flattens nested optionals.
+        (
+            "optional.of(21).optMap(x, x * 2).value()",
+            42i64.into_value(),
+        ),
+        (
+            "optional.none().optMap(x, x * 2).hasValue()",
+            false.into_value(),
+        ),
+        (
+            "optional.of(optional.of(7)).optFlatMap(x, x).value()",
+            7i64.into_value(),
+        ),
+        // first()/last() return optionals; empty lists produce none.
+        ("[10, 20, 30].first().value()", 10i64.into_value()),
+        ("[10, 20, 30].last().value()", 30i64.into_value()),
+        ("[].first().hasValue()", false.into_value()),
+        ("[].last().hasValue()", false.into_value()),
+        ("[].first().orValue(-1)", (-1i64).into_value()),
+    ] {
+        let result = env.compile(expr)?.evaluate(())?;
+        assert_eq!(result, expected, "{expr}");
+        println!("  {expr} = {result}");
+    }
+
+    // optional.unwrap flattens a list of optionals, dropping absent entries.
+    let unwrapped = env
+        .compile("optional.unwrap([optional.of(1), optional.none(), optional.of(3)])")?
+        .evaluate(())?;
+    assert_eq!(unwrapped, vec![1i64, 3].into_value());
+    println!("  optional.unwrap([of(1), none, of(3)]) = {unwrapped}");
+
+    let extract = env.compile("person.?name")?;
+    let name = Option::<String>::try_from(extract.evaluate(&activation)?)?;
+    assert_eq!(name.as_deref(), Some("Alice"));
+    println!("\nConverted to Rust Option<String>: {name:?}");
+
+    let error = env
+        .compile("optional.none().value()")?
+        .evaluate(())
+        .expect_err("extracting an absent optional must fail");
+    assert_eq!(error.code(), Code::FailedPrecondition);
+    println!("Extracting an absent value: {error}");
     Ok(())
 }

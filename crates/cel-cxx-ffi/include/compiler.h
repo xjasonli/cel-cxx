@@ -6,7 +6,6 @@
 #include <compiler/compiler_factory.h>
 #include <compiler/standard_library.h>
 #include <compiler/optional.h>
-#include <cel-cxx-ffi/include/optional.h>
 
 namespace rust::cel_cxx {
 
@@ -80,7 +79,7 @@ inline std::unique_ptr<CompilerLibrary> CompilerLibrary_new_standard() {
 }
 
 inline std::unique_ptr<CompilerLibrary> CompilerLibrary_new_optional() {
-    return std::make_unique<CompilerLibrary>(PatchOptionalCompilerLibrary(cel::OptionalCompilerLibrary()));
+    return std::make_unique<CompilerLibrary>(cel::OptionalCompilerLibrary());
 }
 
 inline std::unique_ptr<CompilerLibrary> CompilerLibrary_from_checker_library(

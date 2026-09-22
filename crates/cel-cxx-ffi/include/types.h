@@ -2,6 +2,8 @@
 #define CEL_CXX_FFI_INCLUDE_COMMON_TYPES_H_
 
 #include <common/type.h>
+#include <absl/status/status.h>
+#include <absl/strings/str_cat.h>
 #include <rust/cxx.h>
 
 namespace rust::cel_cxx {
@@ -25,6 +27,14 @@ using MessageTypeField = cel::MessageTypeField;
 using StructTypeField = cel::StructTypeField;
 
 using Span_Type = absl::Span<const Type>;
+
+// These layouts match the Rust Rep<usize, N> declarations in common/types.rs.
+static_assert(sizeof(Type) == 3 * sizeof(size_t));
+static_assert(alignof(Type) == alignof(size_t));
+static_assert(sizeof(TypeParamType) == 2 * sizeof(size_t));
+static_assert(alignof(TypeParamType) == alignof(size_t));
+static_assert(sizeof(TypeParameters) == 7 * sizeof(size_t));
+static_assert(alignof(TypeParameters) == alignof(size_t));
 
 inline Type Type_new_any() {
     return cel::Type(cel::AnyType());
@@ -66,6 +76,16 @@ inline Type Type_new_enum(const EnumType& enum_type) {
     return cel::Type(enum_type);
 }
 
+inline absl::Status Type_from_enum_name(const DescriptorPool& pool, Str name, Type& result) {
+    const std::string_view type_name(name.data(), name.size());
+    const auto* descriptor = pool.FindEnumTypeByName(type_name);
+    if (descriptor == nullptr) {
+        return absl::InvalidArgumentError(absl::StrCat("Enum type not found: ", type_name));
+    }
+    result = cel::Type::Enum(descriptor);
+    return absl::OkStatus();
+}
+
 inline Type Type_new_error() {
     return cel::Type(cel::ErrorType());
 }
@@ -92,6 +112,16 @@ inline Type Type_new_map(const MapType& map_type) {
 
 inline Type Type_new_message(const MessageType& message_type) {
     return cel::Type(message_type);
+}
+
+inline absl::Status Type_from_message_name(const DescriptorPool& pool, Str name, Type& result) {
+    const std::string_view type_name(name.data(), name.size());
+    const auto* descriptor = pool.FindMessageTypeByName(type_name);
+    if (descriptor == nullptr) {
+        return absl::InvalidArgumentError(absl::StrCat("Message type not found: ", type_name));
+    }
+    result = cel::Type::Message(descriptor);
+    return absl::OkStatus();
 }
 
 inline Type Type_new_null() {

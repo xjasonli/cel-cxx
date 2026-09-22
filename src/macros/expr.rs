@@ -371,7 +371,7 @@ pub struct SelectExpr {
 pub struct CallExpr {
     /// The name of the function being called.
     pub function: String,
-    /// The target expression for method calls (empty for global functions).
+    /// The receiver for method calls; an expression without a kind for global calls.
     pub target: Expr,
     /// The arguments passed to the function.
     pub args: Vec<Expr>,
@@ -523,7 +523,9 @@ impl From<&Expr> for cxx::UniquePtr<crate::ffi::Expr> {
             Some(ExprKind::Call(call)) => {
                 let mut call_expr = ffi_expr.pin_mut().call_expr_mut();
                 call_expr.as_mut().set_function(call.function.as_str().into());
-                call_expr.as_mut().set_target((&call.target).into());
+                if call.target.kind().is_some() {
+                    call_expr.as_mut().set_target((&call.target).into());
+                }
                 let mut args = call_expr.as_mut().args_mut();
                 for arg in &call.args {
                     args.as_mut().push_unique(arg.into());

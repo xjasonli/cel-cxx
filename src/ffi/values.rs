@@ -33,9 +33,7 @@ pub(crate) fn value_from_rust<'a>(
             Value::new_bytes(&bytes_value)
         }
         rust::Value::Struct(s) => {
-            // Deserialization errors become CEL error values rather than Rust errors.
-            // This follows CEL semantics: expressions can observe errors as values
-            // (e.g., via `try()` or short-circuit evaluation) rather than aborting.
+            // Keep deserialization failures in CEL's error propagation.
             match MessageValue::from_bytes(
                 arena,
                 descriptor_pool,
@@ -64,7 +62,10 @@ pub(crate) fn value_from_rust<'a>(
             let mut list_value_builder = ListValueBuilder::new(arena);
             for v in l {
                 let value = value_from_rust(v, arena, descriptor_pool, message_factory);
-                list_value_builder.pin_mut().add(&value);
+                let status = list_value_builder.pin_mut().add(&value);
+                if !status.is_ok() {
+                    return Value::new_error(&ErrorValue::new(status));
+                }
             }
             let list_value = list_value_builder.pin_mut().build();
             Value::new_list(&list_value)
@@ -79,36 +80,43 @@ pub(crate) fn value_from_rust<'a>(
                     message_factory,
                 );
                 let value = value_from_rust(v, arena, descriptor_pool, message_factory);
-                map_value_builder.pin_mut().put(&key, &value);
+                let status = map_value_builder.pin_mut().put(&key, &value);
+                if !status.is_ok() {
+                    return Value::new_error(&ErrorValue::new(status));
+                }
             }
             let map_value = map_value_builder.pin_mut().build();
             Value::new_map(&map_value)
         }
         rust::Value::Unknown(..) => {
-            let error_value = ErrorValue::new(
-                super::Status::internal("cannot convert Unknown value to FFI"),
-            );
+            let error_value = ErrorValue::new(super::Status::internal(
+                "cannot convert Unknown value to FFI",
+            ));
             Value::new_error(&error_value)
         }
-        rust::Value::Type(t) => {
-            let type_ = super::type_from_rust(t, arena, descriptor_pool);
-            let type_value = TypeValue::new(&type_);
-            Value::new_type(&type_value)
-        }
+        rust::Value::Type(t) => match super::type_from_rust(t, arena, descriptor_pool) {
+            Ok(type_) => Value::new_type(&TypeValue::new(&type_)),
+            Err(status) => Value::new_error(&ErrorValue::new(status)),
+        },
         rust::Value::Error(e) => {
             let status = e.into();
             let error_value = ErrorValue::new(status);
             Value::new_error(&error_value)
         }
-        rust::Value::Opaque(o) => {
-            let opaque_value = opaque_value_from_rust(o, arena, descriptor_pool);
-            Value::new_opaque(&opaque_value)
-        }
-        rust::Value::Optional(o) => {
-            let optional_value =
-                optional_value_from_rust(o, arena, descriptor_pool, message_factory);
-            Value::new_optional(&optional_value)
-        }
+        rust::Value::Opaque(o) => match opaque_value_from_rust(o, arena, descriptor_pool) {
+            Ok(opaque_value) => Value::new_opaque(&opaque_value),
+            Err(status) => Value::new_error(&ErrorValue::new(status)),
+        },
+        rust::Value::Optional(o) => match o.as_option() {
+            Some(v) => {
+                let value = value_from_rust(v, arena, descriptor_pool, message_factory);
+                if value.is_error() {
+                    return value;
+                }
+                Value::new_optional(&OptionalValue::new(arena, &value))
+            }
+            None => Value::new_optional(&OptionalValue::none()),
+        },
     }
 }
 
@@ -151,8 +159,7 @@ pub(crate) fn value_to_rust<'a>(
                 .to_bytes()
                 .map_err(|e| rust::Error::from(&e))?;
             Ok(rust::Value::Struct(rust::StructValue::from_bytes(
-                type_name,
-                bytes,
+                type_name, bytes,
             )))
         }
         ValueKind::Duration => {
@@ -209,16 +216,16 @@ pub(crate) fn value_to_rust<'a>(
             }
             Ok(rust::Value::Map(result))
         }
-        ValueKind::Unknown => {
-            Err(rust::Error::internal("Unknown values are not supported"))
-        }
+        ValueKind::Unknown => Err(rust::Error::internal("Unknown values are not supported")),
         ValueKind::Type => {
             let type_value = value.get_type();
             Ok(rust::Value::Type(type_to_rust(type_value.native_value())))
         }
         ValueKind::Error => {
             let error_value = value.get_error();
-            Ok(rust::Value::Error(rust::Error::from(&error_value.native_value())))
+            Ok(rust::Value::Error(rust::Error::from(
+                &error_value.native_value(),
+            )))
         }
         ValueKind::Opaque => {
             if value.is_optional() {
@@ -265,7 +272,7 @@ impl FfiOpaqueValue for FfiOpaqueValueImpl {
         &self,
         arena: &'a Arena,
         descriptor_pool: &'a DescriptorPool,
-    ) -> OpaqueType<'a> {
+    ) -> Result<OpaqueType<'a>, Status> {
         super::opaque_type_from_rust(&self.0.opaque_type(), arena, descriptor_pool)
     }
 }
@@ -274,22 +281,21 @@ pub(crate) fn opaque_value_from_rust<'a>(
     value: &rust::OpaqueValue,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
-) -> cxx::UniquePtr<OpaqueValue<'a>> {
+) -> Result<cxx::UniquePtr<OpaqueValue<'a>>, Status> {
     let ffi = FfiOpaqueValueImpl(value.clone());
     OpaqueValue::new(arena, descriptor_pool, ffi)
 }
 
-fn optional_value_from_rust<'a>(
-    value: &rust::Optional<rust::Value>,
-    arena: &'a Arena,
-    descriptor_pool: &'a DescriptorPool,
-    message_factory: &'a MessageFactory,
-) -> cxx::UniquePtr<OptionalValue<'a>> {
-    match value.as_option() {
-        Some(v) => {
-            let value = value_from_rust(v, arena, descriptor_pool, message_factory);
-            OptionalValue::new(arena, &value)
-        }
-        None => OptionalValue::none(),
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_optional_cannot_be_downcast_as_rust_opaque() {
+        let value = Value::new_optional(&OptionalValue::none());
+        assert!(value
+            .get_opaque()
+            .downcast::<FfiOpaqueValueImpl>()
+            .is_none());
     }
 }

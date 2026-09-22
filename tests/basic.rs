@@ -4,6 +4,31 @@ use std::convert::Infallible;
 use cel_cxx::*;
 
 #[test]
+fn test_overlapping_overload_declarations_fail_to_build() -> Result<(), Error> {
+    let error = Env::builder()
+        .declare_global_function::<fn(StructValue) -> i64>("overlapping")?
+        .declare_global_function::<fn(i64) -> i64>("overlapping")?
+        .build()
+        .expect_err("overlapping overloads must not be silently discarded");
+
+    assert_eq!(error.code(), Code::InvalidArgument);
+    assert!(error.to_string().contains("signature collision"));
+    Ok(())
+}
+
+#[test]
+fn test_function_overlapping_macro_fails_to_build() -> Result<(), Error> {
+    let error = Env::builder()
+        .declare_global_function::<fn(i64) -> bool>("has")?
+        .build()
+        .expect_err("a rejected function declaration must fail the build");
+
+    assert_eq!(error.code(), Code::InvalidArgument);
+    assert!(error.to_string().contains("overlaps with predefined macro"));
+    Ok(())
+}
+
+#[test]
 fn test_math() -> Result<(), Error> {
     println!("test math");
 

@@ -385,3 +385,71 @@ fn test_macro_with_string_constant() -> Result<(), Error> {
 
     Ok(())
 }
+
+#[test]
+fn test_macro_generated_global_and_member_calls_keep_call_style() -> Result<(), Error> {
+    let increment = Macro::new_global("increment", 1, |factory, mut args| {
+        let value = args.pop()?;
+        Some(factory.new_call("_+_", &[value, factory.new_const(1i64)]))
+    })?;
+    let length = Macro::new_global("length", 1, |factory, mut args| {
+        let value = args.pop()?;
+        Some(factory.new_member_call("size", &value, &[]))
+    })?;
+    let env = Env::builder()
+        .declare_variable::<i64>("x")?
+        .declare_variable::<String>("text")?
+        .register_macro(increment)?
+        .register_macro(length)?
+        .build()?;
+
+    let program = env.compile("increment(x)")?;
+    for (x, expected) in [(0i64, 1i64), (41, 42), (-2, -1)] {
+        let activation = Activation::new().bind_variable("x", x)?;
+        assert_eq!(program.evaluate(&activation)?, expected.into_value());
+    }
+    let activation = Activation::new().bind_variable("text", "hello")?;
+    assert_eq!(
+        env.compile("length(text)")?.evaluate(&activation)?,
+        5i64.into_value()
+    );
+    // The global call also survives when its argument is a generated member call.
+    assert_eq!(
+        env.compile("increment(length(text))")?
+            .evaluate(&activation)?,
+        6i64.into_value()
+    );
+    Ok(())
+}
+
+#[test]
+fn test_macro_copy_preserves_global_callbacks_and_evaluates_each_copy() -> Result<(), Error> {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    let duplicate = Macro::new_global("duplicate", 1, |factory, mut args| {
+        let expression = args.pop()?;
+        let copied = factory.copy_expr(&expression);
+        Some(factory.new_list(&[
+            factory.new_list_element(&expression, false),
+            factory.new_list_element(&copied, false),
+        ]))
+    })?;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&calls);
+    let env = Env::builder()
+        .register_global_function("next_value", move || {
+            counter.fetch_add(1, Ordering::SeqCst) as i64 + 1
+        })?
+        .register_macro(duplicate)?
+        .build()?;
+    let program = env.compile("duplicate(next_value())")?;
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert_eq!(program.evaluate(())?, vec![1i64, 2].into_value());
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert_eq!(program.evaluate(())?, vec![3i64, 4].into_value());
+    assert_eq!(calls.load(Ordering::SeqCst), 4);
+    Ok(())
+}

@@ -74,7 +74,6 @@ using TypeRegistry = cel::TypeRegistry;
 using LazyOverload = cel::FunctionRegistry::LazyOverload;
 using Span_Kind = absl::Span<const Kind>;
 using Span_Value = absl::Span<const Value>;
-using Span_CxxString = absl::Span<const std::string>;
 
 struct FunctionRegistryIterator {
     using Map = absl::node_hash_map<std::string, std::vector<const cel::FunctionDescriptor*>>;
@@ -431,6 +430,14 @@ inline bool& RuntimeOptions_enable_fast_builtins_mut(RuntimeOptions& options) {
     return options.enable_fast_builtins;
 }
 
+inline bool RuntimeOptions_enable_type_level_overload(const RuntimeOptions& options) {
+    return options.enable_type_level_overload;
+}
+
+inline bool& RuntimeOptions_enable_type_level_overload_mut(RuntimeOptions& options) {
+    return options.enable_type_level_overload;
+}
+
 
 // FunctionDescriptor
 inline std::unique_ptr<FunctionDescriptor> FunctionDescriptor_new(
@@ -447,6 +454,30 @@ inline std::shared_ptr<FunctionDescriptor> FunctionDescriptor_new_shared(
     auto name_str = std::string_view(name.data(), name.size());
     auto types_vec = std::vector<Kind>(types.data(), types.data() + types.size());
     return std::make_shared<FunctionDescriptor>(name_str, receiver_style, types_vec, is_strict);
+}
+
+// Argument types may reference arena-owned data, so the descriptor must not
+// outlive their arena.
+inline std::unique_ptr<FunctionDescriptor> FunctionDescriptor_new_with_overload_id(
+    Str name, Str overload_id, bool receiver_style,
+    Slice<const Type> types, bool is_strict
+) {
+    auto name_str = std::string_view(name.data(), name.size());
+    auto overload_id_str = std::string_view(overload_id.data(), overload_id.size());
+    auto types_vec = std::vector<Type>(types.data(), types.data() + types.size());
+    return std::make_unique<FunctionDescriptor>(
+        name_str, overload_id_str, receiver_style, std::move(types_vec), is_strict);
+}
+
+inline std::shared_ptr<FunctionDescriptor> FunctionDescriptor_new_shared_with_overload_id(
+    Str name, Str overload_id, bool receiver_style,
+    Slice<const Type> types, bool is_strict
+) {
+    auto name_str = std::string_view(name.data(), name.size());
+    auto overload_id_str = std::string_view(overload_id.data(), overload_id.size());
+    auto types_vec = std::vector<Type>(types.data(), types.data() + types.size());
+    return std::make_shared<FunctionDescriptor>(
+        name_str, overload_id_str, receiver_style, std::move(types_vec), is_strict);
 }
 
 // Program
@@ -501,10 +532,7 @@ public:
 
     virtual absl::StatusOr<Value> Invoke(
         absl::Span<const Value> args,
-        const google::protobuf::DescriptorPool* absl_nonnull descriptor_pool,
-        google::protobuf::MessageFactory* absl_nonnull message_factory,
-        google::protobuf::Arena* absl_nonnull arena,
-        absl::Span<const std::string> overload_id) const override;
+        const cel::Function::InvokeContext& context) const override;
 private:
     Box<AnyFfiFunction> ffi_;
 };

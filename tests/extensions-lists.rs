@@ -169,3 +169,41 @@ fn test_list_comprehensive_operations() -> Result<(), Error> {
 
     Ok(())
 } 
+#[test]
+fn test_list_sort_by() -> Result<(), Error> {
+    println!("test list sortBy macro");
+
+    let env = Env::builder()
+        .with_ext_lists(true)
+        .declare_variable::<Vec<i64>>("items")?
+        .build()?;
+
+    // Sort by identity
+    let program = env.compile("items.sortBy(x, x)")?;
+    let activation = Activation::new()
+        .bind_variable("items", vec![3i64, 1i64, 2i64])?;
+    let res = program.evaluate(&activation)?;
+    assert_eq!(res, Value::List(vec![Value::Int(1), Value::Int(2), Value::Int(3)]));
+
+    // Sort by a key expression (descending via negation)
+    let program = env.compile("items.sortBy(x, -x)")?;
+    let res = program.evaluate(&activation)?;
+    assert_eq!(res, Value::List(vec![Value::Int(3), Value::Int(2), Value::Int(1)]));
+
+    // Sort strings by length
+    let env = Env::builder()
+        .with_ext_lists(true)
+        .declare_variable::<Vec<String>>("words")?
+        .build()?;
+    let program = env.compile("words.sortBy(w, w.size())")?;
+    let activation = Activation::new()
+        .bind_variable("words", vec!["pear".to_string(), "fig".to_string(), "apple".to_string()])?;
+    let res = program.evaluate(&activation)?;
+    assert_eq!(res, Value::List(vec![
+        Value::String("fig".into()),
+        Value::String("pear".into()),
+        Value::String("apple".into()),
+    ]));
+
+    Ok(())
+}

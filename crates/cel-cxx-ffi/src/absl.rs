@@ -44,23 +44,6 @@ mod ffi {
         fn IsUnimplemented(status: &Status) -> bool;
         fn IsUnknown(status: &Status) -> bool;
 
-        fn AbortedError(msg: string_view) -> Status;
-        fn AlreadyExistsError(msg: string_view) -> Status;
-        fn CancelledError(msg: string_view) -> Status;
-        fn DataLossError(msg: string_view) -> Status;
-        fn DeadlineExceededError(msg: string_view) -> Status;
-        fn FailedPreconditionError(msg: string_view) -> Status;
-        fn InternalError(msg: string_view) -> Status;
-        fn InvalidArgumentError(msg: string_view) -> Status;
-        fn NotFoundError(msg: string_view) -> Status;
-        fn OutOfRangeError(msg: string_view) -> Status;
-        fn PermissionDeniedError(msg: string_view) -> Status;
-        fn ResourceExhaustedError(msg: string_view) -> Status;
-        fn UnauthenticatedError(msg: string_view) -> Status;
-        fn UnavailableError(msg: string_view) -> Status;
-        fn UnimplementedError(msg: string_view) -> Status;
-        fn UnknownError(msg: string_view) -> Status;
-
         include!(<absl/strings/string_view.h>);
         #[allow(unused, non_camel_case_types)]
         type string_view<'a> = super::StringView<'a>;
@@ -81,7 +64,6 @@ mod ffi {
         fn log_severity(self: &LogEntry) -> LogSeverity;
         fn text_message<'a>(self: &'a LogEntry) -> string_view<'a>;
         fn source_filename<'a>(self: &'a LogEntry) -> string_view<'a>;
-        //fn source_basename<'a>(self: &'a LogEntry) -> string_view<'a>;
         fn source_line(self: &LogEntry) -> i32;
 
         include!(<absl/log/globals.h>);
@@ -109,7 +91,24 @@ mod ffi {
         fn Status_clone(status: &Status) -> Status;
         fn Status_drop(status: &mut Status);
         fn Status_to_string(status: &Status) -> String;
-        
+
+        fn AbortedError(msg: string_view) -> Status;
+        fn AlreadyExistsError(msg: string_view) -> Status;
+        fn CancelledError(msg: string_view) -> Status;
+        fn DataLossError(msg: string_view) -> Status;
+        fn DeadlineExceededError(msg: string_view) -> Status;
+        fn FailedPreconditionError(msg: string_view) -> Status;
+        fn InternalError(msg: string_view) -> Status;
+        fn InvalidArgumentError(msg: string_view) -> Status;
+        fn NotFoundError(msg: string_view) -> Status;
+        fn OutOfRangeError(msg: string_view) -> Status;
+        fn PermissionDeniedError(msg: string_view) -> Status;
+        fn ResourceExhaustedError(msg: string_view) -> Status;
+        fn UnauthenticatedError(msg: string_view) -> Status;
+        fn UnavailableError(msg: string_view) -> Status;
+        fn UnimplementedError(msg: string_view) -> Status;
+        fn UnknownError(msg: string_view) -> Status;
+
         #[rust_name = "initialize_log"]
         fn InitializeLog();
 
@@ -232,7 +231,13 @@ impl Duration {
 
 impl From<chrono::Duration> for Duration {
     fn from(value: chrono::Duration) -> Self {
-        Self::new(value.num_seconds(), value.subsec_nanos() as u32)
+        let seconds = value.num_seconds();
+        let nanos = value.subsec_nanos();
+        if nanos < 0 {
+            Self::new(seconds - 1, (nanos + 1_000_000_000) as u32)
+        } else {
+            Self::new(seconds, nanos as u32)
+        }
     }
 }
 

@@ -1,6 +1,8 @@
 #include <cel-cxx-ffi/include/checker.h>
 #include <cel-cxx-ffi/src/checker.rs.h>
 
+#include <common/decl.h>
+
 namespace rust::cel_cxx {
 
 std::unique_ptr<TypeCheckerBuilderConfigurer> TypeCheckerBuilderConfigurer_new(
@@ -13,8 +15,8 @@ std::unique_ptr<TypeCheckerBuilderConfigurer> TypeCheckerBuilderConfigurer_new(
 
 std::unique_ptr<FunctionPredicate> FunctionPredicate_new(
     Box<AnyFfiFunctionPredicate> ffi_predicate) {
-    auto predicate = [ffi_predicate = std::move(ffi_predicate)] (absl::string_view function, absl::string_view overload_id) {
-        return ffi_predicate->Call(function, overload_id);
+    auto predicate = [ffi_predicate = std::move(ffi_predicate)] (absl::string_view function, const cel::OverloadDecl& overload) {
+        return ffi_predicate->Call(function, overload);
     };
     return std::make_unique<FunctionPredicate>(std::move(predicate));
 }

@@ -28,6 +28,9 @@
       - [3.4.2 `<optional>.optFlatMap(<var>, <expr>)`](#342-optionaloptflatmapvar-expr)
     - [3.5 实用函数](#35-实用函数)
       - [3.5.1 `optional.unwrap(<list>)`](#351-optionalunwraplist)
+    - [3.6 列表访问函数](#36-列表访问函数)
+      - [3.6.1 `<list>.first()`](#361-listfirst)
+      - [3.6.2 `<list>.last()`](#362-listlast)
   - [4. 类型系统](#4-类型系统)
     - [4.1 可选类型声明](#41-可选类型声明)
     - [4.2 类型兼容性](#42-类型兼容性)
@@ -359,6 +362,31 @@ optional.unwrap([
     optional.none(),
     optional.of("c")
 ].unwrapOpt()  // ["a", "c"]
+```
+
+### 3.6 列表访问函数
+
+#### 3.6.1 `<list>.first()`
+
+返回列表的第一个元素，包装为可选值。空列表返回 `optional.none()`，因此越界访问不会产生错误。
+
+**签名：** `list(T).first() -> optional(T)`
+
+```cel
+[10, 20, 30].first()   // optional.of(10)
+[].first()             // optional.none()
+[].first().orValue(-1) // -1
+```
+
+#### 3.6.2 `<list>.last()`
+
+返回列表的最后一个元素，包装为可选值。空列表返回 `optional.none()`。
+
+**签名：** `list(T).last() -> optional(T)`
+
+```cel
+[10, 20, 30].last()    // optional.of(30)
+[].last()              // optional.none()
 ```
 
 ## 4. 类型系统

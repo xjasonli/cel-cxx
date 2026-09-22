@@ -5,7 +5,115 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-09-21
+
+Migrated to the cel-cpp `feat/runtime-function-overload-resolution` branch
+(pinned at `c84e883d`), replacing the `runtime-function-with-overload-id` hack
+with ID-based overload lookup and full-type descriptors.
+
+### Changed
+- **cel-cpp pin** bumped to `feat/runtime-function-overload-resolution`
+  (`c84e883df5932dcc992dd3494a771c37e85ae1fe`); Windows `fix_msvc.patch` trimmed
+  to `common/values/optional_value.cc` (nine hunks).
+- **Native build dependencies** now require/bootstrap Bazel `8.7.0` and request
+  abseil-cpp `20260526.0`, matching the rebased cel-cpp dependency graph.
+- **`function::FunctionOverloads`** flattened from a two-layer kind-grouped
+  structure to a flat list of `OverloadEntry<T>`. `FunctionKindOverload` and
+  `argument_kinds()` are removed; `entries()` now yields `OverloadEntry<T>` and
+  deduplication is by `(member, full argument types)` so same-kind overloads
+  (e.g. `list<int>` and `list<string>`) coexist. `find`/`find_mut` accept
+  `&[ValueType]` instead of `&[Kind]`; `remove` accepts `&[ValueType]` instead of
+  an iterator of `Kind`.
+- **Runtime registration** registers one type-based+id `FunctionDescriptor`
+  per overload (`FunctionDescriptor::new_with_overload_id`) instead of one
+  kind-based entry per kind group; overload selection happens in cel-cpp by
+  descriptor `overload_id` + full `cel::Type`.
+- **`FfiFunction::invoke`** (cel-cxx-ffi) no longer takes an `overload_id`
+  span; the cel-cpp `Function::Invoke` override is the 2-arg `InvokeContext`
+  form. `FfiFunctionImpl` is single-impl (no id dispatch). The obsolete
+  `Span<CxxString>` bridge and its size helper are removed.
+- **`FfiActivationImpl::new`** (internal cel-cxx activation) is now fallible and takes
+  `arena` + `descriptor_pool`; bindings without a compile-time declaration matching
+  their name, full argument types, and call style are rejected at eval time.
+- **`AnyFfiFunctionPredicate`/`FfiFunctionPredicate`** (cel-cxx-ffi) second
+  parameter is now `&OverloadDecl` (matching the new cel-cpp `FunctionPredicate`),
+  with `OverloadDecl` accessors (`id`, `member`, `result`, `args`) exposed.
+- **Extension registration** (cel-cxx-ffi) exposes the version/options args:
+  `math`/`lists` `register_functions` and `compiler_library` take `version: i32`
+  (+ `latest_version()`); `strings` `register_functions`/`compiler_library` take
+  `&StringsExtensionOptions` (mapped like `RuntimeOptions`: `new()` +
+  `version`/`max_precision` getter/`_mut`).
+- `RuntimeOptions::enable_type_level_overload` getter/setter exposed at the FFI
+  layer only. Statically typed same-kind calls resolve using checker IDs;
+  dynamic same-kind arguments still depend on runtime type matching.
+- Remove the cel-cxx-ffi optional patches (`optional.unwrap`/`unwrapOpt` checker
+  declarations and `orValue` runtime registration) and the local Sets checker
+  implementation; use the upstream libraries directly.
+- `RuntimeBuilder::enable_optional` (cel-cxx-ffi) no longer takes the unused
+  `RuntimeOptions` argument.
+- Async evaluation requires registered functions, bindings, and providers to own
+  their captures (`'static`); synchronous evaluation still accepts borrowed captures.
+- Opaque FFI construction and type conversion return errors for unresolved
+  message/enum type names; well-known protobuf types use CEL's native mappings.
+- Evaluation contexts share the thread-safe protobuf message factory.
+- Refresh all examples with checked results, boundary cases, accurate comments,
+  and plain-text output; document commands and feature requirements in an index.
+
+### Fixed
+- Export the UTF-8 headers required by protobuf `35.1` in native build artifacts.
+- Adapt Abseil status error constructors to the new defaulted source-location
+  parameter while preserving their Rust API.
+- Preserve arena lifetimes through type-based function descriptors, registries,
+  and activation references; declaration/type getter references borrow their owner.
+- Reject zero-argument member function bindings before overload-ID generation.
+- Construct async activation descriptors inside the evaluation worker so they
+  remain within their arena's lifetime.
+- Spawn async workers through a safe API so forgetting an evaluation future
+  cannot leave dangling borrowed captures.
+- Propagate rejected environment declarations/registrations and list/map/optional
+  conversion failures instead of silently dropping them.
+- Compare full binding types even when their display-based overload IDs collide.
+- Preserve callable error codes and return an error for asynchronous callables
+  supplied through a custom synchronous activation.
+- Release protobuf arena messages before their factory and descriptors.
+- Preserve nanosecond precision in duration/timestamp conversion, including
+  negative fractional durations and timestamps before the Unix epoch.
+- Return `None` when a native opaque value is downcast to a Rust opaque wrapper.
+- Correct the FFI size of `TypeParamType` and `TypeParameters` to prevent native
+  writes past Rust storage; check the corresponding native sizes and alignments
+  at compile time.
+- Preserve global versus member call syntax when converting macro ASTs to C++.
+- Enable optional support in examples that use optional operations and preserve
+  empty protobuf strings when encoding repeated elements and oneof values.
+
+### Added
+- `function::OverloadEntry<T>`.
+- `Clone` for function/variable binding collections used by async evaluation snapshots.
+- Examples for per-evaluation function bindings, time boundaries, and async
+  cancellation with resource cleanup.
+
+### Removed
+- **`async-std` runtime support**: the `async-std` feature, the `AsyncStd` runtime
+  type, `use_async_std` methods on `Env`/`EnvBuilder`/`Program`, the `async-std`
+  example, and its tests. The [async-std](https://github.com/async-rs/async-std)
+  project has been unmaintained for over a year and its ecosystem recommends
+  [smol](https://github.com/smol-rs/smol), which cel-cxx already supports via the
+  `smol` feature. Migrate by switching `use_async_std()` to `use_smol()`.
+
+### Tests
+- Cover same-kind global/member overloads, binding overrides and sibling retention,
+  declaration-only bindings, undeclared signatures/names, invalid member bindings,
+  and async overload bindings.
+- Add compile-fail coverage for descriptor arena lifetimes and declaration getter
+  owner borrows.
+- Cover scalar extremes, Unicode/NUL and bytes, nested collections/optionals and
+  types, nanosecond arithmetic, malformed protobuf data, descriptor isolation,
+  all non-OK callable status codes, and registration/binding boundaries.
+- Verify cancellation, resource release, concurrent binding isolation, and owned
+  nested values across Tokio and smol with channel synchronization.
+- Replace collection print-only checks and optional type-tag checks with exact
+  result assertions.
+- Cover macro-generated global/member calls and copied callback expressions.
 
 ## [0.2.5] - 2026-07-01
 

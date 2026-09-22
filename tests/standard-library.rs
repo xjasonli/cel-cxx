@@ -408,6 +408,11 @@ fn test_type_conversions() -> Result<(), Error> {
     // Note: exact type representation may vary
     assert!(matches!(res, Value::Type(_)));
 
+    // Test dyn function (type-erased identity, resolved at compile time)
+    let program = env.compile("dyn(int_val)")?;
+    let res = program.evaluate(&activation)?;
+    assert_eq!(res, Value::Int(42));
+
     Ok(())
 }
 
@@ -465,6 +470,69 @@ fn test_comprehensive_expressions() -> Result<(), Error> {
         .bind_variable("data", data)?;
     let res = program.evaluate(&activation)?;
     assert_eq!(res, Value::Bool(true));
+
+    Ok(())
+}
+
+#[test]
+fn test_timestamp_accessors() -> Result<(), Error> {
+    println!("test timestamp accessors");
+
+    let env = Env::builder()
+        .declare_variable::<String>("ts")?
+        .build()?;
+    // 2023-07-04T15:04:05.678Z is a Tuesday.
+    let activation = Activation::new()
+        .bind_variable("ts", "2023-07-04T15:04:05.678Z".to_string())?;
+
+    let cases = [
+        ("timestamp(ts).getFullYear()", 2023i64),
+        ("timestamp(ts).getMonth()", 6i64),      // 0-based month
+        ("timestamp(ts).getDate()", 4i64),       // 1-based day of month
+        ("timestamp(ts).getDayOfMonth()", 3i64), // 0-based day of month
+        ("timestamp(ts).getDayOfWeek()", 2i64),  // 0 = Sunday
+        ("timestamp(ts).getDayOfYear()", 184i64), // 0-based day of year
+        ("timestamp(ts).getHours()", 15i64),
+        ("timestamp(ts).getMinutes()", 4i64),
+        ("timestamp(ts).getSeconds()", 5i64),
+        ("timestamp(ts).getMilliseconds()", 678i64),
+    ];
+    for (expr, expected) in cases {
+        let program = env.compile(expr)?;
+        let res = program.evaluate(&activation)?;
+        assert_eq!(res, Value::Int(expected), "{expr}");
+    }
+
+    // Timezone overloads resolve the accessor in the given zone
+    // (America/New_York is UTC-4 during July daylight saving time).
+    let program = env.compile("timestamp(ts).getHours('America/New_York')")?;
+    let res = program.evaluate(&activation)?;
+    assert_eq!(res, Value::Int(11));
+
+    Ok(())
+}
+
+#[test]
+fn test_duration_accessors() -> Result<(), Error> {
+    println!("test duration accessors");
+
+    let env = Env::builder()
+        .declare_variable::<String>("dur")?
+        .build()?;
+    let activation = Activation::new()
+        .bind_variable("dur", "1h2m3.5s".to_string())?;
+
+    let cases = [
+        ("duration(dur).getHours()", 1i64),        // total hours
+        ("duration(dur).getMinutes()", 62i64),     // total minutes
+        ("duration(dur).getSeconds()", 3723i64),   // total seconds
+        ("duration(dur).getMilliseconds()", 500i64), // sub-second component
+    ];
+    for (expr, expected) in cases {
+        let program = env.compile(expr)?;
+        let res = program.evaluate(&activation)?;
+        assert_eq!(res, Value::Int(expected), "{expr}");
+    }
 
     Ok(())
 }

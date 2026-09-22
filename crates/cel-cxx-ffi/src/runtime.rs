@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
 use crate::absl::{Span, Status, StringView};
-use crate::common::{Ast, Kind, OpaqueType, Value};
+use crate::common::{Ast, Kind, OpaqueType, Type, Value};
 use crate::protobuf::{Arena, DescriptorPool, MessageFactory};
 
 #[cxx::bridge]
@@ -32,6 +32,7 @@ mod ffi {
         type Kind = super::Kind;
         type Value<'a> = super::Value<'a>;
         type OpaqueType<'a> = super::OpaqueType<'a>;
+        type Type<'a> = super::Type<'a>;
         type Ast = super::Ast;
 
         type UnknownProcessingOptions = super::UnknownProcessingOptions;
@@ -44,36 +45,38 @@ mod ffi {
         ) -> Pin<&'this mut TypeRegistry<'this, 'a>>;
         fn function_registry<'this, 'a, 'f>(
             self: Pin<&'this mut RuntimeBuilder<'a, 'f>>,
-        ) -> Pin<&'this mut FunctionRegistry<'f>>;
+        ) -> Pin<&'this mut FunctionRegistry<'a, 'f>>;
 
         type RuntimeOptions;
 
         type Function<'a>;
-        type FunctionDescriptor;
-        fn name(self: &FunctionDescriptor) -> &CxxString;
-        fn receiver_style(self: &FunctionDescriptor) -> bool;
-        fn types(self: &FunctionDescriptor) -> &CxxVector<Kind>;
-        fn is_strict(self: &FunctionDescriptor) -> bool;
+        type FunctionDescriptor<'a>;
+        fn name<'this>(self: &'this FunctionDescriptor<'_>) -> &'this CxxString;
+        fn kinds<'this>(self: &'this FunctionDescriptor<'_>) -> &'this CxxVector<Kind>;
+        fn types<'a, 'this>(self: &'this FunctionDescriptor<'a>) -> &'this CxxVector<Type<'a>>;
+        fn receiver_style(self: &FunctionDescriptor<'_>) -> bool;
+        fn is_strict(self: &FunctionDescriptor<'_>) -> bool;
+        fn is_contextual(self: &FunctionDescriptor<'_>) -> bool;
         #[rust_name = "shape_matches"]
-        fn ShapeMatches(self: &FunctionDescriptor, other: &FunctionDescriptor) -> bool;
+        fn ShapeMatches(self: &FunctionDescriptor<'_>, other: &FunctionDescriptor<'_>) -> bool;
 
-        type FunctionOverloadReference<'a, 'f> = super::FunctionOverloadReference<'a, 'f>;
+        type FunctionOverloadReference<'a, 'r, 'f> = super::FunctionOverloadReference<'a, 'r, 'f>;
 
-        type FunctionRegistry<'f>;
+        type FunctionRegistry<'a, 'f>;
         #[rust_name = "register"]
-        fn Register<'f>(
-            self: Pin<&mut FunctionRegistry<'f>>,
-            descriptor: &FunctionDescriptor,
+        fn Register<'a, 'f>(
+            self: Pin<&mut FunctionRegistry<'a, 'f>>,
+            descriptor: &FunctionDescriptor<'a>,
             function: UniquePtr<Function<'f>>,
         ) -> Status;
         #[rust_name = "register_lazy"]
-        fn RegisterLazyFunction<'f>(
-            self: Pin<&mut FunctionRegistry<'f>>,
-            descriptor: &FunctionDescriptor,
+        fn RegisterLazyFunction<'a, 'f>(
+            self: Pin<&mut FunctionRegistry<'a, 'f>>,
+            descriptor: &FunctionDescriptor<'a>,
         ) -> Status;
 
-        fn RegisterStandardFunctions(
-            function_registry: Pin<&mut FunctionRegistry>,
+        fn RegisterStandardFunctions<'a, 'f>(
+            function_registry: Pin<&mut FunctionRegistry<'a, 'f>>,
             options: &RuntimeOptions,
         ) -> Status;
 
@@ -86,13 +89,12 @@ mod ffi {
         ) -> Status;
     }
 
-    // We use our patched version of EnableOptionalTypes
-    //
-    //#[namespace = "cel::extensions"]
-    //unsafe extern "C++" {
-    //    include!(<runtime/optional_types.h>);
-    //    fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
-    //}
+    #[namespace = "cel::extensions"]
+    unsafe extern "C++" {
+        include!(<runtime/optional_types.h>);
+        fn EnableOptionalTypes<'a, 'f>(runtime_builder: Pin<&mut RuntimeBuilder<'a, 'f>>)
+            -> Status;
+    }
 
     #[namespace = "cel::runtime_internal"]
     unsafe extern "C++" {
@@ -103,51 +105,50 @@ mod ffi {
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
         include!(<cel-cxx-ffi/include/runtime.h>);
-        type LazyOverload<'a> = super::LazyOverload<'a>;
+        type LazyOverload<'a, 'r> = super::LazyOverload<'a, 'r>;
 
         type Span_Value<'a, 'v> = super::Span<'a, super::Value<'v>>;
-        type Span_CxxString<'a> = super::Span<'a, cxx::CxxString>;
         type Span_Kind<'a> = super::Span<'a, super::Kind>;
 
-        type FunctionRegistryIterator<'a> = super::FunctionRegistryIterator<'a>;
-        fn FunctionRegistryIterator_next<'a>(
-            iter: &mut FunctionRegistryIterator<'a>,
+        type FunctionRegistryIterator<'a, 'r> = super::FunctionRegistryIterator<'a, 'r>;
+        fn FunctionRegistryIterator_next<'a, 'r>(
+            iter: &mut FunctionRegistryIterator<'a, 'r>,
             key: &mut UniquePtr<CxxString>,
-            value: &mut UniquePtr<CxxVector<FunctionDescriptor>>,
+            value: &mut UniquePtr<CxxVector<FunctionDescriptor<'a>>>,
         ) -> bool;
-        fn FunctionRegistryIterator_drop<'a>(iter: &mut FunctionRegistryIterator<'a>);
+        fn FunctionRegistryIterator_drop<'a, 'r>(iter: &mut FunctionRegistryIterator<'a, 'r>);
 
         // Activation
         fn Activation_new<'f>(ffi: Box<AnyFfiActivation<'f>>) -> UniquePtr<Activation<'f>>;
 
         // FunctionRegistry
-        fn FunctionRegistry_find_static_overloads<'this, 'f>(
-            function_registry: &'this FunctionRegistry<'f>,
+        fn FunctionRegistry_find_static_overloads<'this, 'a, 'f>(
+            function_registry: &'this FunctionRegistry<'a, 'f>,
             name: string_view<'_>,
             receiver_style: bool,
             types: Span_Kind<'_>,
-        ) -> Vec<FunctionOverloadReference<'this, 'f>>;
-        fn FunctionRegistry_find_static_overloads_by_arity<'this, 'f>(
-            function_registry: &'this FunctionRegistry<'f>,
+        ) -> Vec<FunctionOverloadReference<'a, 'this, 'f>>;
+        fn FunctionRegistry_find_static_overloads_by_arity<'this, 'a, 'f>(
+            function_registry: &'this FunctionRegistry<'a, 'f>,
             name: string_view<'_>,
             receiver_style: bool,
             arity: usize,
-        ) -> Vec<FunctionOverloadReference<'this, 'f>>;
-        fn FunctionRegistry_find_lazy_overloads<'this, 'f>(
-            function_registry: &'this FunctionRegistry<'f>,
+        ) -> Vec<FunctionOverloadReference<'a, 'this, 'f>>;
+        fn FunctionRegistry_find_lazy_overloads<'this, 'a, 'f>(
+            function_registry: &'this FunctionRegistry<'a, 'f>,
             name: string_view<'_>,
             receiver_style: bool,
             types: Span_Kind<'_>,
-        ) -> Vec<LazyOverload<'this>>;
-        fn FunctionRegistry_find_lazy_overloads_by_arity<'this, 'f>(
-            function_registry: &'this FunctionRegistry<'f>,
+        ) -> Vec<LazyOverload<'a, 'this>>;
+        fn FunctionRegistry_find_lazy_overloads_by_arity<'this, 'a, 'f>(
+            function_registry: &'this FunctionRegistry<'a, 'f>,
             name: string_view<'_>,
             receiver_style: bool,
             arity: usize,
-        ) -> Vec<LazyOverload<'this>>;
-        fn FunctionRegistry_list_functions<'this, 'f>(
-            function_registry: &'this FunctionRegistry<'f>,
-        ) -> FunctionRegistryIterator<'this>;
+        ) -> Vec<LazyOverload<'a, 'this>>;
+        fn FunctionRegistry_list_functions<'this, 'a, 'f>(
+            function_registry: &'this FunctionRegistry<'a, 'f>,
+        ) -> FunctionRegistryIterator<'a, 'this>;
 
         // Runtime
         fn Runtime_create_program<'a, 'f>(
@@ -272,6 +273,10 @@ mod ffi {
         fn RuntimeOptions_enable_fast_builtins_mut(
             runtime_options: Pin<&mut RuntimeOptions>,
         ) -> &mut bool;
+        fn RuntimeOptions_enable_type_level_overload(runtime_options: &RuntimeOptions) -> bool;
+        fn RuntimeOptions_enable_type_level_overload_mut(
+            runtime_options: Pin<&mut RuntimeOptions>,
+        ) -> &mut bool;
 
         // FunctionDescriptor
         fn FunctionDescriptor_new(
@@ -279,14 +284,29 @@ mod ffi {
             receiver_style: bool,
             types: &[Kind],
             is_strict: bool,
-        ) -> UniquePtr<FunctionDescriptor>;
+        ) -> UniquePtr<FunctionDescriptor<'static>>;
 
         fn FunctionDescriptor_new_shared(
             name: &str,
             receiver_style: bool,
             types: &[Kind],
             is_strict: bool,
-        ) -> SharedPtr<FunctionDescriptor>;
+        ) -> SharedPtr<FunctionDescriptor<'static>>;
+
+        fn FunctionDescriptor_new_with_overload_id<'a>(
+            name: &str,
+            overload_id: &str,
+            receiver_style: bool,
+            types: &[Type<'a>],
+            is_strict: bool,
+        ) -> UniquePtr<FunctionDescriptor<'a>>;
+        fn FunctionDescriptor_new_shared_with_overload_id<'a>(
+            name: &str,
+            overload_id: &str,
+            receiver_style: bool,
+            types: &[Type<'a>],
+            is_strict: bool,
+        ) -> SharedPtr<FunctionDescriptor<'a>>;
 
         // Program
         fn Program_evaluate<'a, 'f, 'a2, 'f2>(
@@ -312,9 +332,6 @@ mod ffi {
             descriptor_pool: &DescriptorPool,
             file_descriptor_set_bytes: &[u8],
         ) -> Status;
-
-        include!(<cel-cxx-ffi/include/optional.h>);
-        fn EnableOptionalTypes(runtime_builder: Pin<&mut RuntimeBuilder>) -> Status;
     }
     #[namespace = "rust::cel_cxx"]
     extern "Rust" {
@@ -332,7 +349,7 @@ mod ffi {
         unsafe fn find_function_overloads<'this, 'f>(
             self: &'this AnyFfiActivation<'f>,
             name: &str,
-        ) -> Vec<FunctionOverloadReference<'this, 'f>>;
+        ) -> Vec<FunctionOverloadReference<'this, 'this, 'f>>;
 
         type AnyFfiFunction<'f>;
         #[cxx_name = "Invoke"]
@@ -342,13 +359,12 @@ mod ffi {
             descriptor_pool: &'a DescriptorPool,
             message_factory: &'a MessageFactory,
             arena: &'a Arena,
-            overload_id: Span_CxxString<'_>,
             result: Pin<&mut Value<'a>>,
         ) -> Status;
     }
 
-    impl<'a, 'f> Vec<FunctionOverloadReference<'a, 'f>> {}
-    impl<'a> Vec<LazyOverload<'a>> {}
+    impl<'a, 'r, 'f> Vec<FunctionOverloadReference<'a, 'r, 'f>> {}
+    impl<'a, 'r> Vec<LazyOverload<'a, 'r>> {}
 }
 
 // Activation
@@ -365,29 +381,29 @@ impl<'f> Activation<'f> {
 // FunctionOverloadReference
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct FunctionOverloadReference<'a, 'f> {
-    descriptor: &'a FunctionDescriptor,
-    implementation: &'a Function<'f>,
+pub struct FunctionOverloadReference<'a, 'r, 'f> {
+    descriptor: &'r FunctionDescriptor<'a>,
+    implementation: &'r Function<'f>,
 }
 
-unsafe impl<'a, 'f> cxx::ExternType for FunctionOverloadReference<'a, 'f> {
+unsafe impl<'a, 'r, 'f> cxx::ExternType for FunctionOverloadReference<'a, 'r, 'f> {
     type Id = cxx::type_id!("cel::FunctionOverloadReference");
     type Kind = cxx::kind::Trivial;
 }
 
-impl<'a, 'f> FunctionOverloadReference<'a, 'f> {
-    pub fn new(descriptor: &'a FunctionDescriptor, implementation: &'a Function<'f>) -> Self {
+impl<'a, 'r, 'f> FunctionOverloadReference<'a, 'r, 'f> {
+    pub fn new(descriptor: &'r FunctionDescriptor<'a>, implementation: &'r Function<'f>) -> Self {
         Self {
             descriptor,
             implementation,
         }
     }
 
-    pub fn descriptor(&self) -> &'a FunctionDescriptor {
+    pub fn descriptor(&self) -> &'r FunctionDescriptor<'a> {
         self.descriptor
     }
 
-    pub fn implementation(&self) -> &'a Function<'f> {
+    pub fn implementation(&self) -> &'r Function<'f> {
         self.implementation
     }
 }
@@ -400,20 +416,20 @@ unsafe impl Sync for FunctionProvider {}
 // LazyOverload
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct LazyOverload<'a> {
-    descriptor: &'a FunctionDescriptor,
-    function_provider: &'a FunctionProvider,
+pub struct LazyOverload<'a, 'r> {
+    descriptor: &'r FunctionDescriptor<'a>,
+    function_provider: &'r FunctionProvider,
 }
 
-unsafe impl<'a> cxx::ExternType for LazyOverload<'a> {
+unsafe impl<'a, 'r> cxx::ExternType for LazyOverload<'a, 'r> {
     type Id = cxx::type_id!("rust::cel_cxx::LazyOverload");
     type Kind = cxx::kind::Trivial;
 }
 
-impl<'a> LazyOverload<'a> {
+impl<'a, 'r> LazyOverload<'a, 'r> {
     pub fn new(
-        descriptor: &'a FunctionDescriptor,
-        function_provider: &'a FunctionProvider,
+        descriptor: &'r FunctionDescriptor<'a>,
+        function_provider: &'r FunctionProvider,
     ) -> Self {
         Self {
             descriptor,
@@ -421,11 +437,11 @@ impl<'a> LazyOverload<'a> {
         }
     }
 
-    pub fn descriptor(&self) -> &'a FunctionDescriptor {
+    pub fn descriptor(&self) -> &'r FunctionDescriptor<'a> {
         self.descriptor
     }
 
-    pub fn function_provider(&self) -> &'a FunctionProvider {
+    pub fn function_provider(&self) -> &'r FunctionProvider {
         self.function_provider
     }
 }
@@ -443,7 +459,7 @@ pub trait FfiActivation<'f> {
     fn find_function_overloads<'this>(
         &'this self,
         name: &str,
-    ) -> Vec<FunctionOverloadReference<'this, 'f>>;
+    ) -> Vec<FunctionOverloadReference<'this, 'this, 'f>>;
 }
 
 // AnyFfiActivation
@@ -480,7 +496,7 @@ impl<'f> AnyFfiActivation<'f> {
     fn find_function_overloads<'this>(
         &'this self,
         name: &str,
-    ) -> Vec<FunctionOverloadReference<'this, 'f>> {
+    ) -> Vec<FunctionOverloadReference<'this, 'this, 'f>> {
         self.0.find_function_overloads(name)
     }
 }
@@ -540,8 +556,7 @@ impl<'a, 'f> RuntimeBuilder<'a, 'f> {
         }
     }
 
-    #[allow(unused_variables)]
-    pub fn enable_optional(self: Pin<&mut Self>, options: &RuntimeOptions) -> Result<(), Status> {
+    pub fn enable_optional(self: Pin<&mut Self>) -> Result<(), Status> {
         let status = ffi::EnableOptionalTypes(self);
         if status.is_ok() {
             Ok(())
@@ -777,14 +792,22 @@ impl RuntimeOptions {
     pub fn enable_fast_builtins_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
         ffi::RuntimeOptions_enable_fast_builtins_mut(self)
     }
+
+    pub fn enable_type_level_overload(&self) -> bool {
+        ffi::RuntimeOptions_enable_type_level_overload(self)
+    }
+
+    pub fn enable_type_level_overload_mut<'a>(self: Pin<&'a mut Self>) -> &'a mut bool {
+        ffi::RuntimeOptions_enable_type_level_overload_mut(self)
+    }
 }
 
 // FunctionDescriptor
 pub use ffi::FunctionDescriptor;
-unsafe impl Send for FunctionDescriptor {}
-unsafe impl Sync for FunctionDescriptor {}
+unsafe impl<'a> Send for FunctionDescriptor<'a> {}
+unsafe impl<'a> Sync for FunctionDescriptor<'a> {}
 
-impl FunctionDescriptor {
+impl<'a> FunctionDescriptor<'a> {
     pub fn new(
         name: &str,
         receiver_style: bool,
@@ -802,20 +825,82 @@ impl FunctionDescriptor {
     ) -> cxx::SharedPtr<Self> {
         ffi::FunctionDescriptor_new_shared(name, receiver_style, types, is_strict)
     }
+
+    /// Creates a descriptor with full argument types and an overload id.
+    ///
+    /// The descriptor retains the types' arena lifetime:
+    ///
+    /// ```compile_fail
+    /// use cel_cxx_ffi::{Arena, FunctionDescriptor, ListType, Type};
+    ///
+    /// let descriptor = {
+    ///     let arena = Arena::new();
+    ///     let list = ListType::new(&arena, &Type::new_int());
+    ///     FunctionDescriptor::new_with_overload_id(
+    ///         "f", "f(list<int>)", false, &[Type::new_list(&list)], true,
+    ///     )
+    /// };
+    /// assert_eq!(descriptor.kinds().len(), 1);
+    /// ```
+    pub fn new_with_overload_id(
+        name: &str,
+        overload_id: &str,
+        receiver_style: bool,
+        types: &[Type<'a>],
+        is_strict: bool,
+    ) -> cxx::UniquePtr<Self> {
+        ffi::FunctionDescriptor_new_with_overload_id(
+            name,
+            overload_id,
+            receiver_style,
+            types,
+            is_strict,
+        )
+    }
+
+    /// Creates a shared descriptor that retains the types' arena lifetime.
+    ///
+    /// ```compile_fail
+    /// use cel_cxx_ffi::{Arena, FunctionDescriptor, ListType, Type};
+    ///
+    /// let descriptor = {
+    ///     let arena = Arena::new();
+    ///     let list = ListType::new(&arena, &Type::new_int());
+    ///     FunctionDescriptor::new_shared_with_overload_id(
+    ///         "f", "f(list<int>)", false, &[Type::new_list(&list)], true,
+    ///     )
+    /// };
+    /// assert_eq!(descriptor.kinds().len(), 1);
+    /// ```
+    pub fn new_shared_with_overload_id(
+        name: &str,
+        overload_id: &str,
+        receiver_style: bool,
+        types: &[Type<'a>],
+        is_strict: bool,
+    ) -> cxx::SharedPtr<Self> {
+        ffi::FunctionDescriptor_new_shared_with_overload_id(
+            name,
+            overload_id,
+            receiver_style,
+            types,
+            is_strict,
+        )
+    }
 }
 
 // FunctionRegistry
 pub use ffi::FunctionRegistry;
-unsafe impl<'f> Send for FunctionRegistry<'f> {}
-unsafe impl<'f> Sync for FunctionRegistry<'f> {}
+unsafe impl<'a, 'f> Send for FunctionRegistry<'a, 'f> {}
+unsafe impl<'a, 'f> Sync for FunctionRegistry<'a, 'f> {}
 
-impl<'f> FunctionRegistry<'f> {
+impl<'a, 'f> FunctionRegistry<'a, 'f> {
     pub fn find_static_overloads<'this>(
         &'this self,
         name: StringView<'_>,
         receiver_style: bool,
         types: Span<'_, Kind>,
-    ) -> Vec<FunctionOverloadReference<'this, 'f>> {
+    ) -> Vec<FunctionOverloadReference<'a, 'this, 'f>> {
         ffi::FunctionRegistry_find_static_overloads(self, name, receiver_style, types)
     }
 
@@ -824,7 +909,7 @@ impl<'f> FunctionRegistry<'f> {
         name: StringView<'_>,
         receiver_style: bool,
         arity: usize,
-    ) -> Vec<FunctionOverloadReference<'this, 'f>> {
+    ) -> Vec<FunctionOverloadReference<'a, 'this, 'f>> {
         ffi::FunctionRegistry_find_static_overloads_by_arity(self, name, receiver_style, arity)
     }
 
@@ -833,7 +918,7 @@ impl<'f> FunctionRegistry<'f> {
         name: StringView<'_>,
         receiver_style: bool,
         types: Span<'_, Kind>,
-    ) -> Vec<LazyOverload<'this>> {
+    ) -> Vec<LazyOverload<'a, 'this>> {
         ffi::FunctionRegistry_find_lazy_overloads(self, name, receiver_style, types)
     }
 
@@ -842,37 +927,37 @@ impl<'f> FunctionRegistry<'f> {
         name: StringView<'_>,
         receiver_style: bool,
         arity: usize,
-    ) -> Vec<LazyOverload<'this>> {
+    ) -> Vec<LazyOverload<'a, 'this>> {
         ffi::FunctionRegistry_find_lazy_overloads_by_arity(self, name, receiver_style, arity)
     }
 
-    pub fn list_functions<'this>(&'this self) -> FunctionRegistryIterator<'this> {
+    pub fn list_functions<'this>(&'this self) -> FunctionRegistryIterator<'a, 'this> {
         ffi::FunctionRegistry_list_functions(self)
     }
 }
 
 // FunctionRegistryIterator
 #[repr(C)]
-pub struct FunctionRegistryIterator<'a>(crate::Rep<'a, usize, 1>);
+pub struct FunctionRegistryIterator<'a, 'r>(
+    crate::Rep<'r, usize, 1>,
+    std::marker::PhantomData<&'a ()>,
+);
 
-unsafe impl<'a> cxx::ExternType for FunctionRegistryIterator<'a> {
+unsafe impl<'a, 'r> cxx::ExternType for FunctionRegistryIterator<'a, 'r> {
     type Id = cxx::type_id!("rust::cel_cxx::FunctionRegistryIterator");
     type Kind = cxx::kind::Trivial;
 }
 
-impl<'a> Drop for FunctionRegistryIterator<'a> {
+impl<'a, 'r> Drop for FunctionRegistryIterator<'a, 'r> {
     fn drop(&mut self) {
         ffi::FunctionRegistryIterator_drop(self);
     }
 }
 
-//unsafe impl<'a> Send for FunctionRegistryIterator<'a> {}
-//unsafe impl<'a> Sync for FunctionRegistryIterator<'a> {}
-
-impl<'a> std::iter::Iterator for FunctionRegistryIterator<'a> {
+impl<'a, 'r> std::iter::Iterator for FunctionRegistryIterator<'a, 'r> {
     type Item = (
         cxx::UniquePtr<cxx::CxxString>,
-        cxx::UniquePtr<cxx::CxxVector<FunctionDescriptor>>,
+        cxx::UniquePtr<cxx::CxxVector<FunctionDescriptor<'a>>>,
     );
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -939,7 +1024,6 @@ pub trait FfiFunction {
         descriptor_pool: &'a DescriptorPool,
         message_factory: &'a MessageFactory,
         arena: &'a Arena,
-        overload_id: Span<'_, cxx::CxxString>,
     ) -> Result<cxx::UniquePtr<Value<'a>>, Status>;
 }
 
@@ -957,13 +1041,9 @@ impl<'f> AnyFfiFunction<'f> {
         descriptor_pool: &'a DescriptorPool,
         message_factory: &'a MessageFactory,
         arena: &'a Arena,
-        overload_id: Span<'_, cxx::CxxString>,
         result: Pin<&mut Value<'a>>,
     ) -> Status {
-        match self
-            .0
-            .invoke(args, descriptor_pool, message_factory, arena, overload_id)
-        {
+        match self.0.invoke(args, descriptor_pool, message_factory, arena) {
             Ok(mut value) => {
                 result.swap(value.pin_mut());
                 Status::ok()

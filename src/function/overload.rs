@@ -1,53 +1,48 @@
 //! Function overload management and resolution.
 //!
 //! This module provides types and utilities for managing function overloads,
-//! allowing multiple function implementations with different signatures to
-//! be registered under the same name.
+//! allowing multiple function implementations with different signatures to be
+//! registered under the same name.
 //!
 //! # Key Types
 //!
-//! - [`FunctionOverloads`]: Container for multiple overloads of a function
-//! - [`FunctionKindOverload`]: Overloads grouped by argument kinds  
+//! - [`FunctionOverloads`]: Flat container of overloads for a single function name
+//! - [`OverloadEntry`]: A single overload — the function item plus its call style
 //! - [`FunctionDeclOrImpl`]: Union type for declarations and implementations
 //!
 //! # Overload Resolution
 //!
-//! The system supports sophisticated overload resolution based on:
-//! - **Argument count**: Number of parameters
-//! - **Argument types**: CEL types of each parameter
-//! - **Member vs global**: Whether the function is called as a method
-//!
-//! This enables natural function calls like:
-//! ```text
-//! // Different overloads of "format"
-//! format("Hello")              // format(string) -> string
-//! format("Hello %s", "World")  // format(string, string) -> string  
-//! format(42)                   // format(int) -> string
-//! ```
+//! Overloads are distinguished by full argument types (not just kinds), so
+//! same-kind overloads with different element types (e.g. `list<int>` and
+//! `list<string>`) coexist; exact-duplicate signatures are rejected. The
+//! overload id (see [`FunctionType::id`](crate::types::FunctionType::id)) is used by
+//! both the checker `OverloadDecl` and the runtime `FunctionDescriptor` to
+//! select among overloads.
 
 use super::*;
-use crate::Kind;
 
-/// Collection of function overloads grouped by argument kinds.
+/// Flat collection of function overloads for a single function name.
 ///
-/// `FunctionOverloads<T>` manages multiple function overloads that share the same name
-/// but have different argument signatures. This allows CEL to support function overloading
-/// based on argument types, similar to many programming languages.
+/// `FunctionOverloads<T>` holds one [`OverloadEntry<T>`] per overload, keyed by
+/// `(member, full argument types)`.
 ///
 /// # Type Parameters
 ///
-/// - `T`: The type of function stored (implementation, declaration, or either)
+/// - `T`: the per-overload item — [`FunctionDeclOrImpl<'f>`] (registry) or
+///   [`Function<'f>`](super::Function) (runtime bindings).
 ///
 /// # Examples
 ///
 /// ```rust,no_run
 /// use cel_cxx::function::{FunctionOverloads, FunctionDeclOrImpl};
 ///
-/// let mut overloads = FunctionOverloads::<FunctionDeclOrImpl>::new();
-/// // Add different overloads for the same function name
+/// let overloads = FunctionOverloads::<FunctionDeclOrImpl<'_>>::new();
+/// for overload in overloads.entries() {
+///     // Process each overload entry
+/// }
 /// ```
 #[derive(Debug, Default, Clone)]
-pub struct FunctionOverloads<T>(Vec<FunctionKindOverload<T>>);
+pub struct FunctionOverloads<T>(Vec<OverloadEntry<T>>);
 
 impl<T: FunctionTypeOverload> FunctionOverloads<T> {
     /// Creates a new empty function overload collection.
@@ -55,59 +50,40 @@ impl<T: FunctionTypeOverload> FunctionOverloads<T> {
         Self(Vec::new())
     }
 
-    /// Finds a function overload by member type and argument kinds.
+    /// Finds a function overload by member flag and full argument types.
     ///
     /// # Parameters
     ///
-    /// - `member`: Whether to find member functions (true) or global functions (false)
-    /// - `kinds`: Argument kinds to match
+    /// - `member`: whether to find member functions (true) or global functions (false)
+    /// - `args`: argument types to match (full [`ValueType`]s, not just kinds)
     ///
     /// # Returns
     ///
-    /// Returns `Some(&FunctionKindOverload)` if found, `None` otherwise
-    pub fn find(&self, member: bool, kinds: &[Kind]) -> Option<&FunctionKindOverload<T>> {
+    /// Returns `Some(&OverloadEntry)` if found, `None` otherwise.
+    pub fn find(&self, member: bool, args: &[ValueType]) -> Option<&OverloadEntry<T>> {
         self.0
             .iter()
-            .find(|overload| overload.member() == member && overload.argument_kinds() == kinds)
+            .find(|e| e.member() == member && e.inner().arguments() == args)
     }
 
-    /// Finds a mutable reference to a function overload by member flag and argument kinds.
-    ///
-    /// # Parameters
-    ///
-    /// - `member`: Whether to search for member functions
-    /// - `kinds`: Argument kinds to match
-    ///
-    /// # Returns
-    ///
-    /// Mutable reference to the matching overload, or `None` if not found
-    pub fn find_mut(&mut self, member: bool, kinds: &[Kind]) -> Option<&mut FunctionKindOverload<T>>
+    /// Finds a mutable reference to a function overload by member flag and full
+    /// argument types.
+    pub fn find_mut(&mut self, member: bool, args: &[ValueType]) -> Option<&mut OverloadEntry<T>>
     where
         T: Send + Sync,
     {
         self.0
             .iter_mut()
-            .find(|overload| overload.member() == member && overload.argument_kinds() == kinds)
+            .find(|e| e.member() == member && e.inner().arguments() == args)
     }
 
-    /// Returns an iterator over all function overloads.
-    ///
-    /// # Examples
-    ///
-    /// ```rust,no_run
-    /// use cel_cxx::function::{FunctionOverloads, FunctionDeclOrImpl};
-    ///
-    /// let overloads = FunctionOverloads::<FunctionDeclOrImpl<'_>>::new();
-    /// for overload in overloads.entries() {
-    ///     // Process each overload
-    /// }
-    /// ```
-    pub fn entries(&self) -> impl Iterator<Item = &FunctionKindOverload<T>> {
+    /// Returns an iterator over all function overload entries.
+    pub fn entries(&self) -> impl Iterator<Item = &OverloadEntry<T>> {
         self.0.iter()
     }
 
-    /// Returns a mutable iterator over all function overloads.
-    pub fn entries_mut(&mut self) -> impl Iterator<Item = &mut FunctionKindOverload<T>> {
+    /// Returns a mutable iterator over all function overload entries.
+    pub fn entries_mut(&mut self) -> impl Iterator<Item = &mut OverloadEntry<T>> {
         self.0.iter_mut()
     }
 
@@ -116,35 +92,24 @@ impl<T: FunctionTypeOverload> FunctionOverloads<T> {
         self.0.clear()
     }
 
-    /// Removes a function overload by member flag and argument kinds.
-    ///
-    /// # Parameters
-    ///
-    /// - `member`: Whether to remove member functions
-    /// - `args`: Argument kinds to match for removal
+    /// Removes a function overload by member flag and full argument types.
     ///
     /// # Returns
     ///
-    /// `Ok(())` if removal was successful, `Err(Error)` if not found
-    pub fn remove<I, K>(&mut self, member: bool, args: I) -> Result<(), Error>
-    where
-        I: IntoIterator<Item = K>,
-        K: Into<Kind>,
-    {
-        let kinds = args.into_iter().map(|k| k.into()).collect::<Vec<_>>();
+    /// `Ok(())` if removal was successful, `Err(Error)` if not found.
+    pub fn remove(&mut self, member: bool, args: &[ValueType]) -> Result<(), Error> {
         if let Some(index) = self
             .0
             .iter()
-            .position(|overload| overload.member() == member && overload.argument_kinds() == &kinds)
+            .position(|e| e.member() == member && e.inner().arguments() == args)
         {
             self.0.remove(index);
         } else {
             return Err(Error::not_found(format!(
                 "Overload [{}] ({}) not found",
                 if member { "member" } else { "global" },
-                kinds
-                    .iter()
-                    .map(|k| k.to_string())
+                args.iter()
+                    .map(|t| t.to_string())
                     .collect::<Vec<_>>()
                     .join(", "),
             )));
@@ -156,126 +121,92 @@ impl<T: FunctionTypeOverload> FunctionOverloads<T> {
 impl<'f> FunctionOverloads<FunctionDeclOrImpl<'f>> {
     /// Adds a function implementation to the overloads.
     ///
-    /// This method adds a concrete function implementation to the appropriate overload
-    /// group based on its signature. If no matching overload exists, a new one is created.
+    /// Deduplicates by `(member, full argument types)`: an exact-duplicate
+    /// signature is rejected; same-kind overloads with different element types
+    /// (e.g. `list<int>` vs `list<string>`) coexist.
     ///
     /// # Arguments
     ///
     /// * `member` - Whether this is a member function
     /// * `f` - The function implementation to add
     ///
-    /// # Returns
-    ///
-    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if addition fails
-    ///
     /// # Errors
     ///
-    /// Returns error if the function signature conflicts with existing registrations.
+    /// Returns an error if a function with the same exact signature already
+    /// exists, or if a member function is given zero arguments.
     pub fn add_impl(&mut self, member: bool, f: Function<'f>) -> Result<&mut Self, Error> {
         if member && f.arguments_len() == 0 {
-            return Err(Error::invalid_argument("Member functions cannot have zero arguments"));
+            return Err(Error::invalid_argument(
+                "Member functions cannot have zero arguments",
+            ));
         }
-        let kinds = f
-            .arguments()
-            .into_iter()
-            .map(|t| t.kind())
-            .collect::<Vec<_>>();
-        if let Some(overload) = self.find_mut(member, &kinds) {
-            overload.add_impl(f)?;
-        } else {
-            let mut overload = FunctionKindOverload::new(member, kinds);
-            overload.add_impl(f)?;
-            self.0.push(overload);
+        let args = f.arguments();
+        if self.find(member, &args).is_some() {
+            return Err(Error::invalid_argument("Function already exists"));
         }
+        self.0
+            .push(OverloadEntry::new(member, FunctionDeclOrImpl::new_impl(f)));
         Ok(self)
     }
 
     /// Adds a function declaration to the overloads.
     ///
-    /// This method adds a function type signature (declaration) to the appropriate
-    /// overload group. Declarations provide type information for compile-time checking
-    /// without requiring an implementation.
-    ///
-    /// # Arguments
-    ///
-    /// * `member` - Whether this is a member function declaration
-    /// * `f` - The function type signature to add
-    ///
-    /// # Returns
-    ///
-    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if addition fails
+    /// Deduplicates by `(member, full argument types)`. Declarations provide
+    /// type information for compile-time checking without requiring an
+    /// implementation.
     ///
     /// # Errors
     ///
-    /// Returns error if the function signature conflicts with existing registrations.
+    /// Returns an error if a function with the same exact signature already
+    /// exists, or if a member function is given zero arguments.
     pub fn add_decl(&mut self, member: bool, f: FunctionType) -> Result<&mut Self, Error> {
         if member && f.arguments().is_empty() {
-            return Err(Error::invalid_argument("Member functions cannot have zero arguments"));
+            return Err(Error::invalid_argument(
+                "Member functions cannot have zero arguments",
+            ));
         }
-        let kinds = f.arguments().iter().map(|t| t.kind()).collect::<Vec<_>>();
-        if let Some(overload) = self.find_mut(member, &kinds) {
-            overload.add_decl(f)?;
-        } else {
-            let mut overload = FunctionKindOverload::new(member, kinds);
-            overload.add_decl(f)?;
-            self.0.push(overload);
+        let args = f.arguments().to_vec();
+        if self.find(member, &args).is_some() {
+            return Err(Error::invalid_argument("Function already exists"));
         }
+        self.0
+            .push(OverloadEntry::new(member, FunctionDeclOrImpl::new(f)));
         Ok(self)
     }
 }
 
 impl<'f> FunctionOverloads<Function<'f>> {
-    /// Adds a function to the overloads.
+    /// Adds a function (implementation or declaration) to the overloads.
     ///
-    /// This method adds a function to the appropriate overload group based on its
-    /// signature. This is used when working with pure function implementations
-    /// without separate declarations.
-    ///
-    /// # Arguments
-    ///
-    /// * `member` - Whether this is a member function
-    /// * `f` - The function to add
-    ///
-    /// # Returns
-    ///
-    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if addition fails
+    /// Deduplicates by `(member, full argument types)`. Used when working with
+    /// pure function implementations (runtime bindings) without separate
+    /// declarations.
     ///
     /// # Errors
     ///
-    /// Returns error if the function signature conflicts with existing registrations.
+    /// Returns an error if a function with the same exact signature already
+    /// exists, or if a member function is given zero arguments.
     pub fn add(&mut self, member: bool, f: Function<'f>) -> Result<&mut Self, Error> {
-        let kinds = f
-            .arguments()
-            .into_iter()
-            .map(|t| t.kind())
-            .collect::<Vec<_>>();
-        if let Some(overload) = self.find_mut(member, &kinds) {
-            overload.add(f)?;
-        } else {
-            let mut overload = FunctionKindOverload::new(member, kinds);
-            overload.add(f)?;
-            self.0.push(overload);
+        if member && f.arguments_len() == 0 {
+            return Err(Error::invalid_argument(
+                "Member functions cannot have zero arguments",
+            ));
         }
+        let args = f.arguments();
+        if self.find(member, &args).is_some() {
+            return Err(Error::invalid_argument("Function already exists"));
+        }
+        self.0.push(OverloadEntry::new(member, f));
         Ok(self)
     }
 }
 
 /// Trait for extracting argument types from function-like objects.
 ///
-/// This trait provides a unified interface for getting argument type information
-/// from different kinds of function objects (implementations, declarations, etc.).
-/// It is used internally by the overload resolution system.
-///
-/// # Implementation Note
-///
-/// This trait is automatically implemented for function types that can provide
-/// argument type information. It should not be implemented manually.
+/// Implemented for [`FunctionDeclOrImpl`] (registry) and [`Function`](super::Function)
+/// (bindings).
 pub trait FunctionTypeOverload {
-    /// Returns the argument types for this function.
-    ///
-    /// # Returns
-    ///
-    /// A vector of [`ValueType`] representing the function's argument types.
+    /// Returns the argument types for this function (full [`ValueType`]s).
     fn arguments(&self) -> Vec<ValueType>;
 }
 
@@ -291,214 +222,34 @@ impl FunctionTypeOverload for Function<'_> {
     }
 }
 
-/// Function overload for a specific argument kind signature.
+/// A single overload: the function item plus its call style.
 ///
-/// `FunctionKindOverload` groups function implementations and declarations that have
-/// the same member flag and argument kinds. This allows for efficient lookup and
-/// type checking during function resolution.
+/// `member` distinguishes member calls from global calls; the item retains
+/// its full [`FunctionType`].
 ///
 /// # Type Parameters
 ///
-/// - `T`: The type of function stored (implementation or declaration)
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use cel_cxx::{Kind, function::{FunctionKindOverload, Function}};
-///
-/// // Create overload for member function taking (string, int)
-/// let overload = FunctionKindOverload::<Function<'_>>::new(
-///     true,
-///     vec![Kind::String, Kind::Int]
-/// );
-/// ```
+/// - `T`: the function item — [`FunctionDeclOrImpl<'f>`] or [`Function<'f>`](super::Function)
 #[derive(Debug, Clone)]
-pub struct FunctionKindOverload<T> {
+pub struct OverloadEntry<T> {
     member: bool,
-    argument_kinds: Vec<Kind>,
-    entries: Vec<T>,
+    inner: T,
 }
 
-impl<T: FunctionTypeOverload> FunctionKindOverload<T> {
-    /// Creates a new function kind overload.
-    ///
-    /// # Parameters
-    ///
-    /// - `member`: Whether this overload is for member functions
-    /// - `argument_kinds`: The argument kinds this overload handles
-    ///
-    /// # Returns
-    ///
-    /// New `FunctionKindOverload` instance
-    pub fn new(member: bool, argument_kinds: Vec<Kind>) -> Self {
-        Self {
-            member,
-            argument_kinds,
-            entries: Vec::new(),
-        }
+impl<T: FunctionTypeOverload> OverloadEntry<T> {
+    /// Creates a new overload entry.
+    pub fn new(member: bool, inner: T) -> Self {
+        Self { member, inner }
     }
 
-    /// Returns whether this overload is for member functions.
-    ///
-    /// # Returns
-    ///
-    /// `true` if this overload handles member functions, `false` for global functions
+    /// Returns whether this overload is a member function.
     pub fn member(&self) -> bool {
         self.member
     }
 
-    /// Returns the argument kinds for this overload.
-    ///
-    /// # Returns
-    ///
-    /// Reference to the vector of argument kinds this overload handles
-    pub fn argument_kinds(&self) -> &Vec<Kind> {
-        &self.argument_kinds
-    }
-
-    /// Finds a function by exact argument types.
-    ///
-    /// # Parameters
-    ///
-    /// - `args`: Argument types to match
-    ///
-    /// # Returns
-    ///
-    /// Reference to the matching function, or `None` if not found
-    pub fn find(&self, args: &[ValueType]) -> Option<&T> {
-        self.entries.iter().find(|entry| entry.arguments() == args)
-    }
-
-    /// Returns an iterator over all functions in this overload.
-    ///
-    /// # Returns
-    ///
-    /// Iterator over references to all functions in this overload
-    pub fn entries(&self) -> impl Iterator<Item = &T> {
-        self.entries.iter()
-    }
-
-    /// Returns a mutable iterator over all functions in this overload.
-    ///
-    /// # Returns
-    ///
-    /// Iterator over mutable references to all functions in this overload
-    pub fn entries_mut(&mut self) -> impl Iterator<Item = &mut T> {
-        self.entries.iter_mut()
-    }
-
-    /// Clears all functions from this overload.
-    pub fn clear(&mut self) {
-        self.entries.clear();
-    }
-
-    /// Removes a function by exact argument types.
-    ///
-    /// # Parameters
-    ///
-    /// - `args`: Argument types to match for removal
-    ///
-    /// # Returns
-    ///
-    /// `Ok(())` if removal was successful, `Err(Error)` if not found
-    pub fn remove(&mut self, args: &[ValueType]) -> Result<(), Error> {
-        if let Some(index) = self
-            .entries
-            .iter()
-            .position(|entry| entry.arguments() == args)
-        {
-            self.entries.remove(index);
-        } else {
-            return Err(Error::not_found(format!(
-                "Overload [{}] ({}) not found",
-                if self.member { "member" } else { "global" },
-                args.iter()
-                    .map(|t| t.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", "),
-            )));
-        }
-        Ok(())
-    }
-}
-
-impl<'f> FunctionKindOverload<FunctionDeclOrImpl<'f>> {
-    /// Adds a function implementation to this overload group.
-    ///
-    /// This method adds a concrete function implementation to the overload group.
-    /// The function signature must match the argument kinds of this overload group.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - The function implementation to add
-    ///
-    /// # Returns
-    ///
-    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if the function already exists
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if a function with the same exact signature already exists.
-    pub fn add_impl(&mut self, f: Function<'f>) -> Result<&mut Self, Error> {
-        if let Some(_entry) = self.find(&f.arguments()) {
-            return Err(Error::invalid_argument("Function already exists"));
-        }
-        self.entries.push(FunctionDeclOrImpl::new_impl(f));
-        Ok(self)
-    }
-
-    /// Adds a function declaration to this overload group.
-    ///
-    /// This method adds a function type signature (declaration) to the overload group.
-    /// The function signature must match the argument kinds of this overload group.
-    ///
-    /// # Arguments
-    ///
-    /// * `r#type` - The function type signature to add
-    ///
-    /// # Returns
-    ///
-    /// `Ok(&mut Self)` for method chaining, or `Err(Error)` if the function already exists
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if a function with the same exact signature already exists.
-    pub fn add_decl(&mut self, r#type: FunctionType) -> Result<&mut Self, Error> {
-        if let Some(_entry) = self.find(r#type.arguments()) {
-            return Err(Error::invalid_argument("Function already exists"));
-        }
-        self.entries.push(FunctionDeclOrImpl::new(r#type));
-        Ok(self)
-    }
-}
-
-impl<'f> FunctionKindOverload<Function<'f>> {
-    /// Adds a function (implementation or declaration) to this overload.
-    ///
-    /// This is a convenience method that automatically determines whether to add
-    /// an implementation or declaration based on the function type.
-    ///
-    /// # Type Parameters
-    ///
-    /// - `F`: Function type
-    /// - `M`: Function marker (sync/async)
-    /// - `E`: Error type
-    /// - `R`: Return type
-    /// - `A`: Argument tuple type
-    ///
-    /// # Parameters
-    ///
-    /// - `f`: Function to add
-    ///
-    /// # Returns
-    ///
-    /// Mutable reference to self for chaining, or error if addition failed
-    pub fn add(&mut self, f: Function<'f>) -> Result<&mut Self, Error> {
-        if let Some(_entry) = self.find(&f.arguments()) {
-            return Err(Error::invalid_argument("Function already exists"));
-        }
-        self.entries.push(f);
-        Ok(self)
+    /// Returns the function item (declaration/impl or binding).
+    pub fn inner(&self) -> &T {
+        &self.inner
     }
 }
 

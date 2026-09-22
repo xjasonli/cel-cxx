@@ -11,7 +11,7 @@
 //! - **Type safety**: Programs know their return type at compile time
 //! - **Variable binding**: Support for dynamic variable values through activations
 //! - **Async support**: Programs can contain and evaluate async functions
-//! - **Runtime selection**: Choose between different async runtimes (Tokio, async-std)
+//! - **Runtime selection**: Choose between different async runtimes (Tokio, smol)
 //!
 //! # Program Types
 //!
@@ -79,7 +79,7 @@
 //! ## Async evaluation
 //!
 //! ```rust,no_run
-//! # #[cfg(feature = "async")]
+//! # #[cfg(all(feature = "async", feature = "tokio"))]
 //! # async fn example() -> Result<(), cel_cxx::Error> {
 //! use cel_cxx::*;
 //! use cel_cxx::r#async::Tokio;
@@ -232,6 +232,12 @@ impl<'f, Fm: FnMarker, Rm: RuntimeMarker> Program<'f, Fm, Rm> {
     /// - For synchronous programs: Returns `Result<Value, Error>`
     /// - For asynchronous programs: Returns `BoxFuture<Result<Value, Error>>`
     ///
+    /// Asynchronous evaluation requires registered functions, bound functions,
+    /// and variable providers to own their captures (`'static`). Use `move`
+    /// closures or `Arc` to share captured state. The activation itself may be
+    /// borrowed because its bindings are cloned before the worker starts.
+    /// Synchronous evaluation also supports closures that borrow local state.
+    ///
     /// # Arguments
     ///
     /// * `activation` - The activation containing variable and function bindings
@@ -372,6 +378,52 @@ const _: () = {
         ///
         /// This is a convenience method equivalent to `use_runtime::<Tokio>()`.
         ///
+        /// Functions used during asynchronous evaluation must own their captures.
+        /// A registered function cannot borrow a local value:
+        ///
+        /// ```compile_fail
+        /// use cel_cxx::*;
+        ///
+        /// let text = String::from("borrowed");
+        /// let env = Env::builder()
+        ///     .register_global_function("length", || text.len() as i64).unwrap()
+        ///     .build().unwrap();
+        /// let program = env.compile("length()").unwrap().force_async().use_tokio();
+        /// let future = program.evaluate(Activation::new());
+        /// std::mem::forget(future);
+        /// ```
+        ///
+        /// The same restriction applies to runtime function bindings:
+        ///
+        /// ```compile_fail
+        /// use cel_cxx::*;
+        ///
+        /// let text = String::from("borrowed");
+        /// let env = Env::builder()
+        ///     .declare_global_function::<fn() -> i64>("length").unwrap()
+        ///     .build().unwrap();
+        /// let program = env.compile("length()").unwrap().force_async().use_tokio();
+        /// let activation = Activation::new()
+        ///     .bind_global_function("length", || text.len() as i64).unwrap();
+        /// let future = program.evaluate(&activation);
+        /// std::mem::forget(future);
+        /// ```
+        ///
+        /// Variable providers must also own their captures:
+        ///
+        /// ```compile_fail
+        /// use cel_cxx::*;
+        ///
+        /// let text = String::from("borrowed");
+        /// let env = Env::builder().declare_variable::<i64>("length").unwrap()
+        ///     .build().unwrap();
+        /// let program = env.compile("length").unwrap().force_async().use_tokio();
+        /// let activation = Activation::new()
+        ///     .bind_variable_provider("length", || text.len() as i64).unwrap();
+        /// let future = program.evaluate(&activation);
+        /// std::mem::forget(future);
+        /// ```
+        ///
         /// # Examples
         ///
         /// ```rust,no_run
@@ -390,30 +442,6 @@ const _: () = {
         #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
         pub fn use_tokio(self) -> Program<'f, Fm, Tokio> {
             self.use_runtime::<Tokio>()
-        }
-
-        /// Configures this program to use the async-std runtime.
-        ///
-        /// This is a convenience method equivalent to `use_runtime::<AsyncStd>()`.
-        ///
-        /// # Examples
-        ///
-        /// ```rust,no_run
-        /// # #[cfg(feature = "async-std")]
-        /// # fn example() -> Result<(), cel_cxx::Error> {
-        /// use cel_cxx::*;
-        ///
-        /// let env = Env::builder().build()?;
-        /// let program = env.compile("42")?;
-        ///
-        /// let async_std_program = program.use_async_std();
-        /// # Ok::<(), cel_cxx::Error>(())
-        /// # }
-        /// ```
-        #[cfg(feature = "async-std")]
-        #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
-        pub fn use_async_std(self) -> Program<'f, Fm, AsyncStd> {
-            self.use_runtime::<AsyncStd>()
         }
 
         /// Configures this program to use the smol runtime.
@@ -465,7 +493,51 @@ mod test {
     #![allow(unused)]
 
     use super::*;
-    use crate::Activation;
+    use crate::{Activation, Env};
+
+    #[test]
+    fn synchronous_evaluation_accepts_borrowed_captures() -> Result<(), Error> {
+        let text = String::from("borrowed");
+        let env = Env::builder()
+            .register_global_function("registered_length", || text.len() as i64)?
+            .declare_global_function::<fn() -> i64>("bound_length")?
+            .declare_variable::<i64>("provided_length")?
+            .build()?;
+        let program = env.compile("registered_length() + bound_length() + provided_length")?;
+        let activation = Activation::new()
+            .bind_global_function("bound_length", || text.len() as i64)?
+            .bind_variable_provider("provided_length", || text.len() as i64)?;
+
+        assert_eq!(program.evaluate(&activation)?, Value::Int(24));
+        Ok(())
+    }
+
+    #[cfg(feature = "tokio")]
+    #[tokio::test(flavor = "multi_thread")]
+    async fn asynchronous_evaluation_owns_worker_captures() -> Result<(), Error> {
+        let text = String::from("owned");
+        let env = Env::builder()
+            .register_global_function("registered_length", move || text.len() as i64)?
+            .declare_global_function::<fn() -> i64>("bound_length")?
+            .declare_variable::<i64>("provided_length")?
+            .build()?;
+        let program = env
+            .compile("registered_length() + bound_length() + provided_length")?
+            .force_async()
+            .use_tokio();
+        let bound_text = String::from("binding");
+        let provided_text = String::from("provider");
+        let activation = Activation::new()
+            .bind_global_function("bound_length", move || bound_text.len() as i64)?
+            .bind_variable_provider("provided_length", move || provided_text.len() as i64)?;
+
+        let future = program.evaluate(&activation);
+        drop(activation);
+        drop(program);
+        drop(env);
+        assert_eq!(future.await?, Value::Int(20));
+        Ok(())
+    }
 
     fn assert_eval_type<'f>(program: Program<'f, (), ()>, activation: Activation<'f, ()>) {
         let _result: Result<Value, Error> = program.evaluate(activation);
@@ -473,38 +545,42 @@ mod test {
 
     #[cfg(feature = "async")]
     const _: () = {
+        #[cfg(feature = "tokio")]
         use crate::r#async::Tokio;
         use crate::Async;
         use futures::future::BoxFuture;
 
         #[cfg(feature = "tokio")]
         const _: () = {
-            fn assert_eval_type_async1<'f>(
-                program: Program<'f, Async, Tokio>,
-                activation: Activation<'f, ()>,
+            fn assert_eval_type_async1(
+                program: Program<'static, Async, Tokio>,
+                activation: Activation<'static, ()>,
             ) {
-                let _result: BoxFuture<'f, Result<Value, Error>> = program.evaluate(activation);
+                let _result: BoxFuture<'static, Result<Value, Error>> =
+                    program.evaluate(activation);
             }
 
-            fn assert_eval_type_async2<'f>(
-                program: Program<'f, (), Tokio>,
-                activation: Activation<'f, Async>,
+            fn assert_eval_type_async2(
+                program: Program<'static, (), Tokio>,
+                activation: Activation<'static, Async>,
             ) {
-                let _result: BoxFuture<'f, Result<Value, Error>> = program.evaluate(activation);
+                let _result: BoxFuture<'static, Result<Value, Error>> =
+                    program.evaluate(activation);
             }
 
-            fn assert_eval_type_async3<'f>(
-                program: Program<'f, Async, Tokio>,
-                activation: Activation<'f, Async>,
+            fn assert_eval_type_async3(
+                program: Program<'static, Async, Tokio>,
+                activation: Activation<'static, Async>,
             ) {
-                let _result: BoxFuture<'f, Result<Value, Error>> = program.evaluate(activation);
+                let _result: BoxFuture<'static, Result<Value, Error>> =
+                    program.evaluate(activation);
             }
 
-            fn assert_eval_type_async4<'f>(
-                program: Program<'f, Async, ()>,
-                activation: Activation<'f, Async>,
+            fn assert_eval_type_async4(
+                program: Program<'static, Async, ()>,
+                activation: Activation<'static, Async>,
             ) {
-                let _result: BoxFuture<'f, Result<Value, Error>> =
+                let _result: BoxFuture<'static, Result<Value, Error>> =
                     program.use_tokio().evaluate(activation);
             }
         };

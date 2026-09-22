@@ -28,6 +28,9 @@
       - [3.4.2 `<optional>.optFlatMap(<var>, <expr>)`](#342-optionaloptflatmapvar-expr)
     - [3.5 Utility Functions](#35-utility-functions)
       - [3.5.1 `optional.unwrap(<list>)`](#351-optionalunwraplist)
+    - [3.6 List Access Functions](#36-list-access-functions)
+      - [3.6.1 `<list>.first()`](#361-listfirst)
+      - [3.6.2 `<list>.last()`](#362-listlast)
   - [4. Type System](#4-type-system)
     - [4.1 Optional Type Declaration](#41-optional-type-declaration)
     - [4.2 Type Compatibility](#42-type-compatibility)
@@ -359,6 +362,31 @@ optional.unwrap([
     optional.none(),
     optional.of("c")
 ].unwrapOpt()  // ["a", "c"]
+```
+
+### 3.6 List Access Functions
+
+#### 3.6.1 `<list>.first()`
+
+Returns the first element of a list wrapped in an optional. An empty list produces `optional.none()`, so out-of-range access never raises an error.
+
+**Signature:** `list(T).first() -> optional(T)`
+
+```cel
+[10, 20, 30].first()   // optional.of(10)
+[].first()             // optional.none()
+[].first().orValue(-1) // -1
+```
+
+#### 3.6.2 `<list>.last()`
+
+Returns the last element of a list wrapped in an optional. An empty list produces `optional.none()`.
+
+**Signature:** `list(T).last() -> optional(T)`
+
+```cel
+[10, 20, 30].last()    // optional.of(30)
+[].last()              // optional.none()
 ```
 
 ## 4. Type System

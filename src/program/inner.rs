@@ -77,7 +77,9 @@ impl<'f> ProgramInner<'f> {
             self.env().variable_registry(),
             activation.functions(),
             activation.variables(),
-        ));
+            eval_ctx.arena(),
+            eval_ctx.descriptor_pool(),
+        )?);
         let ffi_value = self
             .ffi_program()
             .evaluate(
@@ -103,31 +105,38 @@ impl<'f> ProgramInner<'f> {
 
     #[cfg(feature = "async")]
     #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
-    pub fn eval_async<'a, Rm, A, Afm>(
+    pub fn eval_async<Rm, A, Afm>(
         self: Arc<Self>,
         activation: A,
     ) -> futures::future::BoxFuture<'f, Result<Value, Error>>
     where
-        'f: 'a,
+        'f: 'static,
         Rm: crate::r#async::Runtime,
         <Rm::ScopedSpawner as async_scoped::spawner::Spawner<()>>::FutureOutput: Send,
-        A: ActivationInterface<'f, Afm> + 'a,
+        A: ActivationInterface<'f, Afm>,
         Afm: FnMarker,
     {
         let eval_ctx = self.ffi_ctx().clone_with_new_arena();
         let (abort_handle, abortable) = crate::r#async::abort::abortable();
-        let ffi_activation = ffi::Activation::new(ffi::async_activation::FfiAsyncActivationImpl::<
-            Rm::BlockingRunner,
-        >::new(
-            self.env().function_registry(),
-            self.env().variable_registry(),
-            activation.functions(),
-            activation.variables(),
-            Arc::new(std::sync::Mutex::new(abortable)),
-        ));
+        let function_bindings = activation.functions().clone();
+        let variable_bindings = activation.variables().clone();
 
         let this = self.clone();
         let closure = move || -> Result<Value, Error> {
+            // Build the descriptors after moving the context into the worker,
+            // so their arena borrow stays within the evaluation's lifetime.
+            let ffi_activation =
+                ffi::Activation::new(ffi::async_activation::FfiAsyncActivationImpl::<
+                    Rm::BlockingRunner,
+                >::new(
+                    this.env().function_registry(),
+                    this.env().variable_registry(),
+                    &function_bindings,
+                    &variable_bindings,
+                    eval_ctx.arena(),
+                    eval_ctx.descriptor_pool(),
+                    Arc::new(std::sync::Mutex::new(abortable)),
+                )?);
             let ffi_value = this
                 .ffi_program()
                 .evaluate(
@@ -149,27 +158,25 @@ impl<'f> ProgramInner<'f> {
         };
 
         let result = Arc::new(std::sync::Mutex::new(None));
-        let (scope, _) = unsafe {
-            let result = result.clone();
-            async_scoped::Scope::<_, Rm::ScopedSpawner>::scope(move |scope| {
-                scope.spawn_blocking(move || {
-                    let r = closure();
-                    *result.lock().unwrap() = Some(r);
-                });
-            })
-        };
+        let worker_result = result.clone();
+        use async_scoped::spawner::FuncSpawner;
+        let worker = Rm::ScopedSpawner::default().spawn_func(move || {
+            let r = closure();
+            *worker_result.lock().unwrap() = Some(r);
+        });
 
         let this = self.clone();
         let fut = async move {
             let _abort_handle = abort_handle;
 
-            use futures::StreamExt as _;
-            let _ = scope.into_future().await;
+            let _ = worker.await;
             let value = result
                 .lock()
                 .expect("result lock failed")
                 .take()
-                .unwrap_or(Err(Error::internal("async evaluation did not return a value")))?;
+                .unwrap_or(Err(Error::internal(
+                    "async evaluation did not return a value",
+                )))?;
             if value.is_error() && !this.return_type().is_error() {
                 return Err(value.expect_error("expect error but got value"));
             }

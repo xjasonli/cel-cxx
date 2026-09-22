@@ -28,7 +28,6 @@ impl<Fm, Rm> EvalDispatcher<Fm, Rm> {
     }
 }
 
-// Implement RunDispatch for Dispatcher<()>
 impl<'f, A, Rm> EvalDispatch<'f, A, ()> for EvalDispatcher<(), Rm>
 where
     Rm: RuntimeMarker,
@@ -41,14 +40,13 @@ where
     }
 }
 
-// Implement RunDispatch for Dispatcher<Async>
 #[cfg(feature = "async")]
 #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
 const _: () = {
     use crate::r#async::*;
     use futures::future::BoxFuture;
 
-    impl<'f, A, Rm, Afm> EvalDispatch<'f, A, Afm> for EvalDispatcher<Async, Rm>
+    impl<'f: 'static, A, Rm, Afm> EvalDispatch<'f, A, Afm> for EvalDispatcher<Async, Rm>
     where
         Rm: Runtime,
         <Rm::ScopedSpawner as async_scoped::spawner::Spawner<()>>::FutureOutput: Send,

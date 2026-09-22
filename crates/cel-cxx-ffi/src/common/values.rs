@@ -300,7 +300,7 @@ mod ffi {
         fn OpaqueValue_get_optional<'a>(
             opaque_value: &OpaqueValue<'a>,
         ) -> UniquePtr<OptionalValue<'a>>;
-        fn OpaqueValue_get_ffi<'a>(opaque_value: &OpaqueValue<'a>) -> Box<AnyFfiOpaqueValue<'a>>;
+        fn OpaqueValue_get_ffi<'a>(opaque_value: &OpaqueValue<'a>) -> *const AnyFfiOpaqueValue<'a>;
 
         // OptionalValue
         fn OptionalValue_new<'a>(
@@ -778,12 +778,12 @@ impl<'a> OpaqueValue<'a> {
         arena: &'a Arena,
         descriptor_pool: &'a DescriptorPool,
         ffi: T,
-    ) -> cxx::UniquePtr<Self> {
-        ffi::OpaqueValue_new(
+    ) -> Result<cxx::UniquePtr<Self>, Status> {
+        Ok(ffi::OpaqueValue_new(
             arena,
             descriptor_pool,
-            Box::new(AnyFfiOpaqueValue::new(ffi, arena, descriptor_pool)),
-        )
+            Box::new(AnyFfiOpaqueValue::new(ffi, arena, descriptor_pool)?),
+        ))
     }
 
     pub fn get_optional(&self) -> cxx::UniquePtr<OptionalValue<'a>> {
@@ -792,7 +792,8 @@ impl<'a> OpaqueValue<'a> {
 
     pub fn downcast<T: FfiOpaqueValue>(&self) -> Option<Box<T>> {
         let ffi = ffi::OpaqueValue_get_ffi(self);
-        ffi.downcast::<T>()
+        // The wrapper owns this Rust value for the duration of the self borrow.
+        unsafe { ffi.as_ref() }.and_then(|ffi| ffi.downcast::<T>())
     }
 }
 
@@ -803,7 +804,7 @@ pub trait FfiOpaqueValue:
         &self,
         arena: &'a Arena,
         descriptor_pool: &'a DescriptorPool,
-    ) -> OpaqueType<'a>;
+    ) -> Result<OpaqueType<'a>, Status>;
 }
 dyn_clone::clone_trait_object!(FfiOpaqueValue);
 
@@ -818,12 +819,12 @@ impl<'a> AnyFfiOpaqueValue<'a> {
         value: T,
         arena: &'a Arena,
         descriptor_pool: &'a DescriptorPool,
-    ) -> Self {
-        let opaque_type = value.opaque_type(arena, descriptor_pool);
-        Self {
+    ) -> Result<Self, Status> {
+        let opaque_type = value.opaque_type(arena, descriptor_pool)?;
+        Ok(Self {
             ffi: Box::new(value),
             opaque_type,
-        }
+        })
     }
 
     pub fn clone(&self) -> Box<AnyFfiOpaqueValue<'a>> {

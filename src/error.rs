@@ -526,12 +526,6 @@ impl Error {
         &self.message
     }
 
-    pub(crate) fn from_std_error_generic(
-        err: impl Into<Box<dyn std::error::Error + Send + Sync + 'static>>,
-    ) -> Self {
-        Self::from_std_error(err.into())
-    }
-
     /// Creates a CEL error from a standard library error.
     ///
     /// This method attempts to extract meaningful error information from
@@ -659,7 +653,7 @@ pub trait IntoError {
 
 impl<E: std::error::Error + Send + Sync + 'static> IntoError for E {
     fn into_error(self) -> Error {
-        Error::from_std_error_generic(Box::new(self))
+        Error::from_std_error(Box::new(self))
     }
 }
 

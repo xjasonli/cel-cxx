@@ -12,6 +12,7 @@
 //! - CEL comprehensions (`.filter()`, `.map()`, `.exists()`, `.all()`)
 //! - Message construction with `Type{field: value}` syntax
 //! - Rust-side field extraction from nested results
+//! - Explicitly present defaults, empty repeated elements, and nanosecond precision
 //!
 //! Run with: `cargo run --example protobuf-advanced`
 
@@ -19,7 +20,8 @@ use cel_cxx::*;
 
 fn compile_descriptors() -> Vec<u8> {
     use prost::Message;
-    protox::compile(["tests/fixtures/test.proto"], ["tests/fixtures/"])
+    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    protox::compile([fixtures.join("test.proto")], [fixtures])
         .expect("failed to compile test.proto")
         .encode_to_vec()
 }
@@ -37,11 +39,10 @@ mod proto {
     // -- primitive field encoders -------------------------------------------
 
     pub fn string(buf: &mut Vec<u8>, field: u32, v: &str) {
-        if !v.is_empty() {
-            encode_key(field, WireType::LengthDelimited, buf);
-            encode_varint(v.len() as u64, buf);
-            buf.extend_from_slice(v.as_bytes());
-        }
+        // Empty repeated elements and active oneof fields still need a wire tag.
+        encode_key(field, WireType::LengthDelimited, buf);
+        encode_varint(v.len() as u64, buf);
+        buf.extend_from_slice(v.as_bytes());
     }
 
     pub fn int32(buf: &mut Vec<u8>, field: u32, v: i32) {
@@ -258,8 +259,13 @@ fn main() -> Result<(), Error> {
     let env = Env::builder()
         .with_file_descriptor_set(&compile_descriptors())
         .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
-        // CEL has no built-in reduce/fold, so register helpers for aggregation
-        .register_global_function("sum_ints", |v: Vec<i64>| -> i64 { v.iter().sum() })?
+        // Return a CEL error if the Rust aggregation exceeds the int64 range.
+        .register_global_function("sum_ints", |values: Vec<i64>| {
+            values.into_iter().try_fold(0i64, |sum, value| {
+                sum.checked_add(value)
+                    .ok_or_else(|| Error::out_of_range("sum exceeds int64 range"))
+            })
+        })?
         .build()?;
 
     // Build a realistic Order
@@ -273,12 +279,16 @@ fn main() -> Result<(), Error> {
         true,
     );
     let items = vec![
-        proto::item("Widget", 1299),    // $12.99 in cents
+        proto::item("Widget", 1299),     // $12.99 in cents
         proto::item("Gadget", 4599),     // $45.99
         proto::item("Doohickey", 299),   // $2.99
         proto::item("Thingamajig", 999), // $9.99
     ];
-    let labels = [("priority", "high"), ("region", "us-west"), ("channel", "web")];
+    let labels = [
+        ("priority", "high"),
+        ("region", "us-west"),
+        ("channel", "web"),
+    ];
 
     let order_bytes = proto::order(&buyer, &items, &labels);
     let activation = Activation::new()
@@ -318,11 +328,7 @@ fn main() -> Result<(), Error> {
     println!("\n=== 2. Comprehensions: filter, map, exists, all ===\n");
 
     // Filter items by price
-    eval(
-        &env,
-        &activation,
-        "order.items.filter(i, i.price > 1000)",
-    )?;
+    eval(&env, &activation, "order.items.filter(i, i.price > 1000)")?;
     eval(
         &env,
         &activation,
@@ -337,25 +343,20 @@ fn main() -> Result<(), Error> {
     )?;
 
     // Exists: is there an item over $40?
-    eval(
-        &env,
-        &activation,
-        "order.items.exists(i, i.price > 4000)",
-    )?;
+    eval(&env, &activation, "order.items.exists(i, i.price > 4000)")?;
 
     // All: are all items under $100?
-    eval(
-        &env,
-        &activation,
-        "order.items.all(i, i.price < 10000)",
-    )?;
+    eval(&env, &activation, "order.items.all(i, i.price < 10000)")?;
 
-    // CEL has no built-in reduce/fold — use a custom Rust function to aggregate
-    eval(
-        &env,
-        &activation,
-        "sum_ints(order.items.map(i, i.price))",
-    )?;
+    // Aggregate the selected protobuf fields with the registered Rust function.
+    assert_eq!(
+        eval(&env, &activation, "sum_ints(order.items.map(i, i.price))")?,
+        Value::Int(7196)
+    );
+    let overflow = env.compile("sum_ints([9223372036854775807, 1])")?;
+    let error = overflow.evaluate(&activation).unwrap_err();
+    assert_eq!(error.code(), Code::OutOfRange);
+    println!("  Overflow is reported as a CEL error: {error}");
 
     // =========================================================================
     // 3. has() — field presence checks
@@ -369,11 +370,43 @@ fn main() -> Result<(), Error> {
     // Build a minimal order with no address
     let buyer_no_addr = proto::person("Bob", 25, None, 0, &[], false);
     let minimal_order = proto::order(&buyer_no_addr, &[], &[]);
-    let activation2 = Activation::new()
-        .bind_variable_dynamic("order", StructValue::from_bytes("test.Order", minimal_order))?;
+    let activation2 = Activation::new().bind_variable_dynamic(
+        "order",
+        StructValue::from_bytes("test.Order", minimal_order),
+    )?;
 
     eval(&env, &activation2, "has(order.buyer.address)")?;
-    eval(&env, &activation2, "has(order.buyer.address) ? order.buyer.address.city : 'N/A'")?;
+    eval(
+        &env,
+        &activation2,
+        "has(order.buyer.address) ? order.buyer.address.city : 'N/A'",
+    )?;
+
+    // A present empty message differs from an absent message. Empty elements in
+    // a repeated string field also count toward its length.
+    let empty_address = proto::address("", "", "");
+    let buyer_with_defaults = proto::person("", 0, Some(&empty_address), 0, &["", "vip"], false);
+    let defaults = Activation::new().bind_variable_dynamic(
+        "order",
+        StructValue::from_bytes("test.Order", proto::order(&buyer_with_defaults, &[], &[])),
+    )?;
+    assert_eq!(
+        eval(
+            &env,
+            &defaults,
+            "has(order.buyer.address) && !has(order.buyer.address.city) && order.buyer.address.city == ''",
+        )?,
+        Value::Bool(true)
+    );
+    assert_eq!(
+        eval(&env, &defaults, "order.buyer.tags == ['', 'vip']")?,
+        Value::Bool(true)
+    );
+
+    // Reuse the aggregation program for both populated and empty orders.
+    let total = env.compile("sum_ints(order.items.map(i, i.price))")?;
+    assert_eq!(total.evaluate(&activation)?, Value::Int(7196));
+    assert_eq!(total.evaluate(&defaults)?, Value::Int(0));
 
     // =========================================================================
     // 4. type() — runtime type inspection
@@ -399,11 +432,12 @@ fn main() -> Result<(), Error> {
     let event_bytes = proto::event(
         "deploy-v2.3",
         Some(&proto::timestamp(1700000000, 0)), // 2023-11-14T22:13:20Z
-        Some(&proto::duration(3600, 0)),         // 1 hour TTL
-        Some(&proto::int64_value(42)),           // optional_count = 42
-        Some(&proto::string_value("production")),// optional_label = "production"
-        Some(&proto::bool_value(true)),          // optional_flag = true
-        Some(&proto::struct_with_strings(&[     // metadata
+        Some(&proto::duration(3600, 0)),        // 1 hour TTL
+        Some(&proto::int64_value(42)),          // optional_count = 42
+        Some(&proto::string_value("production")), // optional_label = "production"
+        Some(&proto::bool_value(true)),         // optional_flag = true
+        Some(&proto::struct_with_strings(&[
+            // metadata
             ("env", "prod"),
             ("version", "2.3.0"),
             ("deployer", "ci-bot"),
@@ -422,24 +456,12 @@ fn main() -> Result<(), Error> {
         &act_event,
         "event.created_at > timestamp('2023-01-01T00:00:00Z')",
     )?;
-    eval(
-        &env_event,
-        &act_event,
-        "event.created_at.getFullYear()",
-    )?;
+    eval(&env_event, &act_event, "event.created_at.getFullYear()")?;
 
     // Duration — auto-converts to CEL duration type
     eval(&env_event, &act_event, "event.ttl")?;
-    eval(
-        &env_event,
-        &act_event,
-        "event.ttl > duration('30m')",
-    )?;
-    eval(
-        &env_event,
-        &act_event,
-        "event.ttl == duration('1h')",
-    )?;
+    eval(&env_event, &act_event, "event.ttl > duration('30m')")?;
+    eval(&env_event, &act_event, "event.ttl == duration('1h')")?;
 
     // Wrapper types — auto-unbox to CEL primitives
     eval(&env_event, &act_event, "event.optional_count")?;
@@ -466,6 +488,42 @@ fn main() -> Result<(), Error> {
         .bind_variable_dynamic("event", StructValue::from_bytes("test.Event", sparse_event))?;
     eval(&env_event, &act_sparse, "has(event.optional_count)")?;
     eval(&env_event, &act_sparse, "has(event.ttl)")?;
+
+    // Presence distinguishes an absent wrapper from a present zero-valued
+    // wrapper. A Struct's empty string must remain a string value.
+    let defaults_event = proto::event(
+        "defaults",
+        Some(&proto::timestamp(-1, 999_999_999)),
+        Some(&proto::duration(0, 1)),
+        Some(&proto::int64_value(0)),
+        Some(&proto::string_value("")),
+        Some(&proto::bool_value(false)),
+        Some(&proto::struct_with_strings(&[("empty", "")])),
+        None,
+    );
+    let act_defaults = Activation::new().bind_variable_dynamic(
+        "event",
+        StructValue::from_bytes("test.Event", defaults_event),
+    )?;
+    for expression in [
+        "has(event.optional_count) && event.optional_count == 0",
+        "has(event.optional_label) && event.optional_label == ''",
+        "has(event.optional_flag) && event.optional_flag == false",
+        "has(event.metadata.empty) && event.metadata.empty == ''",
+        "event.created_at + event.ttl == timestamp('1970-01-01T00:00:00Z')",
+    ] {
+        assert_eq!(
+            eval(&env_event, &act_defaults, expression)?,
+            Value::Bool(true)
+        );
+    }
+    // Use has() to preserve a present zero and choose -1 for an absent count.
+    let count = env_event.compile("has(event.optional_count) ? event.optional_count : -1")?;
+    for (activation, expected) in [(&act_sparse, -1), (&act_defaults, 0), (&act_event, 42)] {
+        let result = count.evaluate(activation)?;
+        assert_eq!(result, Value::Int(expected));
+        println!("  Optional count with explicit fallback => {result}");
+    }
 
     // =========================================================================
     // 6. Message construction in CEL
@@ -514,12 +572,19 @@ fn main() -> Result<(), Error> {
     let program = env.compile("order.buyer")?;
     let buyer_result = program.evaluate(&activation)?;
     let buyer_sv = StructValue::from_value(&buyer_result)?;
-    println!("  Extracted buyer: type={}, {} bytes", buyer_sv.type_name(), buyer_sv.to_bytes().len());
+    println!(
+        "  Extracted buyer: type={}, {} bytes",
+        buyer_sv.type_name(),
+        buyer_sv.to_bytes().len()
+    );
 
     // Read individual fields from the extracted message
     let name = env.get_struct_field(&buyer_sv, "name")?;
     let age = env.get_struct_field(&buyer_sv, "age")?;
     let has_addr = env.has_struct_field(&buyer_sv, "address")?;
+    assert_eq!(name, Value::String("Alice".into()));
+    assert_eq!(age, Value::Int(30));
+    assert!(has_addr);
     println!("  buyer.name  = {name}");
     println!("  buyer.age   = {age}");
     println!("  has(buyer.address) = {has_addr}");
@@ -529,6 +594,8 @@ fn main() -> Result<(), Error> {
     let addr_sv = StructValue::from_value(&addr_result)?;
     let city = env.get_struct_field(&addr_sv, "city")?;
     let zip = env.get_struct_field(&addr_sv, "zip")?;
+    assert_eq!(city, Value::String("Springfield".into()));
+    assert_eq!(zip, Value::String("62704".into()));
     println!("  buyer.address.city = {city}");
     println!("  buyer.address.zip  = {zip}");
 

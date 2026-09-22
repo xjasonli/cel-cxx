@@ -39,18 +39,14 @@ std::vector<FunctionOverloadReference> AnyFfiActivationWrapper::FindFunctionOver
 
 absl::StatusOr<Value> AnyFfiFunctionWrapper::Invoke(
     absl::Span<const Value> args,
-    const google::protobuf::DescriptorPool* absl_nonnull descriptor_pool,
-    google::protobuf::MessageFactory* absl_nonnull message_factory,
-    google::protobuf::Arena* absl_nonnull arena,
-    absl::Span<const std::string> overload_id) const
+    const cel::Function::InvokeContext& context) const
 {
     Value result;
     auto status = ffi_->Invoke(
         args,
-        *descriptor_pool,
-        *message_factory,
-        *arena,
-        overload_id,
+        *context.descriptor_pool(),
+        *context.message_factory(),
+        *context.arena(),
         result);
     if (status.ok()) {
         return result;

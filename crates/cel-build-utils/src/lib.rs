@@ -1,5 +1,4 @@
 pub mod bazel;
-//mod ar;
 
 use anyhow::anyhow;
 use anyhow::Context;
@@ -10,9 +9,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const BAZEL_MINIMAL_VERSION: &str = "8.0.0";
+// Match cel-cpp's Bazel baseline, including module compatibility resolution
+// for its current Abseil and protobuf dependencies.
+const BAZEL_MINIMAL_VERSION: &str = "8.7.0";
 const BAZEL_MAXIMAL_VERSION: &str = "8.99.99";
-const BAZEL_DOWNLOAD_VERSION: Option<&str> = Some("8.3.1");
+const BAZEL_DOWNLOAD_VERSION: Option<&str> = Some("8.7.0");
 
 /// Supported target triples - must match platform definitions in build/BUILD.bazel
 const SUPPORTED_TARGETS: &[&str] = &[
@@ -21,10 +22,6 @@ const SUPPORTED_TARGETS: &[&str] = &[
     "aarch64-unknown-linux-gnu",
     "armv7-unknown-linux-gnueabi",
     "i686-unknown-linux-gnu",
-    //"x86_64-unknown-linux-musl",
-    //"aarch64-unknown-linux-musl",
-    //"armv7-unknown-linux-musleabihf",
-    //"i686-unknown-linux-musl",
     // Android
     "aarch64-linux-android",
     "armv7-linux-androideabi",
@@ -232,6 +229,15 @@ impl Build {
             ("bazel-cel/external/cel-cpp+", "."),
             ("bazel-cel/external/abseil-cpp+/absl", "absl"),
             ("bazel-cel/external/protobuf+/src/google", "google"),
+            // Protobuf's public parse_context.h includes utf8_validity.h.
+            (
+                "bazel-cel/external/protobuf+/third_party/utf8_range/utf8_validity.h",
+                "utf8_validity.h",
+            ),
+            (
+                "bazel-cel/external/protobuf+/third_party/utf8_range/utf8_range.h",
+                "utf8_range.h",
+            ),
             (
                 "bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_includes/checked_proto/cel",
                 "cel",
@@ -329,7 +335,6 @@ impl Build {
 
     #[track_caller]
     fn run_command(&self, mut command: Command, desc: &str) -> Result<Vec<u8>, String> {
-        //println!("running {:?}", command);
         let output = command.output();
 
         let verbose_error = match output {
@@ -367,7 +372,12 @@ impl Build {
 }
 
 fn cp_r(src: &Path, dst: &Path) -> Result<()> {
-    //println!("copying dir {src:?} -> {dst:?}");
+    if src.is_file() {
+        fs::copy(src, dst).with_context(|| {
+            format!("failed to copy '{}' to '{}'", src.display(), dst.display())
+        })?;
+        return Ok(());
+    }
     for f in fs::read_dir(src).map_err(|e| anyhow!("{}: {e}", src.display()))? {
         let f = match f {
             Ok(f) => f,
@@ -378,8 +388,7 @@ fn cp_r(src: &Path, dst: &Path) -> Result<()> {
         let file_name = f.file_name();
         let mut path = f.path();
 
-        // Skip git metadata as it's been known to cause issues (#26) and
-        // otherwise shouldn't be required
+        // Git metadata is not needed in installed build artifacts.
         if file_name.to_str() == Some(".git") {
             continue;
         }
@@ -397,13 +406,10 @@ fn cp_r(src: &Path, dst: &Path) -> Result<()> {
         }
 
         if ty.is_dir() {
-            //fs::create_dir_all(&dst).map_err(|e| e.to_string())?;
             cp_r(&f.path(), &dst)?;
         } else {
-            //println!("copying file {path:?} -> {dst:?}");
             let _ = fs::remove_file(&dst);
             if let Err(e) = fs::copy(&path, &dst) {
-                //println!("failed to copy {path:?} -> {dst:?}");
                 return Err(anyhow!(
                     "failed to copy '{}' to '{}': {e}",
                     path.display(),

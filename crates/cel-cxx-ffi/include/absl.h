@@ -6,6 +6,7 @@
 #include <absl/log/log_sink.h>
 #include <absl/log/initialize.h>
 #include <absl/log/internal/globals.h>
+#include <absl/time/time.h>
 
 namespace rust {
 template <> struct IsRelocatable<::absl::Status> : std::true_type {};
@@ -20,27 +21,29 @@ using StatusCode = absl::StatusCode;
 using Status = absl::Status;
 
 inline Duration Duration_new(i64 seconds, u32 nanos) {
-    return absl::time_internal::MakeDuration(seconds, nanos);
+    return absl::Seconds(seconds) + absl::Nanoseconds(nanos);
 }
 
 inline int64_t Duration_seconds(Duration duration) {
-    return absl::time_internal::GetRepHi(duration);
+    return absl::ToInt64Seconds(absl::Floor(duration, absl::Seconds(1)));
 }
 
 inline uint32_t Duration_nanos(Duration duration) {
-    return absl::time_internal::GetRepLo(duration);
+    return static_cast<uint32_t>(absl::ToInt64Nanoseconds(
+        duration - absl::Floor(duration, absl::Seconds(1))));
 }
 
 inline Timestamp Timestamp_new(i64 seconds, u32 nanos) {
-    return absl::time_internal::FromUnixDuration(absl::time_internal::MakeDuration(seconds, nanos));
+    return absl::FromUnixSeconds(seconds) + absl::Nanoseconds(nanos);
 }
 
 inline int64_t Timestamp_seconds(Timestamp timestamp) {
-    return absl::time_internal::GetRepHi(absl::time_internal::ToUnixDuration(timestamp));
+    return absl::ToUnixSeconds(timestamp);
 }
 
 inline uint32_t Timestamp_nanos(Timestamp timestamp) {
-    return absl::time_internal::GetRepLo(absl::time_internal::ToUnixDuration(timestamp));
+    return static_cast<uint32_t>(absl::ToInt64Nanoseconds(
+        timestamp - absl::FromUnixSeconds(absl::ToUnixSeconds(timestamp))));
 }
 
 inline StringView StringView_new(Slice<const uint8_t> bytes) {
@@ -65,6 +68,72 @@ inline void Status_drop(Status& status) {
 
 inline String Status_to_string(const Status& status) {
     return String(status.ToString());
+}
+
+// Abseil error factories take a defaulted SourceLocation argument. CXX binds
+// exact function pointer signatures, so call them through one-argument wrappers.
+inline Status AbortedError(StringView msg) {
+    return absl::AbortedError(msg);
+}
+
+inline Status AlreadyExistsError(StringView msg) {
+    return absl::AlreadyExistsError(msg);
+}
+
+inline Status CancelledError(StringView msg) {
+    return absl::CancelledError(msg);
+}
+
+inline Status DataLossError(StringView msg) {
+    return absl::DataLossError(msg);
+}
+
+inline Status DeadlineExceededError(StringView msg) {
+    return absl::DeadlineExceededError(msg);
+}
+
+inline Status FailedPreconditionError(StringView msg) {
+    return absl::FailedPreconditionError(msg);
+}
+
+inline Status InternalError(StringView msg) {
+    return absl::InternalError(msg);
+}
+
+inline Status InvalidArgumentError(StringView msg) {
+    return absl::InvalidArgumentError(msg);
+}
+
+inline Status NotFoundError(StringView msg) {
+    return absl::NotFoundError(msg);
+}
+
+inline Status OutOfRangeError(StringView msg) {
+    return absl::OutOfRangeError(msg);
+}
+
+inline Status PermissionDeniedError(StringView msg) {
+    return absl::PermissionDeniedError(msg);
+}
+
+inline Status ResourceExhaustedError(StringView msg) {
+    return absl::ResourceExhaustedError(msg);
+}
+
+inline Status UnauthenticatedError(StringView msg) {
+    return absl::UnauthenticatedError(msg);
+}
+
+inline Status UnavailableError(StringView msg) {
+    return absl::UnavailableError(msg);
+}
+
+inline Status UnimplementedError(StringView msg) {
+    return absl::UnimplementedError(msg);
+}
+
+inline Status UnknownError(StringView msg) {
+    return absl::UnknownError(msg);
 }
 
 inline void InitializeLog() {

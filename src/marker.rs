@@ -1,7 +1,7 @@
 /// Marker trait for runtime types.
 ///
 /// This trait is used to mark types that represent different async runtimes
-/// (such as Tokio or async-std) or the absence of an async runtime.
+/// (such as Tokio or smol) or the absence of an async runtime.
 ///
 /// # Examples
 ///

@@ -1,138 +1,121 @@
-#![allow(clippy::uninlined_format_args)]
+//! The C++ `re` extension captures groups, rewrites matched text, and reports errors.
+//! Run with `cargo run --example extensions-re`.
 
 use cel_cxx::*;
-
-type Result<T, E = Error> = std::result::Result<T, E>;
+use std::collections::HashMap;
 
 fn main() -> Result<(), Error> {
-    // Enable C++ regular expression extension
+    println!("CEL re extension");
     let env = Env::builder()
         .with_ext_re(true)
+        .declare_variable::<String>("text")?
+        .declare_variable::<String>("pattern")?
         .build()?;
 
-    println!("=== CEL C++ Regular Expression Extension (re) Examples ===\n");
+    // Rust and CEL raw strings keep the regular expression and rewrite readable.
+    show(
+        &env,
+        r#"re.extract("Hello World", r"(\w+) (\w+)", r"\2, \1")"#,
+        "World, Hello",
+    )?;
+    show(
+        &env,
+        r#"re.extract("2023-12-25", r"(\d{4})-(\d{2})-(\d{2})", r"\2/\3/\1")"#,
+        "12/25/2023",
+    )?;
+    show(
+        &env,
+        r#"re.extract("(555) 123-4567", r"\((\d{3})\) (\d{3})-(\d{4})", r"\1-\2-\3")"#,
+        "555-123-4567",
+    )?;
 
-    // 1. re.extract - Extract and rewrite matched groups
-    println!("1. re.extract Examples:");
-    
-    // Swap word order
-    let program = env.compile(r#"re.extract("Hello World", r"(\w+) (\w+)", r"\2, \1")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.extract(\"Hello World\", r\"(\\w+) (\\w+)\", r\"\\2, \\1\") = {result}");
-    
-    // Date format conversion
-    let program = env.compile(r#"re.extract("2023-12-25", r"(\d{4})-(\d{2})-(\d{2})", r"\2/\3/\1")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.extract(\"2023-12-25\", r\"(\\d{{4}})-(\\d{{2}})-(\\d{{2}})\", r\"\\2/\\3/\\1\") = {result}");
-    
-    // Extract and format URL
-    let program = env.compile(r#"re.extract("https://example.com/path", r"https://([^/]+)(.*)", r"Domain: \1, Path: \2")"#)?;
-    let result = program.evaluate(())?;
-    println!("   URL extraction: {result}");
-    
-    println!();
+    // capture returns the first capturing group and requires a full-string match.
+    show(
+        &env,
+        r#"re.capture("user@example.com", r"(\w+)@[\w.]+")"#,
+        "user",
+    )?;
+    show(
+        &env,
+        r#"re.capture("Price: $29.99", r"Price: \$(\d+\.\d+)")"#,
+        "29.99",
+    )?;
+    show(
+        &env,
+        r#"re.capture("[ERROR] Something went wrong", r"\[(\w+)\].*")"#,
+        "ERROR",
+    )?;
 
-    // 2. re.capture - Capture the first group
-    println!("2. re.capture Examples:");
-    
-    // Extract username from email
-    let program = env.compile(r#"re.capture("user@example.com", r"(\w+)@[\w.]+")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.capture(\"user@example.com\", r\"(\\w+)@[\\w.]+\") = {result}");
-    
-    // Extract number from price
-    let program = env.compile(r#"re.capture("Price: $29.99", r"Price: \$(\d+\.\d+)")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.capture(\"Price: $29.99\", r\"Price: \\$(\\d+\\.\\d+)\") = {result}");
-    
-    // Extract log level
-    let program = env.compile(r#"re.capture("[ERROR] Something went wrong", r"\[(\w+)\].*")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.capture(\"[ERROR] Something went wrong\", r\"\\[(\\w+)\\].*\") = {result}");
-    
-    println!();
+    // captureN uses a group's name, or its one-based index as a string if unnamed.
+    show(
+        &env,
+        r#"re.captureN("user@example.com", r"(\w+)@([\w.]+)")"#,
+        HashMap::from([("1", "user"), ("2", "example.com")]),
+    )?;
+    show(
+        &env,
+        r#"re.captureN("John Doe", r"(?P<first>\w+) (?P<last>\w+)")"#,
+        HashMap::from([("first", "John"), ("last", "Doe")]),
+    )?;
+    show(
+        &env,
+        r#"re.captureN("Version 1.2.3", r"Version (?P<major>\d+)\.(\d+)\.(\d+)")"#,
+        HashMap::from([("major", "1"), ("2", "2"), ("3", "3")]),
+    )?;
 
-    // 3. re.captureN - Capture all groups
-    println!("3. re.captureN Examples:");
-    
-    // Capture email username and domain
-    let program = env.compile(r#"re.captureN("user@example.com", r"(\w+)@([\w.]+)")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.captureN(\"user@example.com\", r\"(\\w+)@([\\w.]+)\") = {result}");
-    
-    // Use named groups to capture name
-    let program = env.compile(r#"re.captureN("John Doe", r"(?P<first>\w+) (?P<last>\w+)")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.captureN(\"John Doe\", r\"(?P<first>\\w+) (?P<last>\\w+)\") = {result}");
-    
-    // Capture date components
-    let program = env.compile(r#"re.captureN("2023-12-25", r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.captureN(\"2023-12-25\", r\"(?P<year>\\d{{4}})-(?P<month>\\d{{2}})-(?P<day>\\d{{2}})\") = {}", result);
-    
-    // Mixed named and unnamed groups
-    let program = env.compile(r#"re.captureN("Version 1.2.3", r"Version (?P<major>\d+)\.(\d+)\.(\d+)")"#)?;
-    let result = program.evaluate(())?;
-    println!("   re.captureN(\"Version 1.2.3\", r\"Version (?P<major>\\d+)\\.(\\d+)\\.(\\d+)\") = {}", result);
-    
-    println!();
-
-    // 4. Real-world use cases
-    println!("4. Real-world Use Cases:");
-    
-    // Log parsing
-    let program = env.compile(r#"re.captureN("[2023-12-25 10:30:45] INFO: User login successful", r"\[([^\]]+)\] (\w+): (.+)")"#)?;
-    let result = program.evaluate(())?;
-    println!("   Log parsing: {}", result);
-    
-    // Phone number formatting
-    let program = env.compile(r#"re.extract("(555) 123-4567", r"\((\d{3})\) (\d{3})-(\d{4})", r"\1-\2-\3")"#)?;
-    let result = program.evaluate(())?;
-    println!("   Phone formatting: {}", result);
-    
-    // URL component extraction
-    let program = env.compile(r#"re.captureN("https://api.example.com:8080/v1/users?id=123", r"https://([^:]+):(\d+)(/[^?]+)\?(.+)")"#)?;
-    let result = program.evaluate(())?;
-    println!("   URL components: {}", result);
-    
-    println!();
-
-    // 5. Error handling examples
-    println!("5. Error Handling:");
-    
-    // Invalid regular expression
-    match env.compile(r#"re.extract("test", "[", "replacement")"#) {
-        Ok(program) => {
-            match program.evaluate(()) {
-                Ok(result) => println!("   Unexpected success: {}", result),
-                Err(e) => println!("   Invalid regex error: {}", e),
-            }
-        }
-        Err(e) => println!("   Compile error: {}", e),
-    }
-    
-    // Pattern that doesn't match
-    match env.compile(r#"re.capture("no numbers here", r"(\d+)")"#) {
-        Ok(program) => {
-            match program.evaluate(()) {
-                Ok(result) => println!("   Unexpected success: {}", result),
-                Err(e) => println!("   No match error: {}", e),
-            }
-        }
-        Err(e) => println!("   Compile error: {}", e),
-    }
-    
-    // No capturing groups
-    match env.compile(r#"re.captureN("test", r"test")"#) {
-        Ok(program) => {
-            match program.evaluate(()) {
-                Ok(result) => println!("   Unexpected success: {}", result),
-                Err(e) => println!("   No capturing groups error: {}", e),
-            }
-        }
-        Err(e) => println!("   Compile error: {}", e),
+    // Reuse one compiled parser for log records supplied through the activation.
+    let log = env.compile(r#"re.captureN(text, r"\[(?P<level>\w+)\] (?P<message>.*)")"#)?;
+    for (text, level, message) in [
+        ("[INFO] Ready", "INFO", "Ready"),
+        (
+            "[ERROR] Database connection failed",
+            "ERROR",
+            "Database connection failed",
+        ),
+        ("[INFO] ", "INFO", ""),
+    ] {
+        let activation = Activation::new().bind_variable("text", text)?;
+        let result = log.evaluate(&activation)?;
+        assert_eq!(
+            result,
+            Value::from(HashMap::from([("level", level), ("message", message)]))
+        );
+        println!("Parsed log: {result}");
     }
 
-    println!("\n=== All re extension examples completed! ===");
+    // Dynamic patterns are validated during evaluation. Compilation must still succeed.
+    let capture = env.compile("re.capture(text, pattern)")?;
+    for (text, pattern) in [
+        ("test", "["),
+        ("no numbers here", r"(\d+)"),
+        ("prefix 123 suffix", r"(\d+)"), // A substring match is insufficient.
+        ("test", "test"),                // No capturing group.
+    ] {
+        let activation = Activation::new()
+            .bind_variable("text", text)?
+            .bind_variable("pattern", pattern)?;
+        let error = capture
+            .evaluate(&activation)
+            .expect_err("invalid capture must fail");
+        assert_eq!(error.code(), Code::InvalidArgument);
+        println!("Rejected {text:?} with {pattern:?}: {error}");
+    }
+    for expression in [
+        r#"re.captureN("test", "test")"#,
+        r#"re.extract("test", "(test)", r"\2")"#,
+    ] {
+        let error = env
+            .compile(expression)?
+            .evaluate(())
+            .expect_err("invalid capture/rewrite must fail");
+        assert_eq!(error.code(), Code::InvalidArgument);
+    }
     Ok(())
-} 
+}
+
+fn show(env: &Env, expression: &str, expected: impl Into<Value>) -> Result<(), Error> {
+    let result = env.compile(expression)?.evaluate(Activation::new())?;
+    assert_eq!(result, expected.into(), "{expression}");
+    println!("{expression} => {result}");
+    Ok(())
+}

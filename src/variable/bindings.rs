@@ -53,7 +53,7 @@ use std::collections::HashMap;
 /// ```
 ///
 /// [`VariableRegistry`]: crate::variable::VariableRegistry
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct VariableBindings<'f> {
     entries: HashMap<String, VariableBinding<'f>>,
 }

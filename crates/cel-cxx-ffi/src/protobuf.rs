@@ -93,12 +93,8 @@ impl std::fmt::Debug for DescriptorPool {
 
 // MessageFactory
 pub use ffi::MessageFactory;
-// SAFETY: The generated MessageFactory (singleton) is truly thread-safe.
-// DynamicMessageFactory::GetPrototype() mutates internal caches without synchronization,
-// so it is NOT safe for concurrent shared access. However, the Ctx architecture ensures
-// DynamicMessageFactory is never shared: Ctx::clone_with_new_arena() creates a fresh
-// instance per evaluation context, so each thread gets exclusive access. This invariant
-// is critical — do NOT share a DynamicMessageFactory across threads.
+// SAFETY: The constructors expose only the generated factory and
+// DynamicMessageFactory, both of which provide thread-safe GetPrototype calls.
 unsafe impl Send for MessageFactory {}
 unsafe impl Sync for MessageFactory {}
 

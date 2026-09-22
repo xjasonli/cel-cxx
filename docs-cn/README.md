@@ -125,7 +125,6 @@ let env = Env::builder()
 | `async` | 表达式和函数的异步/等待支持 | ❌ |
 | `tokio` | Tokio 异步运行时集成（需要 `async`） | ❌ |
 | `smol` | smol 运行时集成（需要 `async`） | ❌ |
-| `async-std` | async-std 运行时集成（需要 `async`） | ❌ |
 
 ## 性能
 
@@ -141,7 +140,7 @@ let env = Env::builder()
 
 - **基本用法**: 变量绑定、函数注册、表达式求值
 - **自定义类型**: 派生宏、成员函数、类型集成
-- **异步支持**: Tokio/smol/async-std 集成示例
+- **异步支持**: Tokio/smol 集成示例
 - **高级特性**: 函数重载、错误处理、复杂类型转换
 
 运行示例：

@@ -56,7 +56,7 @@ use std::collections::HashMap;
 /// ```
 ///
 /// [`FunctionRegistry`]: crate::function::FunctionRegistry
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct FunctionBindings<'f> {
     entries: HashMap<String, FunctionOverloads<Function<'f>>>,
 }

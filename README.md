@@ -36,6 +36,7 @@ A type-safe Rust library for [Common Expression Language (CEL)](https://github.c
 
 - [English Documentation](https://github.com/xjasonli/cel-cxx/tree/master/docs/) - Complete documentation and guides
 - [中文文档](https://github.com/xjasonli/cel-cxx/tree/master/docs-cn/) - 中文文档和指南
+- [Runnable examples](examples/README.md) - Example index, feature requirements, and run commands
 
 For detailed guides on architecture, function registration, type system, and advanced features, see the [documentation directory](https://github.com/xjasonli/cel-cxx/tree/master/docs/).
 
@@ -47,14 +48,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cel-cxx = "0.2.4"
+cel-cxx = "0.3.0"
 
 # Optional features
-cel-cxx = { version = "0.2.4", features = ["tokio"] }
+cel-cxx = { version = "0.3.0", features = ["tokio"] }
 
 # Protobuf derive macros (choose your backend)
-cel-cxx = { version = "0.2.4", features = ["prost"] }
-cel-cxx = { version = "0.2.4", features = ["protobuf-legacy"] }
+cel-cxx = { version = "0.3.0", features = ["prost"] }
+cel-cxx = { version = "0.3.0", features = ["protobuf-legacy"] }
 ```
 
 ### Basic Expression Evaluation
@@ -403,7 +404,7 @@ cargo ndk --target i686-linux-android build
 | Feature | Status | Description |
 |---------|--------|-------------|
 | **Custom Functions** | ✅ | Register custom Rust functions with automatic type conversion |
-| **Async Support** | ✅ | Async function calls and evaluation with Tokio integration |
+| **Async Support** | ✅ | Async function calls and evaluation with Tokio or smol integration |
 | **Custom Extensions** | ✅ | Build and register custom CEL extensions |
 | **Performance Optimization** | ✅ | Optimized evaluation with caching and short-circuiting |
 

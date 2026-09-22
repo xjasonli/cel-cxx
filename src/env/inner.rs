@@ -92,16 +92,16 @@ impl<'f> EnvInner<'f> {
             function_registry: function_registry.clone(),
             variable_registry: variable_registry.clone(),
             ffi_ctx: match &env_options.file_descriptor_set {
-                Some(fds) => ffi::Ctx::new_dynamic(fds).map_err(|e| {
-                    ffi::Status::invalid_argument(e)
-                })?,
+                Some(fds) => {
+                    ffi::Ctx::new_dynamic(fds).map_err(|e| ffi::Status::invalid_argument(e))?
+                }
                 None => ffi::Ctx::new_generated(),
             },
             ffi_compiler_builder: |ffi_ctx: &ffi::Ctx| {
                 let options = ffi::CompilerOptions::new();
                 let mut builder =
                     ffi::CompilerBuilder::new(ffi_ctx.shared_descriptor_pool().clone(), &options)?;
-                
+
                 if !env_options.container.is_empty() {
                     builder
                         .pin_mut()
@@ -142,13 +142,17 @@ impl<'f> EnvInner<'f> {
                 if env_options.enable_ext_lists {
                     builder
                         .pin_mut()
-                        .add_library(ffi::extensions::lists::compiler_library())?;
+                        .add_library(ffi::extensions::lists::compiler_library(
+                            ffi::extensions::lists::latest_version(),
+                        ))?;
                 }
 
                 if env_options.enable_ext_math {
                     builder
                         .pin_mut()
-                        .add_library(ffi::extensions::math::compiler_library())?;
+                        .add_library(ffi::extensions::math::compiler_library(
+                            ffi::extensions::math::latest_version(),
+                        ))?;
                 }
 
                 if env_options.enable_ext_proto {
@@ -176,16 +180,20 @@ impl<'f> EnvInner<'f> {
                 }
 
                 if env_options.enable_ext_strings {
+                    let mut strings_options =
+                        ffi::extensions::strings::StringsExtensionOptions::new();
+                    *strings_options.pin_mut().version_mut() =
+                        ffi::extensions::strings::latest_version();
                     builder
                         .pin_mut()
-                        .add_library(ffi::extensions::strings::compiler_library())?;
+                        .add_library(ffi::extensions::strings::compiler_library(
+                            &strings_options,
+                        ))?;
                 }
 
                 for m in macros.iter() {
                     let ffi_macro = &*m.0;
-                    let status = builder.pin_mut()
-                        .parser_builder()
-                        .add_macro(ffi_macro);
+                    let status = builder.pin_mut().parser_builder().add_macro(ffi_macro);
                     if !status.is_ok() {
                         return Err(status.into());
                     }
@@ -205,49 +213,52 @@ impl<'f> EnvInner<'f> {
                                     value_type,
                                     ffi_ctx.arena(),
                                     ffi_ctx.descriptor_pool(),
-                                ),
+                                )?,
                             )
                         }
                     };
-                    builder
+                    let status = builder
                         .pin_mut()
                         .checker_builder()
                         .add_variable(&ffi_variable_decl);
+                    if !status.is_ok() {
+                        return Err(status);
+                    }
                 }
 
                 for (name, overloads) in function_registry.entries() {
                     let mut ffi_function_decl = ffi::FunctionDecl::new(name);
-                    for kind_overload in overloads.entries() {
-                        let member = kind_overload.member();
-
-                        for type_overload in kind_overload.entries() {
-                            let id = type_overload.decl().id(name, member);
-                            let ffi_result = ffi::type_from_rust(
-                                type_overload.decl().result(),
-                                ffi_ctx.arena(),
-                                ffi_ctx.descriptor_pool(),
-                            );
-                            let ffi_arguments = type_overload
-                                .decl()
-                                .arguments()
-                                .iter()
-                                .map(|ty| {
-                                    ffi::type_from_rust(
-                                        ty,
-                                        ffi_ctx.arena(),
-                                        ffi_ctx.descriptor_pool(),
-                                    )
-                                })
-                                .collect::<Vec<_>>();
-                            let ffi_overload_decl =
-                                ffi::OverloadDecl::new(&id, member, &ffi_result, &ffi_arguments);
-                            ffi_function_decl.pin_mut().add_overload(&ffi_overload_decl);
+                    for entry in overloads.entries() {
+                        let member = entry.member();
+                        let id = entry.inner().decl().id(name, member);
+                        let ffi_result = ffi::type_from_rust(
+                            entry.inner().decl().result(),
+                            ffi_ctx.arena(),
+                            ffi_ctx.descriptor_pool(),
+                        )?;
+                        let ffi_arguments = entry
+                            .inner()
+                            .decl()
+                            .arguments()
+                            .iter()
+                            .map(|ty| {
+                                ffi::type_from_rust(ty, ffi_ctx.arena(), ffi_ctx.descriptor_pool())
+                            })
+                            .collect::<Result<Vec<_>, _>>()?;
+                        let ffi_overload_decl =
+                            ffi::OverloadDecl::new(&id, member, &ffi_result, &ffi_arguments);
+                        let status = ffi_function_decl.pin_mut().add_overload(&ffi_overload_decl);
+                        if !status.is_ok() {
+                            return Err(status);
                         }
                     }
-                    builder
+                    let status = builder
                         .pin_mut()
                         .checker_builder()
                         .merge_function(&ffi_function_decl);
+                    if !status.is_ok() {
+                        return Err(status);
+                    }
                 }
 
                 let compiler = builder.pin_mut().build()?;
@@ -278,7 +289,7 @@ impl<'f> EnvInner<'f> {
                     builder.pin_mut().enable_standard(&options)?;
                 }
                 if env_options.enable_optional {
-                    builder.pin_mut().enable_optional(&options)?;
+                    builder.pin_mut().enable_optional()?;
                 }
 
                 // Register enum constants from the custom descriptor pool so that
@@ -288,10 +299,7 @@ impl<'f> EnvInner<'f> {
                     builder
                         .pin_mut()
                         .type_registry()
-                        .register_enums_from_file_descriptor_set(
-                            ffi_ctx.descriptor_pool(),
-                            fds,
-                        )?;
+                        .register_enums_from_file_descriptor_set(ffi_ctx.descriptor_pool(), fds)?;
                 }
 
                 if env_options.enable_ext_comprehensions {
@@ -312,6 +320,7 @@ impl<'f> EnvInner<'f> {
                     ffi::extensions::lists::register_functions(
                         builder.pin_mut().function_registry(),
                         &options,
+                        ffi::extensions::lists::latest_version(),
                     )?;
                 }
 
@@ -319,13 +328,12 @@ impl<'f> EnvInner<'f> {
                     ffi::extensions::math::register_functions(
                         builder.pin_mut().function_registry(),
                         &options,
+                        ffi::extensions::math::latest_version(),
                     )?;
                 }
 
                 if env_options.enable_ext_regex {
-                    ffi::extensions::regex::register_functions(
-                        builder.pin_mut()
-                    )?;
+                    ffi::extensions::regex::register_functions(builder.pin_mut())?;
                 }
 
                 if env_options.enable_ext_re {
@@ -343,44 +351,70 @@ impl<'f> EnvInner<'f> {
                 }
 
                 if env_options.enable_ext_strings {
+                    let mut strings_options =
+                        ffi::extensions::strings::StringsExtensionOptions::new();
+                    *strings_options.pin_mut().version_mut() =
+                        ffi::extensions::strings::latest_version();
                     ffi::extensions::strings::register_functions(
                         builder.pin_mut().function_registry(),
                         &options,
+                        &strings_options,
                     )?;
                 }
 
                 if env_options.enable_ext_select_optimization {
                     let options = ffi::extensions::select_optimization::Options::new();
-                    ffi::extensions::select_optimization::enable(
-                        builder.pin_mut(),
-                        &options,
-                    )?;
+                    ffi::extensions::select_optimization::enable(builder.pin_mut(), &options)?;
                 }
 
                 for (name, overloads) in function_registry.entries() {
-                    for kind_overload in overloads.entries() {
-                        let receiver_style = kind_overload.member();
-                        let ffi_types = kind_overload.argument_kinds();
-                        let ffi_function_descriptor =
-                            ffi::FunctionDescriptor::new(name, receiver_style, ffi_types, true);
-                        builder
+                    for entry in overloads.entries() {
+                        let receiver_style = entry.member();
+                        let id = entry.inner().decl().id(name, receiver_style);
+                        let ffi_types = entry
+                            .inner()
+                            .decl()
+                            .arguments()
+                            .iter()
+                            .map(|ty| {
+                                ffi::type_from_rust(ty, ffi_ctx.arena(), ffi_ctx.descriptor_pool())
+                            })
+                            .collect::<Result<Vec<_>, _>>()?;
+                        let ffi_function_descriptor = ffi::FunctionDescriptor::new_with_overload_id(
+                            name,
+                            &id,
+                            receiver_style,
+                            &ffi_types,
+                            true,
+                        );
+                        let status = builder
                             .pin_mut()
                             .function_registry()
                             .register_lazy(&ffi_function_descriptor);
+                        if !status.is_ok() {
+                            return Err(status);
+                        }
                     }
                 }
 
+                let mut registered_opaque_types = HashSet::new();
                 for (_, decl) in variable_registry.entries() {
                     if let ValueType::Opaque(opaque) = decl.decl() {
+                        if !registered_opaque_types.insert(opaque) {
+                            continue;
+                        }
                         let ffi_opaque_type = ffi::opaque_type_from_rust(
                             opaque,
                             ffi_ctx.arena(),
                             ffi_ctx.descriptor_pool(),
-                        );
-                        builder
+                        )?;
+                        let status = builder
                             .pin_mut()
                             .type_registry()
                             .register_type(&ffi_opaque_type);
+                        if !status.is_ok() {
+                            return Err(status);
+                        }
                     }
                 }
 
@@ -395,7 +429,6 @@ impl<'f> EnvInner<'f> {
         self.with_function_registry(|function_registry| function_registry)
     }
 
-    #[allow(unused)]
     pub fn variable_registry(&self) -> &Arc<VariableRegistry> {
         self.with_variable_registry(|variable_registry| variable_registry)
     }

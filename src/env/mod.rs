@@ -1927,7 +1927,7 @@ const _: () = {
         /// # Examples
         ///
         /// ```rust,no_run
-        /// # #[cfg(feature = "async")]
+        /// # #[cfg(all(feature = "async", feature = "tokio"))]
         /// # {
         /// use cel_cxx::*;
         ///
@@ -1970,30 +1970,6 @@ const _: () = {
             self.use_runtime::<Tokio>()
         }
 
-        /// Configures the environment to use the async-std runtime.
-        ///
-        /// This is a convenience method for setting the runtime to async-std.
-        /// Requires the `async-std` feature to be enabled.
-        ///
-        /// # Examples
-        ///
-        /// ```rust,no_run
-        /// # #[cfg(all(feature = "async", feature = "async-std"))]
-        /// # {
-        /// use cel_cxx::*;
-        ///
-        /// let env = Env::builder()
-        ///     .build()?
-        ///     .use_async_std();
-        /// # }
-        /// # Ok::<(), cel_cxx::Error>(())
-        /// ```
-        #[cfg(feature = "async-std")]
-        #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
-        pub fn use_async_std(self) -> Env<'f, Fm, AsyncStd> {
-            self.use_runtime::<AsyncStd>()
-        }
-
         /// Configures the environment to use the smol runtime.
         ///
         /// This is a convenience method for setting the runtime to smol.
@@ -2030,7 +2006,7 @@ const _: () = {
         /// # Examples
         ///
         /// ```rust,no_run
-        /// # #[cfg(feature = "async")]
+        /// # #[cfg(all(feature = "async", feature = "tokio"))]
         /// # {
         /// use cel_cxx::*;
         ///
@@ -2067,27 +2043,6 @@ const _: () = {
         #[cfg_attr(docsrs, doc(cfg(feature = "tokio")))]
         pub fn use_tokio(self) -> EnvBuilder<'f, Fm, Tokio> {
             self.use_runtime::<Tokio>()
-        }
-
-        /// Configures the builder to use the async-std runtime.
-        ///
-        /// This is a convenience method for setting the runtime to async-std.
-        /// Requires the `async-std` feature to be enabled.
-        ///
-        /// # Examples
-        ///
-        /// ```rust,no_run
-        /// # #[cfg(all(feature = "async", feature = "async-std"))]
-        /// # {
-        /// use cel_cxx::*;
-        ///
-        /// let builder = Env::builder().use_async_std();
-        /// # }
-        /// ```
-        #[cfg(feature = "async-std")]
-        #[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
-        pub fn use_async_std(self) -> EnvBuilder<'f, Fm, AsyncStd> {
-            self.use_runtime::<AsyncStd>()
         }
 
         /// Configures the builder to use the smol runtime.

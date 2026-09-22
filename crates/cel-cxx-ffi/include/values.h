@@ -410,7 +410,7 @@ inline std::unique_ptr<NullValue> NullValue_new() {
 class AnyFfiOpaqueValueWrapper: public cel::OpaqueValueInterface {
 public:
     AnyFfiOpaqueValueWrapper(Box<AnyFfiOpaqueValue> ffi): ffi_(std::move(ffi)) {}
-    Box<AnyFfiOpaqueValue> ffi() const;
+    const AnyFfiOpaqueValue* ffi() const;
     Box<AnyFfiOpaqueValue> release() && { return std::move(ffi_); }
 
     virtual std::string DebugString() const override;
@@ -442,7 +442,7 @@ inline std::unique_ptr<OptionalValue> OpaqueValue_get_optional(const OpaqueValue
     return std::make_unique<OptionalValue>(opaque_value.GetOptional());
 }
 
-Box<AnyFfiOpaqueValue> OpaqueValue_get_ffi(const OpaqueValue& opaque_value);
+const AnyFfiOpaqueValue* OpaqueValue_get_ffi(const OpaqueValue& opaque_value);
 
 // OptionalValue
 inline std::unique_ptr<OptionalValue> OptionalValue_new(const Arena& arena, const Value& value) {

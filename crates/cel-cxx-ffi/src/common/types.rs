@@ -1,4 +1,4 @@
-use crate::absl::{Span, SpanElement, StringView};
+use crate::absl::{Span, SpanElement, Status, StringView};
 use crate::common::TypeKind;
 use crate::protobuf::{Arena, DescriptorPool};
 use crate::Rep;
@@ -18,6 +18,9 @@ mod ffi {
     unsafe extern "C++" {
         include!(<absl/strings/string_view.h>);
         type string_view<'a> = super::StringView<'a>;
+
+        include!(<absl/status/status.h>);
+        type Status = super::Status;
     }
 
     #[namespace = "cel"]
@@ -182,6 +185,7 @@ mod ffi {
 
     #[namespace = "rust::cel_cxx"]
     unsafe extern "C++" {
+        include!(<cel-cxx-ffi/include/absl.h>);
         include!(<cel-cxx-ffi/include/types.h>);
         type Span_Type<'s, 'a> = super::Span<'s, Type<'a>>;
 
@@ -195,13 +199,23 @@ mod ffi {
         fn Type_new_duration() -> Type<'static>;
         fn Type_new_dyn() -> Type<'static>;
         fn Type_new_enum<'a>(enum_type: &EnumType<'a>) -> Type<'a>;
+        fn Type_from_enum_name<'a>(
+            pool: &'a DescriptorPool,
+            name: &str,
+            result: &mut Type<'a>,
+        ) -> Status;
         fn Type_new_error() -> Type<'static>;
-        fn Type_new_function<'a>(function_type: &FunctionType<'a>) -> Type<'static>;
+        fn Type_new_function<'a>(function_type: &FunctionType<'a>) -> Type<'a>;
         fn Type_new_int() -> Type<'static>;
         fn Type_new_int_wrapper() -> Type<'static>;
         fn Type_new_list<'a>(list_type: &ListType<'a>) -> Type<'a>;
         fn Type_new_map<'a>(map_type: &MapType<'a>) -> Type<'a>;
         fn Type_new_message<'a>(message_type: &MessageType<'a>) -> Type<'a>;
+        fn Type_from_message_name<'a>(
+            pool: &'a DescriptorPool,
+            name: &str,
+            result: &mut Type<'a>,
+        ) -> Status;
         fn Type_new_null() -> Type<'static>;
         fn Type_new_opaque<'a>(opaque_type: &OpaqueType<'a>) -> Type<'a>;
         fn Type_new_optional<'a>(optional_type: &OptionalType<'a>) -> Type<'a>;
@@ -271,11 +285,7 @@ mod ffi {
     }
 }
 
-// cel::Type is a variant of all subtypes.
-// The largest type is BasicStructType, TypeParamType which contains a
-// std::string_view.
-//
-// So we use 2 pointers size to store the type.
+// cel::Type stores a two-word payload and a variant index.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
 pub struct Type<'a>(Rep<'a, usize, 3>);
@@ -322,6 +332,15 @@ impl<'a> Type<'a> {
     pub fn new_enum(enum_type: &EnumType<'a>) -> Self {
         ffi::Type_new_enum(enum_type)
     }
+    pub fn from_enum_name(pool: &'a DescriptorPool, name: &str) -> Result<Self, Status> {
+        let mut result = Self::new_dyn();
+        let status = ffi::Type_from_enum_name(pool, name, &mut result);
+        if status.is_ok() {
+            Ok(result)
+        } else {
+            Err(status)
+        }
+    }
     pub fn new_error() -> Self {
         ffi::Type_new_error()
     }
@@ -342,6 +361,15 @@ impl<'a> Type<'a> {
     }
     pub fn new_message(message_type: &MessageType<'a>) -> Self {
         ffi::Type_new_message(message_type)
+    }
+    pub fn from_message_name(pool: &'a DescriptorPool, name: &str) -> Result<Self, Status> {
+        let mut result = Self::new_dyn();
+        let status = ffi::Type_from_message_name(pool, name, &mut result);
+        if status.is_ok() {
+            Ok(result)
+        } else {
+            Err(status)
+        }
     }
     pub fn new_null() -> Self {
         ffi::Type_new_null()
@@ -542,12 +570,10 @@ impl<'a> StructType<'a> {
     }
 }
 
-// TypeParamType stores a std::string_view.
-//
-// So we use 1 pointer size to store the type.
+// TypeParamType stores a std::string_view (pointer and length).
 #[repr(transparent)]
 #[derive(Copy, Clone)]
-pub struct TypeParamType<'a>(Rep<'a, usize, 1>);
+pub struct TypeParamType<'a>(Rep<'a, usize, 2>);
 
 unsafe impl<'a> cxx::ExternType for TypeParamType<'a> {
     type Id = cxx::type_id!("cel::TypeParamType");
@@ -593,12 +619,10 @@ impl<'a> TypeType<'a> {
     }
 }
 
-// TypeParameters stores a size_t and a array of two `Type`s.
-//
-// So we use 5 pointers size to store the type.
+// TypeParameters stores a size_t and inline storage for two three-word Types.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
-pub struct TypeParameters<'a>(Rep<'a, usize, 5>);
+pub struct TypeParameters<'a>(Rep<'a, usize, 7>);
 
 unsafe impl<'a> cxx::ExternType for TypeParameters<'a> {
     type Id = cxx::type_id!("cel::TypeParameters");

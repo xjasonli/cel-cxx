@@ -128,7 +128,6 @@ let env = Env::builder()
 | `async` | Async/await support for expressions and functions | ❌ |
 | `tokio` | Tokio async runtime integration (requires `async`) | ❌ |
 | `smol` | smol runtime integration (requires `async`) | ❌ |
-| `async-std` | async-std runtime integration (requires `async`) | ❌ |
 
 ## Performance
 
@@ -144,7 +143,7 @@ The crate includes comprehensive examples demonstrating various features:
 
 - **Basic Usage**: Variable binding, function registration, expression evaluation
 - **Custom Types**: Derive macros, member functions, type integration  
-- **Async Support**: Tokio/smol/async-std integration examples
+- **Async Support**: Tokio/smol integration examples
 - **Advanced Features**: Function overloads, error handling, complex type conversions
 
 Run examples with:

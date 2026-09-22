@@ -1,14 +1,14 @@
 //! Asynchronous runtime support for CEL.
 //!
 //! This module provides support for asynchronous evaluation of CEL expressions
-//! using the [async-std](https://github.com/async-rs/async-std) or
-//! [tokio](https://github.com/tokio-rs/tokio) runtimes.
+//! using the [tokio](https://github.com/tokio-rs/tokio) or
+//! [smol](https://github.com/smol-rs/smol) runtimes.
 //!
 //! # Features
-//! - `async-std`: Enables asynchronous evaluation of CEL expressions using
-//!   [async-std](https://github.com/async-rs/async-std).
 //! - `tokio`: Enables asynchronous evaluation of CEL expressions using
 //!   [tokio](https://github.com/tokio-rs/tokio).
+//! - `smol`: Enables asynchronous evaluation of CEL expressions using
+//!   [smol](https://github.com/smol-rs/smol).
 //!
 
 use async_scoped::spawner::{Blocker, FuncSpawner, Spawner};
@@ -60,33 +60,6 @@ pub mod tokio {
     impl BlockingRunner for TokioBlockingRunner {
         fn block_on<F: Future>(fut: F) -> F::Output {
             ::tokio::runtime::Handle::current().block_on(fut)
-        }
-    }
-}
-
-/// Async-std runtime for CEL asynchronous runtime.
-#[cfg(feature = "async-std")]
-#[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
-#[allow(missing_debug_implementations)]
-pub enum AsyncStd {}
-
-/// Async-std runtime implementation.
-#[cfg(feature = "async-std")]
-#[cfg_attr(docsrs, doc(cfg(feature = "async-std")))]
-pub mod async_std {
-    #![allow(missing_debug_implementations)]
-    use super::*;
-
-    impl Runtime for AsyncStd {
-        type ScopedSpawner = async_scoped::spawner::use_async_std::AsyncStd;
-        type BlockingRunner = AsyncStdBlockingRunner;
-    }
-
-    /// Async-std blocking runner for CEL asynchronous runtime.
-    pub struct AsyncStdBlockingRunner;
-    impl BlockingRunner for AsyncStdBlockingRunner {
-        fn block_on<F: Future>(fut: F) -> F::Output {
-            ::async_std::task::block_on(fut)
         }
     }
 }

@@ -4,8 +4,8 @@ pub(crate) fn type_from_rust<'a>(
     type_: &rust::ValueType,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
-) -> Type<'a> {
-    match type_ {
+) -> Result<Type<'a>, Status> {
+    Ok(match type_ {
         rust::ValueType::Null => Type::new_null(),
         rust::ValueType::Bool => Type::new_bool(),
         rust::ValueType::Int => Type::new_int(),
@@ -14,29 +14,28 @@ pub(crate) fn type_from_rust<'a>(
         rust::ValueType::String => Type::new_string(),
         rust::ValueType::Bytes => Type::new_bytes(),
         rust::ValueType::Struct(struct_type) => {
-            let message_type = message_type_from_rust(&struct_type.name, descriptor_pool);
-            Type::new_message(&message_type)
+            Type::from_message_name(descriptor_pool, &struct_type.name)?
         }
         rust::ValueType::Duration => Type::new_duration(),
         rust::ValueType::Timestamp => Type::new_timestamp(),
         rust::ValueType::List(list_type) => {
-            let list_type = list_type_from_rust(list_type, arena, descriptor_pool);
+            let list_type = list_type_from_rust(list_type, arena, descriptor_pool)?;
             Type::new_list(&list_type)
         }
         rust::ValueType::Map(map_type) => {
-            let map_type = map_type_from_rust(map_type, arena, descriptor_pool);
+            let map_type = map_type_from_rust(map_type, arena, descriptor_pool)?;
             Type::new_map(&map_type)
         }
         rust::ValueType::Unknown => Type::new_unknown(),
         rust::ValueType::Type(type_type) => {
-            let type_type = type_type_from_rust(type_type, arena, descriptor_pool);
+            let type_type = type_type_from_rust(type_type, arena, descriptor_pool)?;
             Type::new_type(&type_type)
         }
         rust::ValueType::Error => Type::new_error(),
         rust::ValueType::Any => Type::new_any(),
         rust::ValueType::Dyn => Type::new_dyn(),
         rust::ValueType::Opaque(opaque_type) => {
-            let opaque_type = opaque_type_from_rust(opaque_type, arena, descriptor_pool);
+            let opaque_type = opaque_type_from_rust(opaque_type, arena, descriptor_pool)?;
             Type::new_opaque(&opaque_type)
         }
         rust::ValueType::BoolWrapper => Type::new_bool_wrapper(),
@@ -46,7 +45,7 @@ pub(crate) fn type_from_rust<'a>(
         rust::ValueType::StringWrapper => Type::new_string_wrapper(),
         rust::ValueType::BytesWrapper => Type::new_bytes_wrapper(),
         rust::ValueType::Optional(optional_type) => {
-            let optional_type = optional_type_from_rust(optional_type, arena, descriptor_pool);
+            let optional_type = optional_type_from_rust(optional_type, arena, descriptor_pool)?;
             Type::new_optional(&optional_type)
         }
         rust::ValueType::TypeParam(type_param_type) => {
@@ -54,14 +53,13 @@ pub(crate) fn type_from_rust<'a>(
             Type::new_type_param(&type_param_type)
         }
         rust::ValueType::Function(function_type) => {
-            let function_type = function_type_from_rust(function_type, arena, descriptor_pool);
+            let function_type = function_type_from_rust(function_type, arena, descriptor_pool)?;
             Type::new_function(&function_type)
         }
         rust::ValueType::Enum(enum_type) => {
-            let enum_type = enum_type_from_rust(enum_type, descriptor_pool);
-            Type::new_enum(&enum_type)
+            Type::from_enum_name(descriptor_pool, enum_type.name())?
         }
-    }
+    })
 }
 
 fn map_key_type_from_rust<'a>(map_key: &rust::MapKeyType, arena: &'a Arena) -> Type<'a> {
@@ -82,63 +80,58 @@ fn list_type_from_rust<'a>(
     list: &rust::ListType,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
-) -> ListType<'a> {
-    ListType::new(
+) -> Result<ListType<'a>, Status> {
+    Ok(ListType::new(
         arena,
-        &type_from_rust(list.element(), arena, descriptor_pool),
-    )
+        &type_from_rust(list.element(), arena, descriptor_pool)?,
+    ))
 }
 
 fn map_type_from_rust<'a>(
     map: &rust::MapType,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
-) -> MapType<'a> {
-    MapType::new(
+) -> Result<MapType<'a>, Status> {
+    Ok(MapType::new(
         arena,
         &map_key_type_from_rust(map.key(), arena),
-        &type_from_rust(map.value(), arena, descriptor_pool),
-    )
+        &type_from_rust(map.value(), arena, descriptor_pool)?,
+    ))
 }
 
 fn type_type_from_rust<'a>(
     type_type: &rust::TypeType,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
-) -> TypeType<'a> {
-    match type_type.parameter() {
-        Some(parameter) => TypeType::new(arena, &type_from_rust(parameter, arena, descriptor_pool)),
+) -> Result<TypeType<'a>, Status> {
+    Ok(match type_type.parameter() {
+        Some(parameter) => {
+            TypeType::new(arena, &type_from_rust(parameter, arena, descriptor_pool)?)
+        }
         None => TypeType::default(),
-    }
-}
-
-fn message_type_from_rust<'a>(
-    message: &str,
-    descriptor_pool: &'a DescriptorPool,
-) -> MessageType<'a> {
-    MessageType::new(descriptor_pool, message)
+    })
 }
 
 pub(crate) fn opaque_type_from_rust<'a>(
     opaque_type: &rust::OpaqueType,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
-) -> OpaqueType<'a> {
+) -> Result<OpaqueType<'a>, Status> {
     let parameters = opaque_type
         .parameters()
         .iter()
         .map(|p| type_from_rust(p, arena, descriptor_pool))
-        .collect::<Vec<_>>();
-    OpaqueType::new(arena, opaque_type.name(), &parameters)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(OpaqueType::new(arena, opaque_type.name(), &parameters))
 }
 
 fn optional_type_from_rust<'a>(
     optional_type: &rust::OptionalType,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
-) -> OptionalType<'a> {
-    let parameter = type_from_rust(optional_type.parameter(), arena, descriptor_pool);
-    OptionalType::new(arena, &parameter)
+) -> Result<OptionalType<'a>, Status> {
+    let parameter = type_from_rust(optional_type.parameter(), arena, descriptor_pool)?;
+    Ok(OptionalType::new(arena, &parameter))
 }
 
 fn type_param_type_from_rust<'a>(
@@ -152,21 +145,14 @@ fn function_type_from_rust<'a>(
     function_type: &rust::FunctionType,
     arena: &'a Arena,
     descriptor_pool: &'a DescriptorPool,
-) -> FunctionType<'a> {
-    let result = type_from_rust(function_type.result(), arena, descriptor_pool);
+) -> Result<FunctionType<'a>, Status> {
+    let result = type_from_rust(function_type.result(), arena, descriptor_pool)?;
     let arguments = function_type
         .arguments()
         .iter()
         .map(|a| type_from_rust(a, arena, descriptor_pool))
-        .collect::<Vec<_>>();
-    FunctionType::new(arena, &result, &arguments)
-}
-
-fn enum_type_from_rust<'a>(
-    enum_type: &rust::EnumType,
-    descriptor_pool: &'a DescriptorPool,
-) -> EnumType<'a> {
-    EnumType::new(descriptor_pool, enum_type.name())
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(FunctionType::new(arena, &result, &arguments))
 }
 
 pub(crate) fn type_to_rust<'a>(type_: &Type<'a>) -> rust::ValueType {

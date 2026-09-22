@@ -5,8 +5,8 @@
 
 namespace rust::cel_cxx {
 
-Box<AnyFfiOpaqueValue> AnyFfiOpaqueValueWrapper::ffi() const {
-    return ffi_->Clone();
+const AnyFfiOpaqueValue* AnyFfiOpaqueValueWrapper::ffi() const {
+    return &*ffi_;
 }
 
 std::string AnyFfiOpaqueValueWrapper::DebugString() const {
@@ -63,9 +63,9 @@ std::unique_ptr<OpaqueValue> OpaqueValue_new(
         wrapper, arena_ptr);
 }
 
-Box<AnyFfiOpaqueValue> OpaqueValue_get_ffi(const OpaqueValue& opaque_value) {
+const AnyFfiOpaqueValue* OpaqueValue_get_ffi(const OpaqueValue& opaque_value) {
     auto wrapper = dynamic_cast<const AnyFfiOpaqueValueWrapper*>(opaque_value.interface());
-    return wrapper->ffi();
+    return wrapper == nullptr ? nullptr : wrapper->ffi();
 }
 
 // ValueBuilder

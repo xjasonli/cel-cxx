@@ -11,7 +11,7 @@ mod ffi {
 
     #[namespace = "cel"]
     unsafe extern "C++" {
-        type FunctionRegistry<'f> = super::FunctionRegistry<'f>;
+        type FunctionRegistry<'a, 'f> = super::FunctionRegistry<'a, 'f>;
         type RuntimeBuilder<'a, 'f> = super::RuntimeBuilder<'a, 'f>;
         type RuntimeOptions = super::RuntimeOptions;
         type CompilerLibrary = super::CompilerLibrary;
@@ -21,29 +21,15 @@ mod ffi {
     unsafe extern "C++" {
         include!(<extensions/comprehensions_v2.h>);
         #[rust_name = "register_comprehensions_v2_functions"]
-        fn RegisterComprehensionsV2Functions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
+        fn RegisterComprehensionsV2Functions<'a, 'f>(
+            function_registry: Pin<&mut FunctionRegistry<'a, 'f>>,
             runtime_options: &RuntimeOptions,
         ) -> Status;
 
         include!(<extensions/encoders.h>);
         #[rust_name = "register_encoders_functions"]
-        fn RegisterEncodersFunctions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
-            runtime_options: &RuntimeOptions,
-        ) -> Status;
-
-        include!(<extensions/lists_functions.h>);
-        #[rust_name = "register_lists_functions"]
-        fn RegisterListsFunctions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
-            runtime_options: &RuntimeOptions,
-        ) -> Status;
-
-        include!(<extensions/math_ext.h>);
-        #[rust_name = "register_math_functions"]
-        fn RegisterMathExtensionFunctions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
+        fn RegisterEncodersFunctions<'a, 'f>(
+            function_registry: Pin<&mut FunctionRegistry<'a, 'f>>,
             runtime_options: &RuntimeOptions,
         ) -> Status;
 
@@ -55,8 +41,8 @@ mod ffi {
 
         include!(<extensions/regex_functions.h>);
         #[rust_name = "register_regex_functions"]
-        fn RegisterRegexFunctions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
+        fn RegisterRegexFunctions<'a, 'f>(
+            function_registry: Pin<&mut FunctionRegistry<'a, 'f>>,
             runtime_options: &RuntimeOptions,
         ) -> Status;
 
@@ -70,16 +56,35 @@ mod ffi {
 
         include!(<extensions/sets_functions.h>);
         #[rust_name = "register_sets_functions"]
-        fn RegisterSetsFunctions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
+        fn RegisterSetsFunctions<'a, 'f>(
+            function_registry: Pin<&mut FunctionRegistry<'a, 'f>>,
             runtime_options: &RuntimeOptions,
         ) -> Status;
 
-        include!(<extensions/strings.h>);
-        #[rust_name = "register_strings_functions"]
-        fn RegisterStringsFunctions<'f>(
-            function_registry: Pin<&mut FunctionRegistry<'f>>,
+        // CXX requires explicit version arguments because it binds exact
+        // function pointer signatures and cannot apply C++ defaults.
+        include!(<extensions/math_ext.h>);
+        #[rust_name = "register_math_functions"]
+        fn RegisterMathExtensionFunctions<'a, 'f>(
+            function_registry: Pin<&mut FunctionRegistry<'a, 'f>>,
             runtime_options: &RuntimeOptions,
+            version: i32,
+        ) -> Status;
+        include!(<extensions/lists_functions.h>);
+        #[rust_name = "register_lists_functions"]
+        fn RegisterListsFunctions<'a, 'f>(
+            function_registry: Pin<&mut FunctionRegistry<'a, 'f>>,
+            runtime_options: &RuntimeOptions,
+            version: i32,
+        ) -> Status;
+
+        include!(<extensions/strings.h>);
+        type StringsExtensionOptions;
+        #[rust_name = "register_strings_functions"]
+        fn RegisterStringsFunctions<'a, 'f>(
+            function_registry: Pin<&mut FunctionRegistry<'a, 'f>>,
+            runtime_options: &RuntimeOptions,
+            options: &StringsExtensionOptions,
         ) -> Status;
     }
 
@@ -87,6 +92,22 @@ mod ffi {
     unsafe extern "C++" {
         include!(<cel-cxx-ffi/include/absl.h>);
         include!(<cel-cxx-ffi/include/extensions.h>);
+
+        #[rust_name = "math_extension_latest_version"]
+        fn MathExtensionLatestVersion() -> i32;
+        #[rust_name = "lists_extension_latest_version"]
+        fn ListsExtensionLatestVersion() -> i32;
+        #[rust_name = "strings_extension_latest_version"]
+        fn StringsExtensionLatestVersion() -> i32;
+        fn StringsExtensionOptions_new() -> UniquePtr<StringsExtensionOptions>;
+        fn StringsExtensionOptions_version(options: &StringsExtensionOptions) -> i32;
+        fn StringsExtensionOptions_version_mut(
+            options: Pin<&mut StringsExtensionOptions>,
+        ) -> &mut i32;
+        fn StringsExtensionOptions_max_precision(options: &StringsExtensionOptions) -> i32;
+        fn StringsExtensionOptions_max_precision_mut(
+            options: Pin<&mut StringsExtensionOptions>,
+        ) -> &mut i32;
 
         // bindings_ext.h
         #[rust_name = "bindings_compiler_library"]
@@ -102,11 +123,11 @@ mod ffi {
 
         // lists_functions.h
         #[rust_name = "lists_compiler_library"]
-        fn ListsCompilerLibrary() -> UniquePtr<CompilerLibrary>;
+        fn ListsCompilerLibrary(version: i32) -> UniquePtr<CompilerLibrary>;
 
         // math_ext_decls.h
         #[rust_name = "math_compiler_library"]
-        fn MathCompilerLibrary() -> UniquePtr<CompilerLibrary>;
+        fn MathCompilerLibrary(version: i32) -> UniquePtr<CompilerLibrary>;
 
         // proto_ext.h
         #[rust_name = "proto_ext_compiler_library"]
@@ -124,8 +145,12 @@ mod ffi {
         fn SelectOptimizationOptions_new() -> UniquePtr<SelectOptimizationOptions>;
 
         // SelectOptimizationOptions getters and setters
-        fn SelectOptimizationOptions_force_fallback_implementation(options: &SelectOptimizationOptions) -> bool;
-        fn SelectOptimizationOptions_force_fallback_implementation_mut(options: Pin<&mut SelectOptimizationOptions>) -> &mut bool;
+        fn SelectOptimizationOptions_force_fallback_implementation(
+            options: &SelectOptimizationOptions,
+        ) -> bool;
+        fn SelectOptimizationOptions_force_fallback_implementation_mut(
+            options: Pin<&mut SelectOptimizationOptions>,
+        ) -> &mut bool;
 
         // sets_functions.h
         #[rust_name = "sets_compiler_library"]
@@ -133,10 +158,9 @@ mod ffi {
 
         // strings.h
         #[rust_name = "strings_compiler_library"]
-        fn StringsCompilerLibrary() -> UniquePtr<CompilerLibrary>;
+        fn StringsCompilerLibrary(options: &StringsExtensionOptions) -> UniquePtr<CompilerLibrary>;
     }
 }
-
 
 // bindings_ext.h
 pub mod bindings {
@@ -147,8 +171,8 @@ pub mod bindings {
 pub mod encoders {
     pub use super::ffi::encoders_compiler_library as compiler_library;
 
-    pub fn register_functions<'f>(
-        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
+    pub fn register_functions<'a, 'f>(
+        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'a, 'f>>,
         runtime_options: &super::RuntimeOptions,
     ) -> Result<(), super::Status> {
         let status = super::ffi::register_encoders_functions(function_registry, runtime_options);
@@ -164,11 +188,12 @@ pub mod encoders {
 pub mod comprehensions {
     pub use super::ffi::comprehensions_v2_compiler_library as compiler_library;
 
-    pub fn register_functions<'f>(
-        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
+    pub fn register_functions<'a, 'f>(
+        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'a, 'f>>,
         runtime_options: &super::RuntimeOptions,
     ) -> Result<(), super::Status> {
-        let status = super::ffi::register_comprehensions_v2_functions(function_registry, runtime_options);
+        let status =
+            super::ffi::register_comprehensions_v2_functions(function_registry, runtime_options);
         if status.is_ok() {
             Ok(())
         } else {
@@ -181,11 +206,18 @@ pub mod comprehensions {
 pub mod lists {
     pub use super::ffi::lists_compiler_library as compiler_library;
 
-    pub fn register_functions<'f>(
-        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
+    /// The latest extension version supported by the cel-cpp lists extension.
+    pub fn latest_version() -> i32 {
+        super::ffi::lists_extension_latest_version()
+    }
+
+    pub fn register_functions<'a, 'f>(
+        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'a, 'f>>,
         runtime_options: &super::RuntimeOptions,
+        version: i32,
     ) -> Result<(), super::Status> {
-        let status = super::ffi::register_lists_functions(function_registry, runtime_options);
+        let status =
+            super::ffi::register_lists_functions(function_registry, runtime_options, version);
         if status.is_ok() {
             Ok(())
         } else {
@@ -198,11 +230,18 @@ pub mod lists {
 pub mod math {
     pub use super::ffi::math_compiler_library as compiler_library;
 
-    pub fn register_functions<'f>(
-        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
+    /// The latest extension version supported by the cel-cpp math extension.
+    pub fn latest_version() -> i32 {
+        super::ffi::math_extension_latest_version()
+    }
+
+    pub fn register_functions<'a, 'f>(
+        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'a, 'f>>,
         runtime_options: &super::RuntimeOptions,
+        version: i32,
     ) -> Result<(), super::Status> {
-        let status = super::ffi::register_math_functions(function_registry, runtime_options);
+        let status =
+            super::ffi::register_math_functions(function_registry, runtime_options, version);
         if status.is_ok() {
             Ok(())
         } else {
@@ -220,8 +259,8 @@ pub mod proto {
 pub mod re {
     pub use super::ffi::regex_compiler_library as compiler_library;
 
-    pub fn register_functions<'f>(
-        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
+    pub fn register_functions<'a, 'f>(
+        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'a, 'f>>,
         runtime_options: &super::RuntimeOptions,
     ) -> Result<(), super::Status> {
         let status = super::ffi::register_regex_functions(function_registry, runtime_options);
@@ -288,8 +327,8 @@ pub mod select_optimization {
 pub mod sets {
     pub use super::ffi::sets_compiler_library as compiler_library;
 
-    pub fn register_functions<'f>(
-        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
+    pub fn register_functions<'a, 'f>(
+        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'a, 'f>>,
         runtime_options: &super::RuntimeOptions,
     ) -> Result<(), super::Status> {
         let status = super::ffi::register_sets_functions(function_registry, runtime_options);
@@ -304,12 +343,42 @@ pub mod sets {
 // strings.h
 pub mod strings {
     pub use super::ffi::strings_compiler_library as compiler_library;
+    pub use super::ffi::StringsExtensionOptions;
 
-    pub fn register_functions<'f>(
-        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'f>>,
+    impl StringsExtensionOptions {
+        pub fn new() -> cxx::UniquePtr<Self> {
+            super::ffi::StringsExtensionOptions_new()
+        }
+
+        pub fn version(&self) -> i32 {
+            super::ffi::StringsExtensionOptions_version(self)
+        }
+
+        pub fn version_mut<'a>(self: std::pin::Pin<&'a mut Self>) -> &'a mut i32 {
+            super::ffi::StringsExtensionOptions_version_mut(self)
+        }
+
+        pub fn max_precision(&self) -> i32 {
+            super::ffi::StringsExtensionOptions_max_precision(self)
+        }
+
+        pub fn max_precision_mut<'a>(self: std::pin::Pin<&'a mut Self>) -> &'a mut i32 {
+            super::ffi::StringsExtensionOptions_max_precision_mut(self)
+        }
+    }
+
+    /// The latest extension version supported by the cel-cpp strings extension.
+    pub fn latest_version() -> i32 {
+        super::ffi::strings_extension_latest_version()
+    }
+
+    pub fn register_functions<'a, 'f>(
+        function_registry: std::pin::Pin<&mut super::FunctionRegistry<'a, 'f>>,
         runtime_options: &super::RuntimeOptions,
+        options: &StringsExtensionOptions,
     ) -> Result<(), super::Status> {
-        let status = super::ffi::register_strings_functions(function_registry, runtime_options);
+        let status =
+            super::ffi::register_strings_functions(function_registry, runtime_options, options);
         if status.is_ok() {
             Ok(())
         } else {

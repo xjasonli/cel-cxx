@@ -7,14 +7,13 @@
 #include <extensions/encoders.h>
 #include <extensions/lists_functions.h>
 #include <extensions/math_ext_decls.h>
+#include <extensions/math_ext.h>
 #include <extensions/proto_ext.h>
 #include <extensions/regex_functions.h>
 #include <extensions/regex_ext.h>
 #include <extensions/select_optimization.h>
 #include <extensions/sets_functions.h>
 #include <extensions/strings.h>
-#include <checker/internal/builtins_arena.h>
-#include <internal/status_macros.h>
 
 namespace rust::cel_cxx {
 
@@ -36,13 +35,15 @@ inline std::unique_ptr<cel::CompilerLibrary> EncodersCompilerLibrary() {
 }
 
 // lists_functions.h
-inline std::unique_ptr<cel::CompilerLibrary> ListsCompilerLibrary() {
-    return std::make_unique<cel::CompilerLibrary>(cel::extensions::ListsCompilerLibrary());
+inline std::unique_ptr<cel::CompilerLibrary> ListsCompilerLibrary(int version) {
+    return std::make_unique<cel::CompilerLibrary>(
+        cel::extensions::ListsCompilerLibrary(version));
 }
 
 // math_ext_decls.h
-inline std::unique_ptr<cel::CompilerLibrary> MathCompilerLibrary() {
-    return std::make_unique<cel::CompilerLibrary>(cel::extensions::MathCompilerLibrary());
+inline std::unique_ptr<cel::CompilerLibrary> MathCompilerLibrary(int version) {
+    return std::make_unique<cel::CompilerLibrary>(
+        cel::extensions::MathCompilerLibrary(version));
 }
 
 // proto_ext.h
@@ -80,18 +81,51 @@ inline bool& SelectOptimizationOptions_force_fallback_implementation_mut(
 }
 
 // sets_functions.h
-
-// hacked version of SetsCheckerLibrary
-cel::CheckerLibrary SetsCheckerLibrary();
-
 inline std::unique_ptr<cel::CompilerLibrary> SetsCompilerLibrary() {
     return std::make_unique<cel::CompilerLibrary>(
-        cel::CompilerLibrary::FromCheckerLibrary(SetsCheckerLibrary()));
+        cel::extensions::SetsCompilerLibrary());
 }
 
 // strings.h
-inline std::unique_ptr<cel::CompilerLibrary> StringsCompilerLibrary() {
-    return std::make_unique<cel::CompilerLibrary>(cel::extensions::StringsCompilerLibrary());
+inline std::unique_ptr<cel::CompilerLibrary> StringsCompilerLibrary(
+    const cel::extensions::StringsExtensionOptions& options) {
+    return std::make_unique<cel::CompilerLibrary>(
+        cel::extensions::StringsCompilerLibrary(options));
+}
+
+// math_ext.h
+inline int MathExtensionLatestVersion() {
+    return ::cel::extensions::kMathExtensionLatestVersion;
+}
+
+// lists_functions.h
+inline int ListsExtensionLatestVersion() {
+    return ::cel::extensions::kListsExtensionLatestVersion;
+}
+
+// strings.h
+inline int StringsExtensionLatestVersion() {
+    return ::cel::extensions::kStringsExtensionLatestVersion;
+}
+inline std::unique_ptr<cel::extensions::StringsExtensionOptions>
+StringsExtensionOptions_new() {
+    return std::make_unique<cel::extensions::StringsExtensionOptions>();
+}
+inline int StringsExtensionOptions_version(
+    const cel::extensions::StringsExtensionOptions& options) {
+    return options.version;
+}
+inline int& StringsExtensionOptions_version_mut(
+    cel::extensions::StringsExtensionOptions& options) {
+    return options.version;
+}
+inline int StringsExtensionOptions_max_precision(
+    const cel::extensions::StringsExtensionOptions& options) {
+    return options.max_precision;
+}
+inline int& StringsExtensionOptions_max_precision_mut(
+    cel::extensions::StringsExtensionOptions& options) {
+    return options.max_precision;
 }
 
 } // namespace rust::cel_cxx

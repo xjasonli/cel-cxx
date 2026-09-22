@@ -1,418 +1,254 @@
+//! String extensions for indexing, transformation, formatting, and input normalization.
+//!
+//! Includes Unicode code-point indexing, embedded NULs, empty inputs, and errors.
+//! Run with: `cargo run --example extensions-strings`
+
 use cel_cxx::*;
 
+fn check<T: IntoValue>(
+    env: &Env,
+    activation: &Activation,
+    expression: &str,
+    expected: T,
+) -> Result<(), Error> {
+    let result = env.compile(expression)?.evaluate(activation)?;
+    assert_eq!(result, expected.into_value(), "{expression}");
+    println!("  {expression} => {result}");
+    Ok(())
+}
+
 fn main() -> Result<(), Error> {
-    println!("🔧 CEL String Extensions Example");
-    println!("=================================");
-    
-    // Build environment with string extensions enabled
     let env = Env::builder()
         .with_ext_strings(true)
         .declare_variable::<String>("text")?
         .declare_variable::<String>("search")?
         .declare_variable::<String>("replacement")?
-        .declare_variable::<i64>("index")?
         .declare_variable::<i64>("start")?
         .declare_variable::<i64>("end")?
         .declare_variable::<Vec<String>>("words")?
-        .declare_variable::<String>("email")?
-        .declare_variable::<String>("data")?
         .build()?;
 
-    // Demo 1: charAt function
-    println!("\n📌 Demo 1: charAt Function");
-    demo_char_at(&env)?;
-    
-    // Demo 2: indexOf functions
-    println!("\n📌 Demo 2: indexOf Functions");
-    demo_index_of(&env)?;
-    
-    // Demo 3: lastIndexOf functions
-    println!("\n📌 Demo 3: lastIndexOf Functions");
-    demo_last_index_of(&env)?;
-    
-    // Demo 4: strings.quote function
-    println!("\n📌 Demo 4: strings.quote Function");
-    demo_strings_quote(&env)?;
-    
-    // Demo 5: substring functions
-    println!("\n📌 Demo 5: substring Functions");
-    demo_substring(&env)?;
-    
-    // Demo 6: trim function
-    println!("\n📌 Demo 6: trim Function");
-    demo_trim(&env)?;
-    
-    // Demo 7: join function
-    println!("\n📌 Demo 7: join Function");
-    demo_join(&env)?;
-    
-    // Demo 8: split function
-    println!("\n📌 Demo 8: split Function");
-    demo_split(&env)?;
-    
-    // Demo 9: Case conversion functions
-    println!("\n📌 Demo 9: Case Conversion Functions");
-    demo_case_conversion(&env)?;
-    
-    // Demo 10: replace function
-    println!("\n📌 Demo 10: replace Function");
-    demo_replace(&env)?;
-    
-    // Demo 11: format function
-    println!("\n📌 Demo 11: format Function");
-    demo_format(&env)?;
-    
-    // Demo 12: reverse function
-    println!("\n📌 Demo 12: reverse Function");
-    demo_reverse(&env)?;
-    
-    // Demo 13: Complex string processing
-    println!("\n📌 Demo 13: Complex String Processing");
-    demo_complex_processing(&env)?;
-
-    println!("\n✅ All string extension examples completed successfully!");
+    positions(&env)?;
+    transformations(&env)?;
+    split_and_join(&env)?;
+    replacement(&env)?;
+    quote_and_format(&env)?;
+    normalize_inputs(&env)?;
+    expected_errors(&env)?;
     Ok(())
 }
 
-fn demo_char_at(env: &Env) -> Result<(), Error> {
-    println!("  Testing charAt function");
-    
-    let activation = Activation::new()
-        .bind_variable("text", "Hello, World!")?
-        .bind_variable("index", 0)?;
-    
-    let test_cases = vec![
-        ("text.charAt(0)", "Get first character"),
-        ("text.charAt(7)", "Get character at index 7"),
-        ("text.charAt(text.size() - 1)", "Get last character"),
-        ("'CEL'.charAt(1)", "Get character from literal string"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-    
-    Ok(())
-}
-
-fn demo_index_of(env: &Env) -> Result<(), Error> {
-    println!("  Testing indexOf functions");
-    
+fn positions(env: &Env) -> Result<(), Error> {
+    println!("Character positions and substrings");
     let activation = Activation::new()
         .bind_variable("text", "Hello, World! Hello, CEL!")?
-        .bind_variable("search", "Hello")?;
-    
-    let test_cases = vec![
-        ("text.indexOf('o')", "Find first 'o'"),
-        ("text.indexOf('Hello')", "Find first 'Hello'"),
-        ("text.indexOf('xyz')", "Find non-existent substring"),
-        ("text.indexOf('Hello', 5)", "Find 'Hello' starting from index 5"),
-        ("text.indexOf('o', 10)", "Find 'o' starting from index 10"),
-        ("'programming'.indexOf('gram')", "Find in literal string"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
+        .bind_variable("start", 7i64)?
+        .bind_variable("end", 12i64)?;
+    for (expression, expected) in [
+        ("text.charAt(0)", "H"),
+        ("text.charAt(text.size() - 1)", "!"),
+        // An index equal to the length is valid and returns an empty string.
+        ("text.charAt(text.size())", ""),
+        ("text.substring(start, end)", "World"),
+        ("text.substring(14)", "Hello, CEL!"),
+        ("text.substring(7, 7)", ""),
+    ] {
+        check(env, &activation, expression, expected)?;
     }
-    
+    for (expression, expected) in [
+        ("text.indexOf('Hello')", 0i64),
+        ("text.indexOf('Hello', 5)", 14),
+        ("text.indexOf('missing')", -1),
+        ("text.lastIndexOf('Hello')", 14),
+        // The second argument is an inclusive upper bound on the match start.
+        ("text.lastIndexOf('l', 10)", 10),
+        ("text.lastIndexOf('missing')", -1),
+        ("text.indexOf('')", 0),
+        ("text.lastIndexOf('')", 25),
+    ] {
+        check(env, &activation, expression, expected)?;
+    }
+
+    // CEL string offsets count Unicode code points, unlike Rust byte offsets.
+    // The embedded NUL remains part of the string through the FFI boundary.
+    let text = "Aé中\0Z";
+    assert_eq!(text.len(), 8);
+    let unicode = Activation::new().bind_variable("text", text)?;
+    check(env, &unicode, "text.size()", 5i64)?;
+    check(env, &unicode, "text.charAt(1)", "é")?;
+    check(env, &unicode, "text.charAt(3)", "\0")?;
+    check(env, &unicode, "text.indexOf('中')", 2i64)?;
+    check(env, &unicode, "text.substring(1, 4)", "é中\0")?;
     Ok(())
 }
 
-fn demo_last_index_of(env: &Env) -> Result<(), Error> {
-    println!("  Testing lastIndexOf functions");
-    
-    let activation = Activation::new()
-        .bind_variable("text", "Hello, World! Hello, CEL!")?;
-    
-    let test_cases = vec![
-        ("text.lastIndexOf('o')", "Find last 'o'"),
-        ("text.lastIndexOf('Hello')", "Find last 'Hello'"),
-        ("text.lastIndexOf('xyz')", "Find non-existent substring"),
-        ("text.lastIndexOf('l', 10)", "Find last 'l' before index 10"),
-        ("'banana'.lastIndexOf('a')", "Find last 'a' in 'banana'"),
-        ("'abcabc'.lastIndexOf('abc')", "Find last 'abc' occurrence"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-    
-    Ok(())
-}
-
-fn demo_strings_quote(env: &Env) -> Result<(), Error> {
-    println!("  Testing strings.quote function");
-    
+fn transformations(env: &Env) -> Result<(), Error> {
+    println!("Whitespace, ASCII case conversion, and reversal");
     let activation = Activation::new();
-    
-    let test_cases = vec![
-        ("strings.quote('Hello World')", "Quote simple string"),
-        ("strings.quote('Line 1\\nLine 2')", "Quote string with newline"),
-        ("strings.quote('Tab\\there')", "Quote string with tab"),
-        ("strings.quote('Quote: \"Hello\"')", "Quote string with quotes"),
-        ("strings.quote('Backslash: \\\\')", "Quote string with backslash"),
-        ("strings.quote('')", "Quote empty string"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
+    for (expression, expected) in [
+        ("'  Hello World  '.trim()", "Hello World"),
+        ("'\\t\\nHello\\r\\n'.trim()", "Hello"),
+        ("'   '.trim()", ""),
+        ("'MiXeD CaSe'.lowerAscii()", "mixed case"),
+        ("'MiXeD CaSe'.upperAscii()", "MIXED CASE"),
+        // Only ASCII letters change case; these functions are not Unicode case folding.
+        ("'ÉCOLE Straße'.lowerAscii()", "École straße"),
+        ("'ÉCOLE Straße'.upperAscii()", "ÉCOLE STRAßE"),
+        ("'Hello, World!'.reverse()", "!dlroW ,olleH"),
+        ("'é中'.reverse()", "中é"),
+        ("''.reverse()", ""),
+    ] {
+        check(env, &activation, expression, expected)?;
     }
-    
+
+    // Reversal operates on code points, so a combining mark moves independently
+    // of the base letter. It does not preserve visual grapheme clusters.
+    let combining = Activation::new().bind_variable("text", "e\u{301}")?;
+    check(env, &combining, "text.reverse()", "\u{301}e")?;
     Ok(())
 }
 
-fn demo_substring(env: &Env) -> Result<(), Error> {
-    println!("  Testing substring functions");
-    
-    let activation = Activation::new()
-        .bind_variable("text", "Hello, World!")?
-        .bind_variable("start", 7)?
-        .bind_variable("end", 12)?;
-    
-    let test_cases = vec![
-        ("text.substring(0, 5)", "Get first 5 characters"),
-        ("text.substring(7)", "Get substring from index 7 to end"),
-        ("text.substring(7, 12)", "Get substring from index 7 to 12"),
-        ("text.substring(start, end)", "Get substring using variables"),
-        ("'Programming'.substring(0, 7)", "Get 'Program' from 'Programming'"),
-        ("'CEL Language'.substring(4)", "Get 'Language' from 'CEL Language'"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
+fn split_and_join(env: &Env) -> Result<(), Error> {
+    println!("Splitting and joining, including empty elements");
+    let activation = Activation::new().bind_variable("words", vec!["Hello", "World", "CEL"])?;
+    for (expression, expected) in [
+        ("['a', 'b', 'c'].join()", "abc"),
+        ("words.join(' ')", "Hello World CEL"),
+        ("['single'].join(',')", "single"),
+        ("[].join(',')", ""),
+        ("['', 'middle', ''].join(',')", ",middle,"),
+    ] {
+        check(env, &activation, expression, expected)?;
     }
-    
+    for (expression, expected) in [
+        ("'a,b,c'.split(',')", vec!["a", "b", "c"]),
+        // A positive limit caps the number of resulting elements, keeping the tail intact.
+        (
+            "'one-two-three-four'.split('-', 2)",
+            vec!["one", "two-three-four"],
+        ),
+        ("'a::b::c'.split('::')", vec!["a", "b", "c"]),
+        ("'no-separators'.split(',')", vec!["no-separators"]),
+        ("''.split(',')", vec![""]),
+        ("',middle,'.split(',')", vec!["", "middle", ""]),
+        ("'é中'.split('')", vec!["é", "中"]),
+        ("'a,b,c'.split(',', 0)", vec![]),
+        ("'a,b,c'.split(',', -1)", vec!["a", "b", "c"]),
+    ] {
+        check(env, &activation, expression, expected)?;
+    }
     Ok(())
 }
 
-fn demo_trim(env: &Env) -> Result<(), Error> {
-    println!("  Testing trim function");
-    
-    let activation = Activation::new();
-    
-    let test_cases = vec![
-        ("'  Hello World  '.trim()", "Trim spaces from both ends"),
-        ("'\\t\\nHello\\r\\n'.trim()", "Trim various whitespace characters"),
-        ("'   '.trim()", "Trim string with only spaces"),
-        ("'NoSpaces'.trim()", "Trim string with no spaces"),
-        ("'  Leading'.trim()", "Trim leading spaces"),
-        ("'Trailing  '.trim()", "Trim trailing spaces"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> '{result}'");
-    }
-    
-    Ok(())
-}
-
-fn demo_join(env: &Env) -> Result<(), Error> {
-    println!("  Testing join function");
-    
-    let activation = Activation::new()
-        .bind_variable("words", vec!["Hello".to_string(), "World".to_string(), "CEL".to_string()])?;
-    
-    let test_cases = vec![
-        ("['a', 'b', 'c'].join()", "Join with default separator"),
-        ("['a', 'b', 'c'].join(', ')", "Join with comma separator"),
-        ("words.join(' ')", "Join words with space"),
-        ("words.join('-')", "Join words with dash"),
-        ("['single'].join(',')", "Join single element"),
-        ("[].join(',')", "Join empty list"),
-        ("['one', 'two', 'three'].join(' | ')", "Join with pipe separator"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-    
-    Ok(())
-}
-
-fn demo_split(env: &Env) -> Result<(), Error> {
-    println!("  Testing split function");
-    
-    let activation = Activation::new()
-        .bind_variable("text", "apple,banana,cherry,date")?;
-    
-    let test_cases = vec![
-        ("'a,b,c'.split(',')", "Split by comma"),
-        ("text.split(',')", "Split CSV data"),
-        ("'hello world'.split(' ')", "Split by space"),
-        ("'one-two-three-four'.split('-', 2)", "Split with limit"),
-        ("'a::b::c'.split('::')", "Split by multi-character separator"),
-        ("'no-separators'.split(',')", "Split with no separators"),
-        ("''.split(',')", "Split empty string"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-    
-    Ok(())
-}
-
-fn demo_case_conversion(env: &Env) -> Result<(), Error> {
-    println!("  Testing case conversion functions");
-    
-    let activation = Activation::new()
-        .bind_variable("text", "Hello, World!")?;
-    
-    let test_cases = vec![
-        ("'Hello World'.lowerAscii()", "Convert to lowercase"),
-        ("'Hello World'.upperAscii()", "Convert to uppercase"),
-        ("text.lowerAscii()", "Convert variable to lowercase"),
-        ("text.upperAscii()", "Convert variable to uppercase"),
-        ("'MiXeD CaSe'.lowerAscii()", "Convert mixed case to lowercase"),
-        ("'already lowercase'.upperAscii()", "Convert lowercase to uppercase"),
-        ("'123ABC'.lowerAscii()", "Convert with numbers"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
-    }
-    
-    Ok(())
-}
-
-fn demo_replace(env: &Env) -> Result<(), Error> {
-    println!("  Testing replace function");
-    
+fn replacement(env: &Env) -> Result<(), Error> {
+    println!("Literal replacement and replacement limits");
     let activation = Activation::new()
         .bind_variable("text", "Hello World, Hello CEL!")?
         .bind_variable("search", "Hello")?
         .bind_variable("replacement", "Hi")?;
-    
-    let test_cases = vec![
-        ("'hello world'.replace('world', 'CEL')", "Replace substring"),
-        ("text.replace('Hello', 'Hi')", "Replace all occurrences"),
-        ("text.replace('Hello', 'Hi', 1)", "Replace first occurrence only"),
-        ("text.replace(search, replacement)", "Replace using variables"),
-        ("'foo foo foo'.replace('foo', 'bar')", "Replace multiple occurrences"),
-        ("'no match'.replace('xyz', 'abc')", "Replace non-existent substring"),
-        ("''.replace('a', 'b')", "Replace in empty string"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
+    for (expression, expected) in [
+        ("text.replace(search, replacement)", "Hi World, Hi CEL!"),
+        (
+            "text.replace(search, replacement, 1)",
+            "Hi World, Hello CEL!",
+        ),
+        (
+            "text.replace(search, replacement, 0)",
+            "Hello World, Hello CEL!",
+        ),
+        ("text.replace(search, replacement, -1)", "Hi World, Hi CEL!"),
+        ("'no match'.replace('xyz', 'abc')", "no match"),
+        ("''.replace('a', 'b')", ""),
+        // Replacement treats punctuation literally; it does not interpret a regex.
+        ("'a.b.c'.replace('.', '/')", "a/b/c"),
+    ] {
+        check(env, &activation, expression, expected)?;
     }
-    
     Ok(())
 }
 
-fn demo_format(env: &Env) -> Result<(), Error> {
-    println!("  Testing format function");
-    
-    let activation = Activation::new()
-        .bind_variable("text", "World")?;
-    
-    let test_cases = vec![
-        ("'Hello, %s!'.format(['World'])", "Format with string"),
-        ("'Number: %d'.format([42])", "Format with integer"),
-        ("'Float: %.2f'.format([3.14159])", "Format with float precision"),
-        ("'%s has %d apples'.format(['Alice', 5])", "Format with multiple values"),
-        ("'Hello, %s!'.format([text])", "Format with variable"),
-        ("'No placeholders'.format([])", "Format without placeholders"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
+fn quote_and_format(env: &Env) -> Result<(), Error> {
+    println!("CEL string quoting and formatted output");
+    let activation = Activation::new();
+    for (expression, expected) in [
+        ("strings.quote('Hello World')", "\"Hello World\""),
+        ("strings.quote('Line 1\\nLine 2')", "\"Line 1\\nLine 2\""),
+        (
+            "strings.quote('Quote: \"Hello\"')",
+            "\"Quote: \\\"Hello\\\"\"",
+        ),
+        ("strings.quote('')", "\"\""),
+        ("'Hello, %s!'.format(['World'])", "Hello, World!"),
+        ("'Number: %d'.format([42])", "Number: 42"),
+        ("'Float: %.2f'.format([3.14159])", "Float: 3.14"),
+        (
+            "'%s has %d apples'.format(['Alice', 5])",
+            "Alice has 5 apples",
+        ),
+        ("'Progress: %d%%'.format([50])", "Progress: 50%"),
+        ("'No placeholders'.format([])", "No placeholders"),
+    ] {
+        check(env, &activation, expression, expected)?;
     }
-    
+
+    // strings.quote produces a CEL string literal, including escapes for control
+    // characters. Evaluate that literal to verify it preserves the original input.
+    let text = "line\n\"quoted\"\0\\é";
+    let activation = Activation::new().bind_variable("text", text)?;
+    let quoted = env.compile("strings.quote(text)")?.evaluate(&activation)?;
+    let literal = String::from_value(&quoted)?;
+    check(env, &Activation::new(), &literal, text)?;
     Ok(())
 }
 
-fn demo_reverse(env: &Env) -> Result<(), Error> {
-    println!("  Testing reverse function");
-    
-    let activation = Activation::new()
-        .bind_variable("text", "Hello")?;
-    
-    let test_cases = vec![
-        ("'hello'.reverse()", "Reverse simple string"),
-        ("text.reverse()", "Reverse variable"),
-        ("'racecar'.reverse()", "Reverse palindrome"),
-        ("'12345'.reverse()", "Reverse numbers"),
-        ("'a'.reverse()", "Reverse single character"),
-        ("''.reverse()", "Reverse empty string"),
-        ("'Hello, World!'.reverse()", "Reverse with punctuation"),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
+fn normalize_inputs(env: &Env) -> Result<(), Error> {
+    println!("Reuse a normalization program across inputs");
+    // This simple comma-delimited format has no quoting or escaping rules.
+    // Empty fields are discarded deliberately; use a CSV parser for full CSV.
+    let program = env.compile(
+        "text.split(',').map(word, word.trim().lowerAscii()).filter(word, word != '').join(',')",
+    )?;
+    for (text, expected) in [
+        ("  Alpha, BETA ,, Gamma  ", "alpha,beta,gamma"),
+        ("", ""),
+        (" , ", ""),
+        ("ÉCOLE, CEL", "École,cel"),
+    ] {
+        let activation = Activation::new().bind_variable("text", text)?;
         let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
+        assert_eq!(result, Value::String(expected.into()));
+        println!("  {text:?} => {result}");
     }
-    
+
+    // Split only once when a value may itself contain the separator.
+    check(
+        env,
+        &Activation::new(),
+        "'url:https://example.com'.split(':', 2)",
+        vec!["url", "https://example.com"],
+    )?;
     Ok(())
 }
 
-fn demo_complex_processing(env: &Env) -> Result<(), Error> {
-    println!("  Testing complex string processing combinations");
-    
-    let activation = Activation::new()
-        .bind_variable("email", "  User@Example.Com  ")?
-        .bind_variable("data", "name:John,age:30,city:NYC")?
-        .bind_variable("words", vec!["hello".to_string(), "world".to_string()])?;
-    
-    let test_cases = vec![
-        (
-            "email.trim().lowerAscii().substring(0, email.trim().lowerAscii().indexOf('@'))",
-            "Extract and normalize username from email"
-        ),
-        (
-            "email.trim().lowerAscii().substring(email.trim().lowerAscii().indexOf('@') + 1)",
-            "Extract and normalize domain from email"
-        ),
-        (
-            "data.split(',').map(item, item.split(':')[1]).join(' | ')",
-            "Extract all values from CSV-like data"
-        ),
-        (
-            "words.join(' ').upperAscii().reverse()",
-            "Join, uppercase, and reverse words"
-        ),
-        (
-            "strings.quote(email.trim().replace('@', ' at '))",
-            "Quote email with @ replacement"
-        ),
-        (
-            "'Hello World'.split(' ').map(word, word.reverse()).join('-')",
-            "Split, reverse each word, and rejoin"
-        ),
-        (
-            "data.replace(':', '=').replace(',', ' AND ')",
-            "Transform CSV format"
-        ),
-    ];
-    
-    for (expr, description) in test_cases {
-        let program = env.compile(expr)?;
-        let result = program.evaluate(&activation)?;
-        println!("    {description}: `{expr}` -> {result}");
+fn expected_errors(env: &Env) -> Result<(), Error> {
+    println!("Invalid arguments produce CEL errors");
+    let activation = Activation::new();
+    for expression in [
+        "'abc'.charAt(-1)",
+        "'abc'.charAt(4)",
+        "'abc'.substring(2, 1)",
+        "'abc'.substring(0, 4)",
+        "'abc'.indexOf('a', -1)",
+        "'abc'.lastIndexOf('a', -1)",
+        "'%d'.format(['not a number'])",
+        "'%'.format([])",
+    ] {
+        let error = env
+            .compile(expression)?
+            .evaluate(&activation)
+            .expect_err("invalid string operation must return an error");
+        assert_eq!(error.code(), Code::InvalidArgument, "{expression}: {error}");
+        println!("  {expression} => {error}");
     }
-    
     Ok(())
-} 
+}

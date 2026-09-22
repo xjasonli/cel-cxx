@@ -392,7 +392,7 @@ fn test_protobuf_field_access_string_result() -> Result<(), Error> {
 }
 
 // =============================================================================
-// Phase 2A: Full Protobuf Field Access Tests
+// Full Protobuf Field Access Tests
 // =============================================================================
 
 // --- 2A.1: Scalar fields ---
@@ -722,7 +722,7 @@ fn test_enum_field_default() -> Result<(), Error> {
 }
 
 // =============================================================================
-// Phase 2B: Well-Known Type Handling Tests
+// Well-Known Type Handling Tests
 // =============================================================================
 
 // --- 2B.1: Duration fields ---
@@ -942,7 +942,7 @@ fn test_wkt_any_type_url() -> Result<(), Error> {
 }
 
 // =============================================================================
-// Phase 3B: Extract Protobuf Bytes from Evaluation Results
+// Extract Protobuf Bytes from Evaluation Results
 // =============================================================================
 
 #[test]
@@ -1021,7 +1021,7 @@ fn test_struct_value_from_value_error_on_non_struct() -> Result<(), Error> {
 }
 
 // =============================================================================
-// Phase 3C: Rust-side Protobuf Field Access
+// Rust-side Protobuf Field Access
 // =============================================================================
 
 #[test]
@@ -1195,7 +1195,7 @@ fn test_get_struct_field_wkt() -> Result<(), Error> {
 }
 
 // =============================================================================
-// Phase 4: Message Construction in CEL Expressions
+// Message Construction in CEL Expressions
 // =============================================================================
 
 #[test]
@@ -1321,7 +1321,7 @@ fn test_message_construction_equality() -> Result<(), Error> {
 }
 
 // =============================================================================
-// Phase 6: Advanced Features & Polish
+// Advanced Features & Polish
 // =============================================================================
 
 // --- 6.1: Dedicated has() tests for proto3 field presence ---
@@ -1396,23 +1396,115 @@ fn test_type_on_message_value() -> Result<(), Error> {
 // --- 6.4: Error handling — descriptive error messages ---
 
 #[test]
-fn test_error_unknown_type_compile() {
-    let env = Env::builder()
+fn test_error_unknown_type_declaration() {
+    let error = Env::builder()
         .with_file_descriptor_set(&TEST_DESCRIPTORS)
         .declare_variable_with_type("msg", ValueType::Struct(StructType::new("test.DoesNotExist")))
         .unwrap()
         .build()
-        .unwrap();
+        .expect_err("an unknown message type must fail environment construction");
 
-    // Compiling an expression that accesses a field on the unknown type should fail
-    // with a descriptive error message
-    let result = env.compile("msg.name");
-    assert!(result.is_err(), "expected compile error for unknown type field access");
-    let err_msg = result.unwrap_err().to_string();
+    assert_eq!(error.code(), Code::InvalidArgument);
+    let err_msg = error.to_string();
     assert!(
-        err_msg.contains("undeclared reference"),
-        "error should mention undeclared reference, got: {err_msg}"
+        err_msg.contains("Message type not found: test.DoesNotExist"),
+        "error should describe the invalid type declaration, got: {err_msg}"
     );
+}
+
+#[test]
+fn test_named_type_values_resolve_descriptors_and_well_known_types() -> Result<(), Error> {
+    let env = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable::<ValueType>("value")?
+        .build()?;
+    let program = env.compile("value")?;
+
+    for (source, expected) in [
+        (
+            ValueType::Struct(StructType::new("test.SimpleMessage")),
+            ValueType::Struct(StructType::new("test.SimpleMessage")),
+        ),
+        (
+            ValueType::Enum(EnumType::new("test.Status")),
+            ValueType::Enum(EnumType::new("test.Status")),
+        ),
+        (
+            ValueType::Struct(StructType::new("google.protobuf.Duration")),
+            ValueType::Duration,
+        ),
+        (
+            ValueType::Struct(StructType::new("google.protobuf.Timestamp")),
+            ValueType::Timestamp,
+        ),
+        (
+            ValueType::Struct(StructType::new("google.protobuf.Int64Value")),
+            ValueType::IntWrapper,
+        ),
+        (
+            ValueType::Struct(StructType::new("google.protobuf.Value")),
+            ValueType::Dyn,
+        ),
+        (
+            ValueType::Struct(StructType::new("google.protobuf.ListValue")),
+            ValueType::List(ListType::new(ValueType::Dyn)),
+        ),
+        (
+            ValueType::Struct(StructType::new("google.protobuf.Struct")),
+            ValueType::Map(MapType::new(MapKeyType::String, ValueType::Dyn)),
+        ),
+        (
+            ValueType::Enum(EnumType::new("google.protobuf.NullValue")),
+            ValueType::Int,
+        ),
+    ] {
+        let activation = Activation::new().bind_variable("value", source)?;
+        assert_eq!(program.evaluate(&activation)?, Value::Type(expected));
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_unknown_named_type_values_return_errors() -> Result<(), Error> {
+    let env = Env::builder()
+        .declare_variable::<ValueType>("value")?
+        .build()?;
+    let program = env.compile("value")?;
+
+    for value_type in [
+        ValueType::Struct(StructType::new("test.DoesNotExist")),
+        ValueType::Enum(EnumType::new("test.DoesNotExist")),
+        ValueType::List(ListType::new(ValueType::Struct(StructType::new(
+            "test.DoesNotExist",
+        )))),
+        ValueType::Optional(OptionalType::new(ValueType::Enum(EnumType::new(
+            "test.DoesNotExist",
+        )))),
+    ] {
+        let activation = Activation::new().bind_variable("value", value_type)?;
+        let error = program
+            .evaluate(&activation)
+            .expect_err("an unresolved type value must return a CEL error");
+        assert_eq!(error.code(), Code::InvalidArgument);
+        assert!(error.to_string().contains("test.DoesNotExist"));
+    }
+
+    Ok(())
+}
+
+#[test]
+fn test_error_unknown_enum_type_declaration() {
+    let error = Env::builder()
+        .declare_variable_with_type("value", ValueType::Enum(EnumType::new("test.DoesNotExist")))
+        .unwrap()
+        .build()
+        .expect_err("an unknown enum type must fail environment construction");
+
+    assert_eq!(error.code(), Code::InvalidArgument);
+    assert!(error
+        .to_string()
+        .contains("Enum type not found: test.DoesNotExist"));
 }
 
 #[test]
@@ -1432,4 +1524,384 @@ fn test_error_get_struct_field_unknown_type() {
         err_msg.contains("NonExistent") || err_msg.contains("not found"),
         "error should mention the type name, got: {err_msg}"
     );
+}
+
+#[test]
+fn malformed_message_bytes_fail_all_deserialization_entry_points() -> Result<(), Error> {
+    let env = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable_with_type("msg", ValueType::Dyn)?
+        .build()?;
+    let program = env.compile("msg")?;
+
+    for (name, bytes) in [
+        ("test.SimpleMessage", vec![0x0a]),
+        ("test.SimpleMessage", vec![0x0a, 0x03, b'a']),
+        ("test.SimpleMessage", vec![0x10, 0x80]),
+        ("test.SimpleMessage", vec![0x00]),
+        ("test.Person", vec![0x1a, 0x02, 0x0a, 0x80]),
+        ("test.Order", vec![0x12, 0x02, 0x10, 0x80]),
+    ] {
+        let value = StructValue::from_bytes(name, bytes);
+        let activation = Activation::new().bind_variable_dynamic("msg", value.clone())?;
+        for result in [
+            program.evaluate(&activation).map(|_| ()),
+            env.get_struct_field(&value, "name").map(|_| ()),
+            env.has_struct_field(&value, "name").map(|_| ()),
+        ] {
+            let error = result.expect_err("malformed protobuf must not produce a partial message");
+            assert_eq!(error.code(), Code::InvalidArgument, "{value:?}");
+            assert!(error.to_string().contains(name), "{error}");
+        }
+    }
+
+    let activation = Activation::new().bind_variable_dynamic(
+        "msg",
+        StructValue::from_bytes("test.SimpleMessage", encode_simple_message("valid", 7)),
+    )?;
+    assert_eq!(
+        env.get_struct_field(program.evaluate(&activation)?.as_struct().unwrap(), "id")?,
+        Value::Int(7),
+    );
+    Ok(())
+}
+
+#[test]
+fn explicitly_empty_nested_messages_and_wrappers_retain_presence() -> Result<(), Error> {
+    let env = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable_with_type("msg", ValueType::Dyn)?
+        .build()?;
+
+    for (type_name, field, present_bytes, expected) in [
+        ("test.Person", "address", vec![0x1a, 0x00], None),
+        (
+            "test.Event",
+            "optional_count",
+            vec![0x22, 0x00],
+            Some(Value::Int(0)),
+        ),
+        (
+            "test.Event",
+            "optional_label",
+            vec![0x2a, 0x00],
+            Some(Value::String(String::new().into())),
+        ),
+        (
+            "test.Event",
+            "optional_flag",
+            vec![0x32, 0x00],
+            Some(Value::Bool(false)),
+        ),
+    ] {
+        let absent = StructValue::from_bytes(type_name, vec![]);
+        let present = StructValue::from_bytes(type_name, present_bytes);
+        let presence = env.compile(format!("has(msg.{field})"))?;
+
+        for (message, expected_presence) in [(&absent, false), (&present, true)] {
+            assert_eq!(env.has_struct_field(message, field)?, expected_presence);
+            let activation = Activation::new().bind_variable_dynamic("msg", message.clone())?;
+            assert_eq!(
+                presence.evaluate(&activation)?,
+                Value::Bool(expected_presence)
+            );
+        }
+        if let Some(expected) = expected {
+            assert_eq!(env.get_struct_field(&absent, field)?, Value::Null);
+            assert_eq!(env.get_struct_field(&present, field)?, expected);
+        } else {
+            let address = env.get_struct_field(&present, field)?;
+            assert_eq!(
+                env.get_struct_field(address.as_struct().unwrap(), "city")?,
+                Value::String(String::new().into())
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn duplicate_scalar_fields_use_the_last_value_and_ignore_unknown_fields() -> Result<(), Error> {
+    let env = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable_with_type(
+            "msg",
+            ValueType::Struct(StructType::new("test.SimpleMessage")),
+        )?
+        .build()?;
+    let mut bytes = encode_simple_message("first", -1);
+    bytes.extend_from_slice(&encode_simple_message("last", i32::MAX));
+    encode_varint_field(&mut bytes, 100, 42);
+    encode_string_field(&mut bytes, 101, "unknown payload");
+    let value = StructValue::from_bytes("test.SimpleMessage", bytes);
+    let activation = Activation::new().bind_variable_dynamic("msg", value)?;
+
+    assert_eq!(
+        env.compile("msg.name")?.evaluate(&activation)?,
+        Value::String("last".into())
+    );
+    assert_eq!(
+        env.compile("msg.id")?.evaluate(&activation)?,
+        Value::Int(i32::MAX as i64)
+    );
+    let roundtrip = env.compile("msg")?.evaluate(&activation)?;
+    assert_eq!(
+        env.get_struct_field(roundtrip.as_struct().unwrap(), "id")?,
+        Value::Int(i32::MAX as i64)
+    );
+    Ok(())
+}
+
+#[test]
+fn unknown_proto3_enum_numbers_roundtrip_as_integers() -> Result<(), Error> {
+    let env = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
+        .build()?;
+    let program = env.compile("person.status")?;
+
+    for number in [0, 1, 2, 3, -1, i32::MIN, i32::MAX] {
+        let person = StructValue::from_bytes(
+            "test.Person",
+            encode_person("", 0, None, number, &[], false),
+        );
+        let activation = Activation::new().bind_variable_dynamic("person", person.clone())?;
+        assert_eq!(program.evaluate(&activation)?, Value::Int(number as i64));
+        assert_eq!(
+            env.get_struct_field(&person, "status")?,
+            Value::Int(number as i64)
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn repeated_empty_strings_and_default_map_entries_are_preserved() -> Result<(), Error> {
+    let env = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable_with_type("person", ValueType::Struct(StructType::new("test.Person")))?
+        .declare_variable_with_type("order", ValueType::Struct(StructType::new("test.Order")))?
+        .build()?;
+    let person = StructValue::from_bytes(
+        "test.Person",
+        encode_person("", 0, None, 0, &["", "中文", "", "last"], false),
+    );
+    let order = StructValue::from_bytes(
+        "test.Order",
+        encode_order(None, &[], &[("", ""), ("key", "first"), ("key", "last")]),
+    );
+    let activation = Activation::new()
+        .bind_variable_dynamic("person", person)?
+        .bind_variable_dynamic("order", order)?;
+
+    for expression in [
+        "person.tags == ['', '中文', '', 'last']",
+        "person.tags.size() == 4",
+        "order.labels.size() == 2",
+        "'' in order.labels && order.labels[''] == ''",
+        "order.labels['key'] == 'last'",
+    ] {
+        assert_eq!(
+            env.compile(expression)?.evaluate(&activation)?,
+            Value::Bool(true),
+            "{expression}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn recursively_nested_named_type_errors_keep_the_missing_name() -> Result<(), Error> {
+    let env = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable::<ValueType>("value")?
+        .build()?;
+    let program = env.compile("value")?;
+    let missing = ValueType::Struct(StructType::new("test.MissingNested"));
+
+    for value_type in [
+        ValueType::Map(MapType::new(
+            MapKeyType::String,
+            ValueType::List(ListType::new(missing.clone())),
+        )),
+        ValueType::Type(TypeType::new(Some(missing.clone()))),
+        ValueType::Opaque(OpaqueType::new(
+            "Box",
+            vec![ValueType::Int, missing.clone()],
+        )),
+        ValueType::Function(FunctionType::new(missing.clone(), vec![ValueType::Int])),
+        ValueType::Function(FunctionType::new(
+            ValueType::Int,
+            vec![ValueType::String, missing],
+        )),
+        ValueType::Struct(StructType::new("test.Status")),
+        ValueType::Enum(EnumType::new("test.Person")),
+    ] {
+        let activation = Activation::new().bind_variable("value", value_type.clone())?;
+        let error = program
+            .evaluate(&activation)
+            .expect_err("invalid nested or wrong-kind named type must fail");
+        assert_eq!(error.code(), Code::InvalidArgument, "{value_type:?}");
+        assert!(error.to_string().contains("test."), "{error}");
+
+        let error = Env::builder()
+            .with_file_descriptor_set(&TEST_DESCRIPTORS)
+            .declare_variable_with_type("bad", value_type)?
+            .build()
+            .expect_err("invalid named type must also fail declaration conversion");
+        assert_eq!(error.code(), Code::InvalidArgument);
+        assert!(error.to_string().contains("test."), "{error}");
+    }
+    Ok(())
+}
+
+#[test]
+fn nested_well_known_types_normalize_without_erasing_regular_enum_types() -> Result<(), Error> {
+    let env = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable::<ValueType>("value")?
+        .build()?;
+    let program = env.compile("value")?;
+    let duration = ValueType::Struct(StructType::new("google.protobuf.Duration"));
+    let timestamp = ValueType::Struct(StructType::new("google.protobuf.Timestamp"));
+    let status = ValueType::Enum(EnumType::new("test.Status"));
+
+    for (source, expected) in [
+        (
+            ValueType::List(ListType::new(duration.clone())),
+            ValueType::List(ListType::new(ValueType::Duration)),
+        ),
+        (
+            ValueType::Map(MapType::new(MapKeyType::String, timestamp.clone())),
+            ValueType::Map(MapType::new(MapKeyType::String, ValueType::Timestamp)),
+        ),
+        (
+            ValueType::Optional(OptionalType::new(ValueType::Struct(StructType::new(
+                "google.protobuf.DoubleValue",
+            )))),
+            ValueType::Optional(OptionalType::new(ValueType::DoubleWrapper)),
+        ),
+        (
+            ValueType::Type(TypeType::new(Some(ValueType::Struct(StructType::new(
+                "google.protobuf.StringValue",
+            ))))),
+            ValueType::Type(TypeType::new(Some(ValueType::StringWrapper))),
+        ),
+        (
+            ValueType::Opaque(OpaqueType::new(
+                "TypedBox",
+                vec![status.clone(), duration.clone()],
+            )),
+            ValueType::Opaque(OpaqueType::new(
+                "TypedBox",
+                vec![status.clone(), ValueType::Duration],
+            )),
+        ),
+        (
+            ValueType::Function(FunctionType::new(timestamp, vec![duration, status.clone()])),
+            ValueType::Function(FunctionType::new(
+                ValueType::Timestamp,
+                vec![ValueType::Duration, status],
+            )),
+        ),
+    ] {
+        let activation = Activation::new().bind_variable("value", source.clone())?;
+        assert_eq!(
+            program.evaluate(&activation)?,
+            Value::Type(expected),
+            "{source:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn same_message_name_is_resolved_with_each_environments_own_pool() -> Result<(), Error> {
+    use prost::Message;
+
+    let mut descriptors =
+        prost_types::FileDescriptorSet::decode(TEST_DESCRIPTORS.as_slice()).unwrap();
+    let message = descriptors
+        .file
+        .iter_mut()
+        .flat_map(|file| file.message_type.iter_mut())
+        .find(|message| message.name.as_deref() == Some("SimpleMessage"))
+        .unwrap();
+    message.field[0].name = Some("label".into());
+    message.field[0].json_name = Some("label".into());
+
+    let original = Env::builder()
+        .with_file_descriptor_set(&TEST_DESCRIPTORS)
+        .declare_variable_with_type(
+            "msg",
+            ValueType::Struct(StructType::new("test.SimpleMessage")),
+        )?
+        .build()?;
+    let renamed = Env::builder()
+        .with_file_descriptor_set(&descriptors.encode_to_vec())
+        .declare_variable_with_type(
+            "msg",
+            ValueType::Struct(StructType::new("test.SimpleMessage")),
+        )?
+        .build()?;
+    assert!(original.compile("msg.label").is_err());
+    assert!(renamed.compile("msg.name").is_err());
+
+    let value = StructValue::from_bytes(
+        "test.SimpleMessage",
+        encode_simple_message("same wire data", 1),
+    );
+    let activation = Activation::new().bind_variable_dynamic("msg", value.clone())?;
+    for _ in 0..4 {
+        assert_eq!(
+            original.compile("msg.name")?.evaluate(&activation)?,
+            Value::String("same wire data".into())
+        );
+        assert_eq!(
+            renamed.compile("msg.label")?.evaluate(&activation)?,
+            Value::String("same wire data".into())
+        );
+    }
+    drop(original);
+    assert_eq!(
+        renamed.get_struct_field(&value, "label")?,
+        Value::String("same wire data".into())
+    );
+    Ok(())
+}
+
+#[test]
+fn invalid_descriptor_sets_fail_without_poisoning_later_environments() -> Result<(), Error> {
+    use prost::Message;
+
+    let mut missing_dependency =
+        prost_types::FileDescriptorSet::decode(TEST_DESCRIPTORS.as_slice()).unwrap();
+    missing_dependency
+        .file
+        .iter_mut()
+        .find(|file| file.package.as_deref() == Some("test"))
+        .unwrap()
+        .dependency
+        .push("missing.proto".into());
+
+    for bytes in [
+        vec![0x0a],
+        vec![0x0a, 0x80],
+        vec![0x00],
+        missing_dependency.encode_to_vec(),
+    ] {
+        assert!(Env::builder()
+            .with_file_descriptor_set(&bytes)
+            .build()
+            .is_err());
+    }
+    for bytes in [&[][..], TEST_DESCRIPTORS.as_slice()] {
+        let env = Env::builder().with_file_descriptor_set(bytes).build()?;
+        assert_eq!(
+            env.compile("duration('1s') == duration('1000ms')")?
+                .evaluate(())?,
+            Value::Bool(true)
+        );
+    }
+    Ok(())
 }
