@@ -173,6 +173,12 @@ platform(
 # --experimental_cc_static_library Bazel flag to be enabled during the build.
 cc_static_library(
     name = "cel",  # This target will produce libcel.a
+    # Pass the archiver arguments through an @response file. The archive
+    # packs ~600 objects; on Windows the inline command line exceeds
+    # CreateProcessW's 32767-character limit (the auto-configured MSVC
+    # toolchain enables this feature for itself, the NDK toolchain does
+    # not, and llvm-ar accepts @response files).
+    features = ["archive_param_file"],
     deps = [
         # For absl::InitializeLog()
         "@com_google_absl//absl/log:initialize",

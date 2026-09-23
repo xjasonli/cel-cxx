@@ -167,7 +167,7 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td><strong>Windows</strong></td>
 <td><code>x86_64-pc-windows-msvc</code></td>
 <td>✅</td>
-<td>Tested (Visual Studio 2022+)</td>
+<td>Tested (Visual Studio 2022+; named IANA timezones resolve through the OS-managed database)</td>
 </tr>
 <tr>
 <td rowspan="3"><strong>macOS</strong></td>
@@ -293,6 +293,31 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 - ✅ **Tested**: Confirmed working with automated tests
 - 🟡 **Should work**: Build configuration exists but not tested in CI
 
+### Timestamp Timezone Resolution
+
+Timestamp accessors that take a timezone argument accept numeric offsets
+(`'-04:00'`, resolved on every host) and named IANA zones
+(`'America/New_York'`). Named zones are resolved from the zone database
+available to the runtime:
+
+- Linux and macOS read the TZif tree used by Abseil/cctz (`$TZDIR`, by
+  default `/usr/share/zoneinfo`). Minimal container images may need `tzdata`
+  installed.
+- Android devices resolve zones from the system-packed tzdata that cctz
+  falls back to (`/apex/com.android.tzdata/etc/tz/tzdata` and legacy
+  locations); host-side Android builds without it behave like hosts with no
+  database.
+- Windows ships no TZif tree, so named zones resolve through the OS-managed
+  IANA database via MSVC's C++20 `<chrono>` (Windows 10 1903+); an explicit
+  `TZDIR` tree takes precedence.
+- WebAssembly and other hosts without any source return an
+  invalid-argument error for named zones.
+
+Results follow the host's database version: a zone with recently changed
+rules can resolve differently on hosts with different data versions. See
+[docs/timezone-support-design.md](docs/timezone-support-design.md) for the
+full design.
+
 ### Cross-Compilation Support
 
 cel-cxx includes built-in support for cross-compilation via [cross-rs](https://github.com/cross-rs/cross). The build system automatically detects cross-compilation environments and configures the appropriate toolchains.
@@ -346,6 +371,11 @@ cargo ndk --target i686-linux-android build
 - `ANDROID_NDK_HOME` configures Bazel for CEL-CPP compilation
 - `cargo-ndk` automatically sets up `CC_{target}` and `AR_{target}` environment variables needed for the Rust FFI layer
 - This ensures both the C++ (CEL-CPP) and Rust (cel-cxx-ffi) components use compatible toolchains
+
+**Host platforms:** Android cross-builds work from Linux, macOS, and Windows hosts. On Windows,
+`cargo ndk --target aarch64-linux-android build` needs no extra setup beyond `cargo-ndk`, the NDK,
+and MSYS2 (for the `bash`/`patch` tools Bazel uses); the build system neutralizes the Android SDK
+repository environment because libcel only uses the NDK toolchain.
 
 ## CEL Feature Support
 

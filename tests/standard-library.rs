@@ -503,11 +503,96 @@ fn test_timestamp_accessors() -> Result<(), Error> {
         assert_eq!(res, Value::Int(expected), "{expr}");
     }
 
-    // Timezone overloads resolve the accessor in the given zone
-    // (America/New_York is UTC-4 during July daylight saving time).
-    let program = env.compile("timestamp(ts).getHours('America/New_York')")?;
+    // Numeric offsets are converted to durations and never touch a
+    // timezone database, so they work on every host (UTC-4 applied to the
+    // UTC instant).
+    let program = env.compile("timestamp(ts).getHours('-04:00')")?;
     let res = program.evaluate(&activation)?;
     assert_eq!(res, Value::Int(11));
+
+    // A zone that resolves on no host must stay an invalid-argument error
+    // rather than silently degrading to UTC.
+    let program = env.compile("timestamp(ts).getHours('Invalid/Zone')")?;
+    let err = program
+        .evaluate(&activation)
+        .expect_err("unknown timezone must fail");
+    assert_eq!(err.code(), Code::InvalidArgument);
+
+    Ok(())
+}
+
+#[test]
+fn test_timestamp_accessors_with_timezones() -> Result<(), Error> {
+    println!("test timestamp accessors with timezones");
+
+    let env = Env::builder()
+        .declare_variable::<String>("ts")?
+        .build()?;
+    // 2023-07-04T15:04:05.678Z is a Tuesday.
+    let activation = Activation::new()
+        .bind_variable("ts", "2023-07-04T15:04:05.678Z".to_string())?;
+
+    // Probe by evaluating a named zone through CEL: which database a host
+    // provides is not observable from the filesystem. Linux and macOS use
+    // a TZif tree, Android devices use the system-packed tzdata cctz falls
+    // back to, and Windows uses the OS-managed database. cctz caches the
+    // resolved name for the process, so the probe and the matrix below
+    // cannot disagree.
+    let probe = env.compile("timestamp(ts).getHours('America/New_York')")?;
+    if let Err(err) = probe.evaluate(&activation) {
+        // No database on this host: the named-zone lookup must fail with
+        // the documented error rather than degrading to UTC.
+        assert_eq!(err.code(), Code::InvalidArgument);
+        return Ok(());
+    }
+
+    // The expected values below are stable across the IANA database
+    // versions this project runs against: the US rules in force since 2007
+    // and the +05:30 India offset predate all of them.
+    let cases = [
+        // America/New_York is UTC-4 in July (EDT) and UTC-5 in January
+        // (EST): the offset is chosen for the instant, not fixed.
+        ("timestamp(ts).getHours('America/New_York')", 11i64),
+        ("timestamp(ts).getMilliseconds('America/New_York')", 678i64),
+        ("timestamp('2023-01-04T15:04:05Z').getHours('America/New_York')", 10i64),
+        // Spring forward: 01:59:59 EST jumps to 03:00:00 EDT.
+        ("timestamp('2023-03-12T06:59:59Z').getHours('America/New_York')", 1i64),
+        ("timestamp('2023-03-12T07:00:00Z').getHours('America/New_York')", 3i64),
+        // Fall back: 01:59:59 EDT becomes 01:00:00 EST. The repeated 1
+        // o'clock hour differs in minutes and seconds across the boundary.
+        ("timestamp('2023-11-05T05:59:59Z').getHours('America/New_York')", 1i64),
+        ("timestamp('2023-11-05T05:59:59Z').getMinutes('America/New_York')", 59i64),
+        ("timestamp('2023-11-05T05:59:59Z').getSeconds('America/New_York')", 59i64),
+        ("timestamp('2023-11-05T06:00:00Z').getHours('America/New_York')", 1i64),
+        ("timestamp('2023-11-05T06:00:00Z').getMinutes('America/New_York')", 0i64),
+        ("timestamp('2023-11-05T06:00:00Z').getSeconds('America/New_York')", 0i64),
+        // Pre-epoch instants keep the correct offset and subsecond part
+        // (1969-12-31 23:59:59.999 EST is 18:59:59.999 local).
+        ("timestamp('1969-12-31T23:59:59.999Z').getHours('America/New_York')", 18i64),
+        ("timestamp('1969-12-31T23:59:59.999Z').getMinutes('America/New_York')", 59i64),
+        ("timestamp('1969-12-31T23:59:59.999Z').getMilliseconds('America/New_York')", 999i64),
+        // After 2038 the 64-bit accessor path stays correct.
+        ("timestamp('2040-07-04T15:04:05Z').getHours('America/New_York')", 11i64),
+        // IANA links resolve like their target zones.
+        ("timestamp(ts).getHours('US/Eastern')", 11i64),
+        ("timestamp(ts).getHours('Asia/Calcutta')", 20i64),
+        ("timestamp(ts).getMinutes('Asia/Calcutta')", 34i64),
+        ("timestamp(ts).getSeconds('Asia/Calcutta')", 5i64),
+        // A date boundary: 2023-01-01T00:30Z is 2022-12-31T16:30 PST, a
+        // Saturday, the 365th day of 2022.
+        ("timestamp('2023-01-01T00:30:00Z').getFullYear('America/Los_Angeles')", 2022i64),
+        ("timestamp('2023-01-01T00:30:00Z').getMonth('America/Los_Angeles')", 11i64),
+        ("timestamp('2023-01-01T00:30:00Z').getDate('America/Los_Angeles')", 31i64),
+        ("timestamp('2023-01-01T00:30:00Z').getDayOfMonth('America/Los_Angeles')", 30i64),
+        ("timestamp('2023-01-01T00:30:00Z').getDayOfWeek('America/Los_Angeles')", 6i64),
+        ("timestamp('2023-01-01T00:30:00Z').getDayOfYear('America/Los_Angeles')", 364i64),
+        ("timestamp('2023-01-01T00:30:00Z').getHours('America/Los_Angeles')", 16i64),
+    ];
+    for (expr, expected) in cases {
+        let program = env.compile(expr)?;
+        let res = program.evaluate(&activation)?;
+        assert_eq!(res, Value::Int(expected), "{expr}");
+    }
 
     Ok(())
 }

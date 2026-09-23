@@ -79,6 +79,14 @@ def _conditional_android_ndk_extension_impl(module_ctx):
     if "path" not in kwargs:
         kwargs["path"] = android_ndk_home
 
+    # rules_android_ndk computes repo-relative symlink destinations with
+    # `str(p).replace(ndk_path, "")`, where `str(p)` uses forward slashes on
+    # Windows. A backslash ANDROID_NDK_HOME (the default on Windows) never
+    # matches, so the rule tries to symlink to an absolute path outside the
+    # repository and fails with "Cannot write outside of the repository
+    # directory". Normalize to forward slashes so the prefix strip works.
+    kwargs["path"] = kwargs["path"].replace("\\", "/")
+
     android_ndk_repository(
         name = "androidndk",
         **kwargs

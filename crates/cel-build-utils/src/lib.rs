@@ -68,18 +68,21 @@ fn is_windows(target: &str) -> bool {
     target.contains("windows")
 }
 
-fn target_config(target: &str) -> Option<&'static str> {
+/// Bazel --config section for the target triple (see cel/.bazelrc). The
+/// macos/ios sections expand the "gcc" section; every non-MSVC target
+/// uses "gcc" directly.
+fn target_config(target: &str) -> &'static str {
     if target.contains("apple") {
         if target.contains("darwin") {
-            return Some("macos");
+            return "macos";
         } else if target.contains("ios") {
-            return Some("ios");
+            return "ios";
         }
     }
     if target.contains("windows") {
-        return Some("msvc");
+        return "msvc";
     }
-    None
+    "gcc"
 }
 
 fn work_dir(target: &str) -> Result<PathBuf> {
@@ -90,13 +93,7 @@ fn work_dir(target: &str) -> Result<PathBuf> {
         ));
     }
 
-    let dir = if is_windows(target) {
-        "cel-windows"
-    } else {
-        "cel"
-    };
-
-    Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join(dir))
+    Ok(Path::new(env!("CARGO_MANIFEST_DIR")).join("cel"))
 }
 
 pub fn version() -> &'static str {
@@ -193,8 +190,25 @@ impl Build {
 
         build_command.arg(format!("--platforms=//:{target}"));
 
-        if let Some(config) = target_config(target) {
-            build_command.arg(format!("--config={config}"));
+        build_command.arg(format!("--config={}", target_config(target)));
+
+        // Android environment vars leak into Bzlmod repository setup and break
+        // builds on hosts with an Android SDK installed:
+        // - rules_android (auto-injected into every Bzlmod build) reads
+        //   ANDROID_HOME and fails analysis on hosts whose SDK only has a
+        //   minor-version platform dir like "android-37.0". The SDK is not
+        //   needed either way: libcel compiles C++ through the NDK toolchain
+        //   only, so neutralize the SDK vars for every target.
+        // - cel/MODULE.bazel's conditional_android_ndk extension reads
+        //   ANDROID_NDK_HOME, so Android targets keep it; the Windows
+        //   path-separator bug in rules_android_ndk's symlink setup is
+        //   normalized in android_conditional.bzl.
+        // Neutralize for repository rules only (--repo_env does not touch
+        // the process env, so cargo-ndk still sees the NDK for linking).
+        build_command.arg("--repo_env=ANDROID_HOME=");
+        build_command.arg("--repo_env=ANDROID_SDK_ROOT=");
+        if !target.contains("android") {
+            build_command.arg("--repo_env=ANDROID_NDK_HOME=");
         }
 
         self.run_command(build_command, "building cel")
@@ -225,41 +239,26 @@ impl Build {
         ))?;
 
         // Copy include files
+        // NOTE: cel-spec gencode comes from _virtual_imports -- protobuf 35.x's
+        // proto_library emits .pb.h/.pb.cc there. The legacy _virtual_includes
+        // tree only holds stale gencode from older protobuf builds, which fails
+        // compilation with gencode/runtime version mismatch errors.
         let include_mapping = vec![
             ("bazel-cel/external/cel-cpp+", "."),
             ("bazel-cel/external/abseil-cpp+/absl", "absl"),
             ("bazel-cel/external/protobuf+/src/google", "google"),
             // Protobuf's public parse_context.h includes utf8_validity.h.
-            (
-                "bazel-cel/external/protobuf+/third_party/utf8_range/utf8_validity.h",
-                "utf8_validity.h",
-            ),
-            (
-                "bazel-cel/external/protobuf+/third_party/utf8_range/utf8_range.h",
-                "utf8_range.h",
-            ),
-            (
-                "bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_includes/checked_proto/cel",
-                "cel",
-            ),
-            (
-                "bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_includes/value_proto/cel",
-                "cel",
-            ),
-            (
-                "bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_includes/syntax_proto/cel",
-                "cel",
-            ),
+            ("bazel-cel/external/protobuf+/third_party/utf8_range/utf8_validity.h", "utf8_validity.h"),
+            ("bazel-cel/external/protobuf+/third_party/utf8_range/utf8_range.h", "utf8_range.h"),
+            ("bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_imports/checked_proto/cel", "cel"),
+            ("bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_imports/value_proto/cel", "cel"),
+            ("bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_imports/syntax_proto/cel", "cel"),
         ];
 
         for (f, t) in include_mapping {
-            #[cfg(windows)]
-            let f = f.replace("bazel-cel", "bazel-cel-windows");
-            #[cfg(windows)]
-            let f = f.replace("/", "\\");
-            #[cfg(windows)]
-            let t = t.replace("/", "\\");
-
+            // Forward slashes are fine on Windows: std::path/std::fs accept
+            // them, and the bazel-* convenience symlinks share the same
+            // "bazel-cel" name on every platform.
             let f = work_dir.join(f);
             let t = install_include_dir.join(t);
             cp_r(&f, &t)?;

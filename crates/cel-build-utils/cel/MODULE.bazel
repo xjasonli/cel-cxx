@@ -4,15 +4,34 @@ module(
 )
 
 # Core dependencies
-bazel_dep(name = "rules_cc", version = "0.1.2")
-bazel_dep(name = "platforms", version = "1.0.0")
-bazel_dep(name = "bazel_skylib", version = "1.8.0")
+bazel_dep(name = "rules_cc", version = "0.2.25")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
 
 # Apple/iOS support (needed for Apple platform constraints)
-bazel_dep(name = "apple_support", version = "1.22.0")
+bazel_dep(name = "apple_support", version = "2.9.0")
 
 # Android NDK support (conditional - only when ANDROID_NDK_HOME is set)
-bazel_dep(name = "rules_android_ndk", version = "0.1.3")
+bazel_dep(name = "rules_android_ndk", version = "0.1.5")
+
+# rules_android_ndk's toolchain does not declare the archive_param_file
+# feature, so cc_static_library passes ~600 object paths on the archiver's
+# command line and exceeds CreateProcessW's 32767-character limit on
+# Windows hosts. The auto-configured MSVC toolchain enables that feature
+# for itself; mirror it here (llvm-ar accepts @response files). The url,
+# integrity, and strip_prefix point at the same source the Bazel Central
+# Registry serves for 0.1.5; the registry's version-bump patch is
+# registry bookkeeping and is not needed for an override.
+archive_override(
+    module_name = "rules_android_ndk",
+    url = "https://github.com/bazelbuild/rules_android_ndk/releases/download/v0.1.5/rules_android_ndk-v0.1.5.tar.gz",
+    integrity = "sha256-B+eid3ETuz0KQyJl0ceM+qFApbxMgr5MjNmIs0OC7JA=",
+    strip_prefix = "rules_android_ndk-0.1.5",
+    patches = [
+        "//:rules_android_ndk_archive_param_file.patch",
+    ],
+    patch_strip = 0,
+)
 
 # Use our conditional Android NDK extension
 # This creates either a real Android NDK repository or a stub, depending on ANDROID_NDK_HOME
@@ -45,4 +64,17 @@ git_override(
     # We need some patches
     remote = "https://github.com/xjasonli/cel-cpp.git",
     commit = "c84e883df5932dcc992dd3494a771c37e85ae1fe",
+    patches = [
+        # Windows ships no TZif zone database for cctz, so named IANA zones
+        # resolve through the OS-managed database via C++20 <chrono> instead
+        # (see docs/timezone-support-design.md, Option G).
+        "//:windows_chrono_timezone.patch",
+        # Cross-compiling from a Windows host (e.g. Android via cargo-ndk)
+        # trips a target-vs-host mismatch in cel-cpp's ANTLR copy actions:
+        # the grammar output layout depends on the executing host's file
+        # separator, but antlr.bzl selects on the target platform. Fall back
+        # to the flat output location when the prefixed one is missing.
+        "//:antlr_cross_host_output.patch",
+    ],
+    patch_strip = 0,
 )

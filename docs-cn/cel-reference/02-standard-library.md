@@ -579,6 +579,17 @@ size("世界")     // 2
 
 ## 10. 日期/时间函数
 
+接受时区参数的时间戳函数既可以使用数字 UTC 偏移量（`'-04:00'`），也可以使用
+[Joda/IANA](https://www.joda.org/joda-time/timezones.html) 时区名称（`'America/New_York'`）。
+
+数字偏移量在所有平台上直接换算。命名时区通过运行时可用的时区数据库解析：
+Linux/macOS 使用 Abseil/cctz 读取的 TZif 数据库（`$TZDIR`，默认
+`/usr/share/zoneinfo`，Android 设备则通过系统打包的 tzdata 解析）；Windows
+不自带该数据库，改用系统托管的 IANA 数据库（MSVC C++20 `<chrono>`，显式
+设置 `TZDIR` 时 TZDIR 优先）。结果跟随主机数据库版本，近期变更过规则的时区
+在不同数据版本的主机上可能结果不同；未知时区名会返回 invalid argument 错误
+而不是回退到 UTC。
+
 ### 10.1 getDate()
 
 **语法：** `timestamp.getDate()`

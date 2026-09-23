@@ -1,16 +1,20 @@
 # ============================================================================
-# Linux Build Configuration
+# Base Build Configuration
 # ============================================================================
 
 build --experimental_cc_static_library
 build --tool_java_runtime_version=remotejdk_21
 build --enable_bzlmod
 
-build --define absl=1
-build --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
-build --cxxopt=-fsized-deallocation
-build --cxxopt=-Wno-deprecated-declarations
-build --cxxopt=-Wno-unused-function
+# ============================================================================
+# GCC/Clang-style flags (Linux, Android, Apple, wasm)
+# ============================================================================
+
+build:gcc --define absl=1
+build:gcc --cxxopt=-std=c++17 --host_cxxopt=-std=c++17
+build:gcc --cxxopt=-fsized-deallocation
+build:gcc --cxxopt=-Wno-deprecated-declarations
+build:gcc --cxxopt=-Wno-unused-function
 
 # ============================================================================
 # macOS Configuration
@@ -18,6 +22,7 @@ build --cxxopt=-Wno-unused-function
 
 # macOS builds use system Xcode toolchain
 # CPU architecture is automatically detected or specified via --cpu
+build:macos --config=gcc
 build:macos --apple_platform_type=macos
 build:macos --macos_minimum_os=10.13
 
@@ -26,8 +31,21 @@ build:macos --macos_minimum_os=10.13
 # ============================================================================
 
 # iOS builds (device and simulator share the same build configuration)
-# Platform selection (device vs simulator) is handled by --platforms:
+# Platform selection (device vs simulator) is handled via --platforms:
 #   Device:    --platforms=//:aarch64-apple-ios
 #   Simulator: --platforms=//:aarch64-apple-ios-sim or --platforms=//:x86_64-apple-ios
+build:ios --config=gcc
 build:ios --apple_platform_type=ios
 build:ios --ios_minimum_os=12.0
+
+# ============================================================================
+# Windows Build Configuration (MSVC)
+# ============================================================================
+
+# Invoked with --config=msvc (see target_config in cel-build-utils/src/lib.rs).
+# MSVC-specific flags (use /flag format instead of -flag).
+build:msvc --define absl=1
+build:msvc --define=protobuf_allow_msvc=true
+build:msvc --cxxopt=/std:c++20 --host_cxxopt=/std:c++20
+build:msvc --cxxopt=/Zc:sizedDealloc
+build:msvc --cxxopt=/DANTLR4CPP_STATIC --host_cxxopt=/DANTLR4CPP_STATIC

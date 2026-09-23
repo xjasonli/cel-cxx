@@ -1,0 +1,53 @@
+diff --git runtime/standard/time_functions.cc runtime/standard/time_functions.cc
+--- runtime/standard/time_functions.cc
++++ runtime/standard/time_functions.cc
+@@ -17,6 +17,10 @@
+ #include <cstdint>
+ #include <functional>
+ #include <string>
++#if defined(_WIN32) && defined(_MSC_VER)
++#include <chrono>
++#include <stdexcept>
++#endif
+ 
+ #include "absl/status/status.h"
+ #include "absl/status/statusor.h"
+@@ -67,6 +71,38 @@ absl::Status FindTimeBreakdown(absl::Time timestamp, absl::string_view tz,
+     }
+   }
+ 
++#if defined(_WIN32) && defined(_MSC_VER)
++  // Windows ships no TZif zone database for cctz, so a named zone that did
++  // not resolve through the file-based lookup above falls back to the
++  // IANA-derived zone database managed by the OS and exposed by MSVC's C++20
++  // <chrono>. The offset at the requested instant (including daylight
++  // saving) selects a fixed-offset zone whose civil-time fields match the
++  // named zone; the accessors above read only those fields and the
++  // subsecond part, which At() preserves.
++  try {
++    const std::chrono::sys_seconds instant{
++        std::chrono::seconds{absl::ToUnixSeconds(timestamp)}};
++    const auto offset =
++        std::chrono::locate_zone(std::string_view{tz.data(), tz.size()})
++            ->get_info(instant)
++            .offset.count();
++    // absl::FixedTimeZone silently degrades to UTC for offsets outside
++    // +/-24 hours; report the shared invalid-timezone error below instead.
++    if (offset >= -24 * 60 * 60 && offset <= 24 * 60 * 60) {
++      *breakdown = absl::FixedTimeZone(static_cast<int>(offset)).At(timestamp);
++      return absl::OkStatus();
++    }
++  } catch (const std::runtime_error&) {
++    // Unknown IANA name or an unavailable OS timezone database: report the
++    // invalid-timezone error below.
++  } catch (const std::exception& e) {
++    // An unexpected lookup failure must not escape as an exception across
++    // the FFI boundary.
++    return absl::InternalError(
++        std::string{"timezone lookup failed: "} + e.what());
++  }
++#endif
++
+   // Otherwise, error.
+   return absl::InvalidArgumentError("Invalid timezone");
+ }

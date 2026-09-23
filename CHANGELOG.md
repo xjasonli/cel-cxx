@@ -85,6 +85,28 @@ with ID-based overload lookup and full-type descriptors.
 - Preserve global versus member call syntax when converting macro ASTs to C++.
 - Enable optional support in examples that use optional operations and preserve
   empty protobuf strings when encoding repeated elements and oneof values.
+- Resolve named IANA timezones on Windows through the OS-managed timezone
+  database via the `windows_chrono_timezone.patch` cel-cpp patch: Windows ships
+  no TZif tree for cctz, so named zones previously failed with `InvalidArgument`
+  (numeric offsets and UTC were unaffected). `TZDIR` still takes precedence, an
+  unknown zone name or unavailable database still errors instead of degrading
+  to UTC, and results follow the host's database version.
+- Rebuild `libcel` when the Bazel workspace inputs change (MODULE.bazel,
+  BUILD.bazel, `.bazelrc`, `.bzl`, and patch files) by tracking them with
+  `cargo:rerun-if-changed`, instead of silently linking a stale library.
+- Build Android targets from Windows hosts (`cargo ndk`): normalize the NDK
+  path passed to `rules_android_ndk` (its symlink setup strips a backslash
+  `ANDROID_NDK_HOME` prefix with a forward-slash `replace` and then writes
+  outside the repository), neutralize the Android SDK repository environment
+  for every target (libcel compiles C++ through the NDK toolchain only and
+  hosts may only have an unparseable `android-*.0` platform), fall back to the
+  flat ANTLR grammar output when cross-compiling from Windows
+  (`antlr_cross_host_output.patch`: the copy actions select on the target OS
+  while the tool's layout follows the executing host), and enable the
+  `archive_param_file` feature for the NDK archiver
+  (`rules_android_ndk_archive_param_file.patch` through an `archive_override`)
+  so archiving ~600 objects uses an `@response` file instead of exceeding
+  CreateProcessW's 32767-character command line.
 
 ### Added
 - `function::OverloadEntry<T>`.
@@ -114,6 +136,12 @@ with ID-based overload lookup and full-type descriptors.
 - Replace collection print-only checks and optional type-tag checks with exact
   result assertions.
 - Cover macro-generated global/member calls and copied callback expressions.
+- Cover named-zone timestamp accessors end-to-end through CEL evaluation: DST
+  and standard-time offsets chosen for the instant, spring-forward and
+  fall-back transition boundaries, pre-epoch and post-2038 instants, IANA
+  links, and a date boundary; assert unknown zones fail with `InvalidArgument`
+  on every host, and verify `TZDIR` precedence over the Windows OS database
+  with a crafted constant-UTC TZif fixture.
 
 ## [0.2.5] - 2026-07-01
 

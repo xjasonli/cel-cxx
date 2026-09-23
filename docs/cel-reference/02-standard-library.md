@@ -772,7 +772,9 @@ size(string(b'\xF0\x9F\xA4\xAA')) // 1
 
 ## 10. Date/Time Functions
 
-All timestamp functions which take accept a timezone argument can use any of the supported [Joda Timezones](https://www.joda.org/joda-time/timezones.html) either using the numeric format or the geographic region.
+All timestamp functions which accept a timezone argument take either a numeric UTC offset (`'-04:00'`) or a named [Joda/IANA](https://www.joda.org/joda-time/timezones.html) zone (`'America/New_York'`).
+
+Numeric offsets are converted directly and work on every host. Named zones resolve through the zone database available to the runtime: the TZif tree read by Abseil/cctz (`$TZDIR`, by default `/usr/share/zoneinfo`) on Linux and macOS (Android devices instead resolve through the system-packed tzdata), or — on Windows, which ships no such tree — the OS-managed IANA database through MSVC's C++20 `<chrono>`; an explicit `TZDIR` tree takes precedence there. Results follow the host's database version, so a zone with recently changed rules can resolve differently on hosts with different data. An unknown zone name fails with an invalid-argument error rather than falling back to UTC.
 
 ### 10.1 getDate()
 

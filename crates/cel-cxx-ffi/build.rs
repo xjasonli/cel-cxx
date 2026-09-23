@@ -7,10 +7,46 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    track_bazel_workspace();
+
     let artifacts = build_cpp()?;
     build_ffi(&artifacts)?;
 
     Ok(())
+}
+
+/// The Bazel workspace under `cel-build-utils/cel` builds libcel, but cargo
+/// cannot see its inputs. Without these directives a MODULE.bazel or patch
+/// edit would keep linking a stale libcel from the previous build.
+///
+/// Patch files are tracked through the `*.patch` glob below rather than an
+/// explicit list: a new patch takes effect only once MODULE.bazel's
+/// `git_override(patches = [...])` references it, and MODULE.bazel is
+/// tracked here, so adding a patch reruns this build script and re-expands
+/// the glob. Tracking the whole `cel/` directory instead would recurse
+/// through the `bazel-*` output symlinks that Bazel refreshes on every run
+/// and reintroduce an unconditional rebuild loop.
+fn track_bazel_workspace() {
+    // Paths are relative to this crate's manifest directory. Only true
+    // inputs belong here: MODULE.bazel.lock is derived state that Bazel
+    // itself rewrites during the build, so tracking it would make cargo
+    // rebuild libcel on every invocation (and it is gitignored anyway).
+    let files = [
+        "../cel-build-utils/cel/MODULE.bazel",
+        "../cel-build-utils/cel/BUILD.bazel",
+        "../cel-build-utils/cel/.bazelrc",
+        "../cel-build-utils/cel/android_conditional.bzl",
+    ];
+    for file in files {
+        println!("cargo:rerun-if-changed={file}");
+    }
+    // Patches applied to the fetched cel-cpp dependency (for example the
+    // Windows timezone fallback) must also invalidate the build.
+    if let Ok(patches) = glob::glob("../cel-build-utils/cel/*.patch") {
+        for patch in patches.flatten() {
+            println!("cargo:rerun-if-changed={}", patch.display());
+        }
+    }
 }
 
 fn build_cpp() -> Result<Artifacts> {

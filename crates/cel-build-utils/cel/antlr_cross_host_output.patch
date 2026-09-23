@@ -1,0 +1,46 @@
+diff --git bazel/antlr.bzl bazel/antlr.bzl
+--- bazel/antlr.bzl
++++ bazel/antlr.bzl
+@@ -93,6 +93,16 @@ def _antlr_library(ctx):
+ 
+         executable = ctx.attr.shell
+ 
++        # The ANTLR tool decides whether generated files keep the grammar
++        # file's directory prefix using the *executing host's* file
++        # separator, while genfiles_prefixed above selects on the target
++        # platform. When cross-compiling from a Windows host the tool
++        # writes the flat layout, so fall back to the basename location
++        # there. Host-native builds keep taking the first branch.
++        copy_command = 'cp "{generated}" "{out}"'
++        if prefix != basename:
++            copy_command = copy_command + ' || cp "{flat}" "{out}"'
++
+         ctx.actions.run(
+             mnemonic = "CopyHeader" + suffix,
+             inputs = [output],
+@@ -100,7 +110,11 @@ def _antlr_library(ctx):
+             executable = executable,
+             arguments = [
+                 "-c",
+-                'cp "{generated}" "{out}"'.format(generated = generated + ".h", out = header.path),
++                copy_command.format(
++                    generated = generated + ".h",
++                    flat = output.path + "/" + basename + suffix + ".h",
++                    out = header.path,
++                ),
+             ],
+         )
+         ctx.actions.run(
+@@ -110,7 +124,11 @@ def _antlr_library(ctx):
+             executable = executable,
+             arguments = [
+                 "-c",
+-                'cp "{generated}" "{out}"'.format(generated = generated + ".cpp", out = source.path),
++                copy_command.format(
++                    generated = generated + ".cpp",
++                    flat = output.path + "/" + basename + suffix + ".cpp",
++                    out = source.path,
++                ),
+             ],
+         )
+ 

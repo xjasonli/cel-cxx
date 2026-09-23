@@ -1,0 +1,18 @@
+diff --git ndk_cc_toolchain_config.bzl ndk_cc_toolchain_config.bzl
+--- ndk_cc_toolchain_config.bzl
++++ ndk_cc_toolchain_config.bzl
+@@ -1441,6 +1441,14 @@ def ndk_cc_toolchain_config(
+                 ),
+             ],
+         ),
++        # Bazel spills archiver arguments into an @response file when this
++        # feature is enabled (llvm-ar accepts @response files). Without it,
++        # archiving a large cc_static_library exceeds CreateProcessW's
++        # 32767-character command line limit on Windows hosts.
++        feature(
++            name = "archive_param_file",
++            enabled = True,
++        ),
+     ]
+ 
+     return dict(
