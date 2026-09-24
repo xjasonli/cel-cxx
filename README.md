@@ -438,7 +438,19 @@ The Bazel build resolves the gcc toolchain through a conditional extension in
 `x86_64-pc-windows-gnu` (see `cel/mingw_conditional.bzl`); every other target —
 including `x86_64-pc-windows-msvc` on the same host — is unaffected. Any host
 with a mingw-w64 toolchain on `PATH` works the same way, and the docker +
-cross-rs route is also available from any host, including Linux.
+cross-rs route is also available from any host, including Linux:
+
+```bash
+# Any host with docker + cross-rs; builds with the stock cross image
+cross build --target x86_64-pc-windows-gnu --example basic
+```
+
+Binaries built **inside** the cross container link the Ubuntu mingw-w64
+(msvcrt-flavor) C++ runtime dynamically: copy `libstdc++-6.dll`,
+`libgcc_s_seh-1.dll`, and `libwinpthread-1.dll` from the image (under
+`/usr/lib/gcc/x86_64-w64-mingw32/` and `/usr/x86_64-w64-mingw32/lib/`) next to
+the binary to run it — the MSYS2 `libstdc++-6.dll` is a UCRT flavor and does
+not substitute for it.
 
 **Runtime:** binaries link the MSYS2 UCRT64 C++ runtime dynamically
 (`libstdc++-6.dll`), which is found through `PATH` inside an MSYS2 shell;

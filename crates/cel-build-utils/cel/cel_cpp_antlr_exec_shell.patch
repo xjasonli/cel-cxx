@@ -1,0 +1,103 @@
+diff --git bazel/antlr.bzl bazel/antlr.bzl
+--- bazel/antlr.bzl
++++ bazel/antlr.bzl
+@@ -32,18 +32,6 @@ def antlr_cc_library(name, src, package):
+         name = generated,
+         src = src,
+         package = package,
+-        shell = select(
+-            {
+-                "@platforms//os:windows": "PowerShell.exe",
+-                "//conditions:default": "bash",
+-            },
+-        ),
+-        genfiles_prefixed = select(
+-            {
+-                "@platforms//os:windows": False,
+-                "//conditions:default": True,
+-            },
+-        ),
+     )
+     cc_library(
+         name = name + "_cc_parser",
+@@ -88,48 +76,37 @@ def _antlr_library(ctx):
+     for suffix in suffixes:
+         header = ctx.actions.declare_file(basename + suffix + ".h")
+         source = ctx.actions.declare_file(basename + suffix + ".cpp")
+-        prefix = ctx.file.src.path[:-3] if ctx.attr.genfiles_prefixed else basename
+-        generated = output.path + "/" + prefix + suffix
+-
+-        executable = ctx.attr.shell
+ 
+         # The ANTLR tool decides whether generated files keep the grammar
+         # file's directory prefix using the *executing host's* file
+-        # separator, while genfiles_prefixed above selects on the target
+-        # platform. When cross-compiling from a Windows host the tool
+-        # writes the flat layout, so fall back to the basename location
+-        # there. Host-native builds keep taking the first branch.
+-        copy_command = 'cp "{generated}" "{out}"'
+-        if prefix != basename:
+-            copy_command = copy_command + ' || cp "{flat}" "{out}"'
++        # separator: unix hosts mirror the .g4's path under -o, Windows
++        # hosts write the flat layout. The layout therefore depends on
++        # neither the target platform nor genfile prefix settings, so try
++        # both locations. The copy actions run through the default shell
++        # (run_shell): a target-platform shell select would pick
++        # PowerShell.exe for Windows targets even when building on a Linux
++        # host (cross-rs containers), where it does not exist.
++        copy_command = 'cp "{prefixed}" "{out}" || cp "{flat}" "{out}"'
+ 
+-        ctx.actions.run(
++        ctx.actions.run_shell(
+             mnemonic = "CopyHeader" + suffix,
+             inputs = [output],
+             outputs = [header],
+-            executable = executable,
+-            arguments = [
+-                "-c",
+-                copy_command.format(
+-                    generated = generated + ".h",
+-                    flat = output.path + "/" + basename + suffix + ".h",
+-                    out = header.path,
+-                ),
+-            ],
++            command = copy_command.format(
++                prefixed = output.path + "/" + ctx.file.src.path[:-3] + suffix + ".h",
++                flat = output.path + "/" + basename + suffix + ".h",
++                out = header.path,
++            ),
+         )
+-        ctx.actions.run(
++        ctx.actions.run_shell(
+             mnemonic = "CopySource" + suffix,
+             inputs = [output],
+             outputs = [source],
+-            executable = executable,
+-            arguments = [
+-                "-c",
+-                copy_command.format(
+-                    generated = generated + ".cpp",
+-                    flat = output.path + "/" + basename + suffix + ".cpp",
+-                    out = source.path,
+-                ),
+-            ],
++            command = copy_command.format(
++                prefixed = output.path + "/" + ctx.file.src.path[:-3] + suffix + ".cpp",
++                flat = output.path + "/" + basename + suffix + ".cpp",
++                out = source.path,
++            ),
+         )
+ 
+         files.append(header)
+@@ -148,11 +125,5 @@ antlr_library = rule(
+             cfg = "exec",  # buildifier: disable=attr-cfg
+             default = Label("//bazel:antlr4_tool"),
+         ),
+-        "shell": attr.string(
+-            mandatory = True,
+-        ),
+-        "genfiles_prefixed": attr.bool(
+-            mandatory = True,
+-        ),
+     },
+ )

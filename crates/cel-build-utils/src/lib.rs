@@ -252,28 +252,63 @@ impl Build {
             install_library_dir.display()
         ))?;
 
+        // Resolve this invocation's real output locations from Bazel. The
+        // bazel-* convenience symlinks in the workspace cannot be trusted
+        // here: cross-rs containers cannot refresh them through the docker
+        // mount (they would keep pointing at the host's output base, and
+        // the copies below would read a foreign tree), and concurrent
+        // host builds rewrite them underneath.
+        let info_cmd = bazel.command("info");
+        let info_out = self
+            .run_command(info_cmd, "querying bazel output locations")
+            .map_err(|e| anyhow!(e))?;
+        let info = String::from_utf8_lossy(&info_out);
+        let execution_root = info
+            .lines()
+            .find_map(|l| l.strip_prefix("execution_root: "))
+            .context("bazel info did not report execution_root")?;
+        let bazel_bin = info
+            .lines()
+            .find_map(|l| l.strip_prefix("bazel-bin: "))
+            .context("bazel info did not report bazel-bin")?;
+        let execution_root = PathBuf::from(execution_root);
+        let bazel_bin = PathBuf::from(bazel_bin);
+
         // Copy include files
         // NOTE: cel-spec gencode comes from _virtual_imports -- protobuf 35.x's
         // proto_library emits .pb.h/.pb.cc there. The legacy _virtual_includes
         // tree only holds stale gencode from older protobuf builds, which fails
         // compilation with gencode/runtime version mismatch errors.
         let include_mapping = vec![
-            ("bazel-cel/external/cel-cpp+", "."),
-            ("bazel-cel/external/abseil-cpp+/absl", "absl"),
-            ("bazel-cel/external/protobuf+/src/google", "google"),
+            (execution_root.join("external/cel-cpp+"), "."),
+            (execution_root.join("external/abseil-cpp+/absl"), "absl"),
+            (execution_root.join("external/protobuf+/src/google"), "google"),
             // Protobuf's public parse_context.h includes utf8_validity.h.
-            ("bazel-cel/external/protobuf+/third_party/utf8_range/utf8_validity.h", "utf8_validity.h"),
-            ("bazel-cel/external/protobuf+/third_party/utf8_range/utf8_range.h", "utf8_range.h"),
-            ("bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_imports/checked_proto/cel", "cel"),
-            ("bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_imports/value_proto/cel", "cel"),
-            ("bazel-bin/external/cel-spec+/proto/cel/expr/_virtual_imports/syntax_proto/cel", "cel"),
+            (
+                execution_root.join("external/protobuf+/third_party/utf8_range/utf8_validity.h"),
+                "utf8_validity.h",
+            ),
+            (
+                execution_root.join("external/protobuf+/third_party/utf8_range/utf8_range.h"),
+                "utf8_range.h",
+            ),
+            (
+                bazel_bin.join("external/cel-spec+/proto/cel/expr/_virtual_imports/checked_proto/cel"),
+                "cel",
+            ),
+            (
+                bazel_bin.join("external/cel-spec+/proto/cel/expr/_virtual_imports/value_proto/cel"),
+                "cel",
+            ),
+            (
+                bazel_bin.join("external/cel-spec+/proto/cel/expr/_virtual_imports/syntax_proto/cel"),
+                "cel",
+            ),
         ];
 
         for (f, t) in include_mapping {
             // Forward slashes are fine on Windows: std::path/std::fs accept
-            // them, and the bazel-* convenience symlinks share the same
-            // "bazel-cel" name on every platform.
-            let f = work_dir.join(f);
+            // them, and Bazel prints forward-slash paths on every platform.
             let t = install_include_dir.join(t);
             cp_r(&f, &t)?;
         }
@@ -289,7 +324,7 @@ impl Build {
             "libcel.a"
         };
         std::fs::copy(
-            work_dir.join("bazel-bin").join(libcel_name),
+            bazel_bin.join(libcel_name),
             install_library_dir.join(libcel_name),
         )
         .context(format!("failed to copy {libcel_name}"))?;

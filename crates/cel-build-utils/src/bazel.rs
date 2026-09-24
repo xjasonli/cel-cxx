@@ -96,7 +96,9 @@ impl Bazel {
         cmd
     }
 
-    fn command<S: AsRef<OsStr>>(&self, command: S) -> Command {
+    /// Build a bazel command (e.g. "info") with the common options applied.
+    /// Used by cel-build-utils to query output locations after a build.
+    pub fn command<S: AsRef<OsStr>>(&self, command: S) -> Command {
         let mut cmd = Command::new(&self.path);
         if let Some(work_dir) = &self.wdir {
             cmd.current_dir(work_dir);
