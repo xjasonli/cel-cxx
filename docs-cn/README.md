@@ -160,6 +160,11 @@ cargo run --example tokio --features="tokio"
 
 深入了解高级特性，包括异步支持架构、函数重载和智能引用处理。
 
+### [musl 目标支持](musl-support.md)
+
+构建 `*-unknown-linux-musl` 目标：工具链要求（GCC ≥ 10 的 musl C++ 工具链）、
+cross-rs 自定义镜像、宿主机安装工具链，以及 Alpine 等原生 musl 宿主。
+
 ## 参考
 
 - [CEL 参考](cel-reference/) - CEL 语言特性和标准库文档

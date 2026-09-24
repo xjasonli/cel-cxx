@@ -96,6 +96,15 @@ async-scoped = { workspace = true, optional = true }
 pin-project-lite = { workspace = true, optional = true }
 arc-slice = { workspace = true, features = ["default-layout-any-buffer"] }
 
+# rustc links libstdc++ automatically on linux-gnu targets but has no default
+# C++ runtime for musl. Turn on link-cplusplus' "libstdc++" feature for musl
+# (feature unification applies it to cxx's dependency as well) so the CEL
+# C++ code links. Both supported musl toolchains use GCC's libstdc++: the
+# cross-rs musl images ship a static libstdc++.a, and native musl hosts
+# (Alpine) build GCC's libstdc++ against musl.
+[target.'cfg(target_env = "musl")'.dependencies]
+link-cplusplus = { version = "1", features = ["libstdc++"] }
+
 [build-dependencies]
 prost-build = { version = "0.14", optional = true }
 protobuf-codegen = { version = "3", optional = true }

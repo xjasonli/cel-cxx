@@ -164,6 +164,27 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td>Tested via cross-rs</td>
 </tr>
 <tr>
+<td rowspan="4"><strong>Linux (musl)</strong></td>
+<td><code>x86_64-unknown-linux-musl</code></td>
+<td>✅</td>
+<td>Tested; full test suite passes. Needs a musl C++ toolchain with GCC ≥ 10 — stock cross-rs musl images ship GCC 9.2 (see [musl support](docs/musl-support.md))</td>
+</tr>
+<tr>
+<td><code>aarch64-unknown-linux-musl</code></td>
+<td>✅</td>
+<td>Tested; same toolchain requirements as above</td>
+</tr>
+<tr>
+<td><code>i686-unknown-linux-musl</code></td>
+<td>🟡</td>
+<td>Should work, same mechanism, untested</td>
+</tr>
+<tr>
+<td><code>armv7-unknown-linux-musleabi</code></td>
+<td>🟡</td>
+<td>No soft-float GCC ≥ 10 musl toolchain is published; see [armv7 notes](docs/musl-support.md#armv7-notes)</td>
+</tr>
+<tr>
 <td><strong>Windows</strong></td>
 <td><code>x86_64-pc-windows-msvc</code></td>
 <td>✅</td>
@@ -331,7 +352,11 @@ cargo install cross --git https://github.com/cross-rs/cross
 cross build --target aarch64-unknown-linux-gnu
 ```
 
-**Note**: Not all cross-rs targets are supported due to CEL-CPP's build requirements. musl targets and some embedded targets may not work due to missing C++ standard library support or incompatible toolchains.
+**Note**: Not all cross-rs targets are supported due to CEL-CPP's build requirements. The stock
+cross-rs musl images ship a GCC 9.2 toolchain, which is too old for cel-cpp's Abseil dependency
+(GCC ≥ 10 required); layer a newer musl toolchain on the image or use one of the other options
+described in [docs/musl-support.md](docs/musl-support.md). musl targets are fully supported with
+a suitable toolchain, including plain `cargo build` on native musl hosts such as Alpine.
 
 ### Android Build Instructions
 

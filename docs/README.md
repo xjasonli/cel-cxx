@@ -169,6 +169,12 @@ enabling the typed API for protobuf-generated message types.
 Deep dive into advanced features including async support architecture, function overloads,
 and smart reference handling.
 
+### [musl Target Support](musl-support.md)
+
+Building `*-unknown-linux-musl` targets: toolchain requirements (GCC ≥ 10 musl
+C++ toolchain), cross-rs custom images, host-installed toolchains, and native
+musl hosts such as Alpine.
+
 ## Reference
 
 - [CEL Reference](cel-reference/) - CEL language features and standard library documentation

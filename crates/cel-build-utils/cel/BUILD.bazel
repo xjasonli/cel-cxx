@@ -37,41 +37,45 @@ platform(
     ],
 )
 
-#platform(
-#    name = "x86_64-unknown-linux-musl",
-#    constraint_values = [
-#        "@platforms//cpu:x86_64",
-#        "@platforms//os:linux",
-#        "@rules_cross_rs//:musl_target",
-#    ],
-#)
+# Linux musl platforms.
 #
-#platform(
-#    name = "aarch64-unknown-linux-musl",
-#    constraint_values = [
-#        "@platforms//cpu:aarch64",
-#        "@platforms//os:linux",
-#        "@rules_cross_rs//:musl_target",
-#    ],
-#)
-#
-#platform(
-#    name = "armv7-unknown-linux-musleabihf",
-#    constraint_values = [
-#        "@platforms//cpu:armv7",
-#        "@platforms//os:linux",
-#        "@rules_cross_rs//:musl_target",
-#    ],
-#)
-#
-#platform(
-#    name = "i686-unknown-linux-musl",
-#    constraint_values = [
-#        "@platforms//cpu:x86_32",
-#        "@platforms//os:linux",
-#        "@rules_cross_rs//:musl_target",
-#    ],
-#)
+# Deliberately the same cpu/os constraints as the gnu platforms above: no
+# libc-specific constraint is declared. Hosts whose native toolchain is
+# already musl (e.g. Alpine) resolve their auto-configured toolchain against
+# these platforms for plain `cargo build`, without cross-rs. Under cross-rs
+# the cross toolchain is selected through root-module registration priority
+# in MODULE.bazel instead — see the comment there.
+platform(
+    name = "x86_64-unknown-linux-musl",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "aarch64-unknown-linux-musl",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "armv7-unknown-linux-musleabi",
+    constraint_values = [
+        "@platforms//cpu:armv7",
+        "@platforms//os:linux",
+    ],
+)
+
+platform(
+    name = "i686-unknown-linux-musl",
+    constraint_values = [
+        "@platforms//cpu:x86_32",
+        "@platforms//os:linux",
+    ],
+)
 
 # Android platforms
 platform(

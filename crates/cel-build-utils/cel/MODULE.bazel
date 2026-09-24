@@ -43,12 +43,28 @@ use_repo(android_conditional, "androidndk")
 register_toolchains("@androidndk//:all")
 
 # Cross-compilation support for cross-rs
-bazel_dep(name = "rules_cross_rs", version = "0.1.0")
+bazel_dep(name = "rules_cross_rs", version = "0.2.0")
 git_override(
     module_name = "rules_cross_rs",
     remote = "https://github.com/xjasonli/rules_cross_rs.git",
-    commit = "234adc1401b8fd43d8fd4837c09cefef5e3c672c",
+    commit = "bfa6c0d8ff051fbbf1d78722f4bc8ab6ba3961cb",
 )
+
+# Register the cross-rs toolchain from the root module. Bzlmod ranks
+# root-module registrations above dependency and auto-configured local
+# toolchains, so the cross-rs toolchain wins whenever the target platform
+# also matches the local toolchain — e.g. building x86_64-unknown-linux-musl
+# inside an x86_64 glibc cross-rs container, where both match
+# [cpu:x86_64, os:linux] and the local glibc toolchain would otherwise
+# mis-compile libcel. The extension generates a stub toolchain with
+# impossible constraints when not building under cross-rs, so native builds
+# (including native musl hosts like Alpine, which resolve their own
+# auto-configured toolchain) are unaffected.
+# androidndk is registered above, so NDK toolchains keep winning on Android
+# platforms; cross-rs fills in for Android targets when no NDK is available.
+cross_rs_ext = use_extension("@rules_cross_rs//:rules.bzl", "cross_rs_extension")
+use_repo(cross_rs_ext, "cross_rs_toolchain")
+register_toolchains("@cross_rs_toolchain//:toolchain_definition")
 
 # Abseil-CPP dependency
 bazel_dep(

@@ -17,11 +17,21 @@ const BAZEL_DOWNLOAD_VERSION: Option<&str> = Some("8.7.0");
 
 /// Supported target triples - must match platform definitions in build/BUILD.bazel
 const SUPPORTED_TARGETS: &[&str] = &[
-    // Linux
+    // Linux (glibc)
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu",
     "armv7-unknown-linux-gnueabi",
     "i686-unknown-linux-gnu",
+    // Linux (musl). Built with the same cpu/os platform constraints as the
+    // gnu targets: cross-rs selects its toolchain through root-module
+    // registration priority (see cel/MODULE.bazel), while native musl hosts
+    // (e.g. Alpine) resolve their own auto-configured toolchain.
+    // Cross-rs' musl images ship GCC with C++ support; glibc hosts without
+    // a musl C++ compiler cannot build these targets.
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+    "armv7-unknown-linux-musleabi",
+    "i686-unknown-linux-musl",
     // Android
     "aarch64-linux-android",
     "armv7-linux-androideabi",
