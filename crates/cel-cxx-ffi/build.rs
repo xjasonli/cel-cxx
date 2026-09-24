@@ -36,6 +36,7 @@ fn track_bazel_workspace() {
         "../cel-build-utils/cel/BUILD.bazel",
         "../cel-build-utils/cel/.bazelrc",
         "../cel-build-utils/cel/android_conditional.bzl",
+        "../cel-build-utils/cel/mingw_conditional.bzl",
     ];
     for file in files {
         println!("cargo:rerun-if-changed={file}");
@@ -121,6 +122,17 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
     build.compile("cel-cxx");
 
     println!("cargo:rustc-link-lib=static=cel-cxx");
+
+    // Windows system libraries libcel uses through _WIN32 code paths.
+    // MSVC links them via #pragma comment(lib, ...) in the sources; gcc
+    // ignores those pragmas (-Wunknown-pragmas), so the MinGW link needs
+    // them on the command line. kernel32 is in the mingw driver's default
+    // set, these three are not.
+    if target.contains("windows-gnu") {
+        println!("cargo:rustc-link-lib=dylib=advapi32"); // Reg* (absl sysinfo)
+        println!("cargo:rustc-link-lib=dylib=dbghelp"); // Sym* (absl symbolize)
+        println!("cargo:rustc-link-lib=dylib=bcrypt"); // RNG seeding (absl random)
+    }
     Ok(())
 }
 

@@ -1,0 +1,21 @@
+diff --git common/typeinfo.cc common/typeinfo.cc
+--- common/typeinfo.cc
++++ common/typeinfo.cc
+@@ -24,9 +24,9 @@
+ #include "absl/strings/str_cat.h"  // IWYU pragma: keep
+
+ #ifdef CEL_INTERNAL_HAVE_RTTI
+-#ifdef _WIN32
++#if defined(_WIN32) && defined(_MSC_VER)
+ extern "C" char* __unDName(char*, const char*, int, void* (*)(size_t),
+                            void (*)(void*), int);
+ #else
+@@ -49,7 +49,7 @@
+     return std::string();
+   }
+ #ifdef CEL_INTERNAL_HAVE_RTTI
+-#ifdef _WIN32
++#if defined(_WIN32) && defined(_MSC_VER)
+   std::unique_ptr<char, FreeDeleter> demangled(
+       __unDName(nullptr, rep_->raw_name(), 0, std::malloc, std::free, 0x2800));
+   if (demangled == nullptr) {

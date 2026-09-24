@@ -17,6 +17,7 @@
   - [Platform Support](#platform-support)
     - [Cross-Compilation Support](#cross-compilation-support)
     - [Android Build Instructions](#android-build-instructions)
+    - [Windows GNU Builds](#windows-gnu-builds)
   - [CEL Feature Support](#cel-feature-support)
     - [Core Language Features](#core-language-features)
     - [Standard Library](#standard-library)
@@ -191,6 +192,12 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td>Tested (Visual Studio 2022+; named IANA timezones resolve through the OS-managed database)</td>
 </tr>
 <tr>
+<td><strong>Windows</strong></td>
+<td><code>x86_64-pc-windows-gnu</code></td>
+<td>✅</td>
+<td>Tested from an MSYS2 UCRT64 shell (MinGW-w64 GCC); see [Windows GNU builds](#windows-gnu-builds). Named IANA timezones resolve only through a <code>TZDIR</code> tree</td>
+</tr>
+<tr>
 <td rowspan="3"><strong>macOS</strong></td>
 <td><code>x86_64-apple-darwin</code></td>
 <td>✅</td>
@@ -330,7 +337,12 @@ available to the runtime:
   database.
 - Windows ships no TZif tree, so named zones resolve through the OS-managed
   IANA database via MSVC's C++20 `<chrono>` (Windows 10 1903+); an explicit
-  `TZDIR` tree takes precedence.
+  `TZDIR` tree takes precedence. This fallback is MSVC-only: on
+  `x86_64-pc-windows-gnu` (libstdc++ has no IANA `<chrono>` backend), named
+  zones resolve only when `TZDIR` points at a TZif tree — MSYS2 provides one
+  at `/usr/share/zoneinfo` (set
+  `TZDIR=C:/msys64/usr/share/zoneinfo` for a process). Numeric offsets
+  (`'-04:00'`) never need a database.
 - WebAssembly and other hosts without any source return an
   invalid-argument error for named zones.
 
@@ -401,6 +413,39 @@ cargo ndk --target i686-linux-android build
 `cargo ndk --target aarch64-linux-android build` needs no extra setup beyond `cargo-ndk`, the NDK,
 and MSYS2 (for the `bash`/`patch` tools Bazel uses); the build system neutralizes the Android SDK
 repository environment because libcel only uses the NDK toolchain.
+
+### Windows GNU Builds
+
+The `x86_64-pc-windows-gnu` target needs a MinGW-w64 C++ toolchain on `PATH` —
+Bazel compiles all of libcel (cel-cpp, Abseil, Protobuf, the ANTLR runtime)
+with the same g++ that compiles the cxx bridge, so the ABI matches the GNU
+linker. The native path requires no docker and no cross-rs:
+
+**Requirements:**
+
+1. [MSYS2](https://www.msys2.org/) with the UCRT64 environment installed
+   (`gcc`, `g++`, `binutils` in `/ucrt64/bin`; GCC 10 or newer).
+2. The Rust target: `rustup target add x86_64-pc-windows-gnu`.
+
+```bash
+# From an MSYS2 UCRT64 shell (bash)
+cargo build --target x86_64-pc-windows-gnu --example basic
+cargo test --target x86_64-pc-windows-gnu
+```
+
+The Bazel build resolves the gcc toolchain through a conditional extension in
+`cel/MODULE.bazel` that activates whenever the target triple being built is
+`x86_64-pc-windows-gnu` (see `cel/mingw_conditional.bzl`); every other target —
+including `x86_64-pc-windows-msvc` on the same host — is unaffected. Any host
+with a mingw-w64 toolchain on `PATH` works the same way, and the docker +
+cross-rs route is also available from any host, including Linux.
+
+**Runtime:** binaries link the MSYS2 UCRT64 C++ runtime dynamically
+(`libstdc++-6.dll`), which is found through `PATH` inside an MSYS2 shell;
+copy it next to the binary (or keep `/ucrt64/bin` on `PATH`) to run it
+elsewhere. Named IANA timezones need
+`TZDIR` to point at a TZif tree (see
+[Timestamp Timezone Resolution](#timestamp-timezone-resolution)).
 
 ## CEL Feature Support
 

@@ -49,3 +49,14 @@ build:msvc --define=protobuf_allow_msvc=true
 build:msvc --cxxopt=/std:c++20 --host_cxxopt=/std:c++20
 build:msvc --cxxopt=/Zc:sizedDealloc
 build:msvc --cxxopt=/DANTLR4CPP_STATIC --host_cxxopt=/DANTLR4CPP_STATIC
+
+# ============================================================================
+# Windows Build Configuration (MinGW-w64, x86_64-pc-windows-gnu)
+# ============================================================================
+
+# Invoked with --config=mingw (see target_config in cel-build-utils/src/lib.rs).
+# MinGW-w64 GCC takes the gcc-style flags above. ANTLR4CPP_STATIC suppresses
+# the dllimport annotations in the ANTLR runtime headers on _WIN32 — the
+# msvc section passes the MSVC spelling of the same define.
+build:mingw --config=gcc
+build:mingw --cxxopt=-DANTLR4CPP_STATIC --host_cxxopt=-DANTLR4CPP_STATIC

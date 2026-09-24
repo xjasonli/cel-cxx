@@ -66,6 +66,19 @@ cross_rs_ext = use_extension("@rules_cross_rs//:rules.bzl", "cross_rs_extension"
 use_repo(cross_rs_ext, "cross_rs_toolchain")
 register_toolchains("@cross_rs_toolchain//:toolchain_definition")
 
+# MinGW-w64 toolchain for x86_64-pc-windows-gnu (e.g. MSYS2 UCRT64 hosts).
+# The extension generates a real gcc toolchain from the MinGW tools on PATH
+# only when cargo's TARGET is the gnu triple and cross-rs is not in charge
+# (rules_cross_rs owns that case, as on musl/wasm); otherwise it generates
+# a stub with impossible constraints, so every other target keeps resolving
+# its usual toolchain. Root-module registration outranks the
+# auto-configured MSVC toolchain on the platform's shared
+# [cpu:x86_64, os:windows] constraints — the same ranking the
+# rules_cross_rs registration above relies on.
+mingw_ext = use_extension("//:mingw_conditional.bzl", "conditional_mingw_toolchain")
+use_repo(mingw_ext, "mingw_toolchain")
+register_toolchains("@mingw_toolchain//:toolchain_definition")
+
 # Abseil-CPP dependency
 bazel_dep(
     name = "abseil-cpp",
@@ -91,6 +104,10 @@ git_override(
         # separator, but antlr.bzl selects on the target platform. Fall back
         # to the flat output location when the prefixed one is missing.
         "//:antlr_cross_host_output.patch",
+        # MinGW (x86_64-pc-windows-gnu) defines _WIN32 but uses the Itanium
+        # ABI like GCC elsewhere: route the type-name demangling through
+        # abi::__cxa_demangle instead of the MSVC-only __unDName/raw_name.
+        "//:cel_cpp_mingw_demangle.patch",
     ],
     patch_strip = 0,
 )

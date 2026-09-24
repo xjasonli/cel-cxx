@@ -59,8 +59,13 @@ const SUPPORTED_TARGETS: &[&str] = &[
     // Apple visionOS
     "aarch64-apple-visionos",
     "aarch64-apple-visionos-sim",
-    // Windows
+    // Windows (MSVC)
     "x86_64-pc-windows-msvc",
+    // Windows (MinGW-w64). Requires a gnu-targeting gcc on PATH (e.g. an
+    // MSYS2 UCRT64 shell); the Bazel build resolves it through the
+    // conditional mingw extension registered in cel/MODULE.bazel. The
+    // docker + cross-rs route also works via rules_cross_rs.
+    "x86_64-pc-windows-gnu",
     // WebAssembly
     "wasm32-unknown-emscripten",
 ];
@@ -74,13 +79,9 @@ fn is_cross_rs() -> bool {
     env::var("CROSS_SYSROOT").is_ok() && env::var("CROSS_TOOLCHAIN_PREFIX").is_ok()
 }
 
-fn is_windows(target: &str) -> bool {
-    target.contains("windows")
-}
-
 /// Bazel --config section for the target triple (see cel/.bazelrc). The
-/// macos/ios sections expand the "gcc" section; every non-MSVC target
-/// uses "gcc" directly.
+/// macos/ios sections expand the "gcc" section; every non-MSVC target uses
+/// "gcc" directly, including MinGW via its own "mingw" section.
 fn target_config(target: &str) -> &'static str {
     if target.contains("apple") {
         if target.contains("darwin") {
@@ -90,6 +91,9 @@ fn target_config(target: &str) -> &'static str {
         }
     }
     if target.contains("windows") {
+        if target.contains("gnu") {
+            return "mingw";
+        }
         return "msvc";
     }
     "gcc"
@@ -274,7 +278,12 @@ impl Build {
             cp_r(&f, &t)?;
         }
 
-        let libcel_name = if is_windows(target) {
+        // Static library naming follows the resolved toolchain, not the
+        // target OS: MSVC's auto-configured toolchain renames archives to
+        // name.lib, while every gcc-family toolchain (mingw for
+        // windows-gnu, the NDK for android) keeps the default
+        // lib<name>.a naming, which the GNU linker's -lcel resolves.
+        let libcel_name = if target.contains("msvc") {
             "cel.lib"
         } else {
             "libcel.a"
