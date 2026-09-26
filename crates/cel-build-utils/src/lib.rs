@@ -225,6 +225,17 @@ impl Build {
             build_command.arg("--repo_env=ANDROID_NDK_HOME=");
         }
 
+        // The Debian/Ubuntu arm-linux-gnueabi cross compilers default to
+        // -march=armv5t (armel) while the Rust target is armv7: 4-byte
+        // atomics then go through __sync_* runtime calls, which collide
+        // with Rust's compiler_builtins at final-link time. Match the
+        // target arch (the same -march cross-rs itself passes to CMake
+        // projects). --copt applies to C and C++ compiles, target side
+        // only, so the x86_64 exec tools are unaffected.
+        if target.starts_with("armv7") {
+            build_command.arg("--copt=-march=armv7-a");
+        }
+
         self.run_command(build_command, "building cel")
             .map_err(|e| anyhow!(e))?;
 

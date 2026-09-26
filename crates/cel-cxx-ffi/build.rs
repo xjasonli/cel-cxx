@@ -116,12 +116,29 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         .files(cc_srcs)
         .std(cxx_std.as_str());
 
+    // armv7: the Debian arm-linux-gnueabi compiler defaults to
+    // -march=armv5t (armel), which routes 4-byte atomics through __sync_*
+    // runtime helpers that collide with Rust's compiler_builtins at
+    // final-link time; match the target arch (same -march cel-build-utils
+    // passes to the Bazel-built libcel).
+    if target.starts_with("armv7") {
+        build.flag("-march=armv7-a");
+    }
+
     #[cfg(windows)]
     build.warnings(false);
 
     build.compile("cel-cxx");
 
     println!("cargo:rustc-link-lib=static=cel-cxx");
+
+    // 32-bit ARM: abseil/protobuf use 64-bit atomics, which are libatomic
+    // calls there rather than inline instructions; the final Rust link
+    // needs the library. Static on musl (the toolchains ship no .so).
+    if target.starts_with("arm") && !target.contains("aarch64") && !target.contains("arm64") {
+        let kind = if target.contains("musl") { "static" } else { "dylib" };
+        println!("cargo:rustc-link-lib={kind}=atomic");
+    }
 
     // Windows system libraries libcel uses through _WIN32 code paths.
     // MSVC links them via #pragma comment(lib, ...) in the sources; gcc
