@@ -171,9 +171,10 @@ and smart reference handling.
 
 ### [musl Target Support](musl-support.md)
 
-Building `*-unknown-linux-musl` targets: toolchain requirements (GCC ≥ 10 musl
-C++ toolchain), cross-rs custom images, host-installed toolchains, and native
-musl hosts such as Alpine.
+Building `*-unknown-linux-musl` targets: cross-rs with the repo's bundled
+images (works out of the box), native musl hosts such as Alpine,
+host-installed toolchains, and the toolchain requirements (GCC ≥ 10 musl
+C++ toolchain).
 
 ## Reference
 

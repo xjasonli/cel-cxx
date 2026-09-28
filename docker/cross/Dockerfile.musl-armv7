@@ -1,0 +1,24 @@
+# Cross image for armv7-unknown-linux-musleabi (soft-float), based on
+# rust-musl-cross.
+#
+# Same rationale as Dockerfile.musl-x86_64 (stock cross-rs musl images are
+# stuck on GCC 9.2). rust-musl-cross's armv7-musleabi toolchain is a real
+# soft-float build, which is the ABI the Rust target requires (the
+# hard-float armv7-linux-musleabihf toolchains musl.cc publishes would
+# silently corrupt floats crossing the FFI boundary). armv7 test binaries
+# cannot run natively on the x86_64 host, so qemu-user is layered in and
+# wired as cargo's runner; the binaries are static (musl + crt-static).
+FROM ghcr.io/rust-cross/rust-musl-cross:armv7-musleabi
+
+RUN apt-get update && \
+    apt-get install --assume-yes --no-install-recommends qemu-user && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV CROSS_TOOLCHAIN_PREFIX=armv7-unknown-linux-musleabi- \
+    CROSS_SYSROOT=/usr/local/musl
+ENV CROSS_TARGET_RUNNER="qemu-arm"
+ENV CARGO_TARGET_ARMV7_UNKNOWN_LINUX_MUSLEABI_LINKER="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    CARGO_TARGET_ARMV7_UNKNOWN_LINUX_MUSLEABI_RUNNER="$CROSS_TARGET_RUNNER" \
+    AR_armv7_unknown_linux_musleabi="$CROSS_TOOLCHAIN_PREFIX"ar \
+    CC_armv7_unknown_linux_musleabi="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    CXX_armv7_unknown_linux_musleabi="$CROSS_TOOLCHAIN_PREFIX"g++

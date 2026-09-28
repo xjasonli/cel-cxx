@@ -1,6 +1,10 @@
 #include <cel-cxx-ffi/include/runtime.h>
 #include <cel-cxx-ffi/src/runtime.rs.h>
 
+// 32-bit ARM __sync runtime helpers libstdc++ needs; see the header
+// comment in arm_sync_shim.inc for why this include lives here.
+#include "arm_sync_shim.inc"
+
 namespace rust::cel_cxx {
 
 absl::StatusOr<bool> AnyFfiActivationWrapper::FindVariable(

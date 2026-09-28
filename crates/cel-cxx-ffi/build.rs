@@ -1,6 +1,7 @@
 use anyhow::Result;
 use cel_build_utils::{Artifacts, Build};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 fn main() -> Result<()> {
     if skip_building() {
@@ -65,6 +66,13 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
             println!("cargo:rerun-if-changed={}", path.display());
         })
         .collect::<Vec<_>>();
+
+    // Implementation fragments included from the .cc files (the 32-bit ARM
+    // __sync shim); neither the header nor the cc glob above covers them,
+    // and an untracked edit compiles into a stale runtime object.
+    for inc in glob::glob("src/**/*.inc")?.flatten() {
+        println!("cargo:rerun-if-changed={}", inc.display());
+    }
 
     let cc_pattern = "src/**/*.cc";
     let cc_srcs = glob::glob(cc_pattern)?
@@ -137,6 +145,13 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
     // needs the library. Static on musl (the toolchains ship no .so).
     if target.starts_with("arm") && !target.contains("aarch64") && !target.contains("arm64") {
         let kind = if target.contains("musl") { "static" } else { "dylib" };
+        // rustc verifies static libraries on its own search path when the
+        // crate is compiled, but cross toolchains keep libatomic in a
+        // target lib dir only the gcc driver searches. Resolve it the way
+        // the driver would and expose the directory.
+        if let Some(dir) = toolchain_lib_dir(build.get_compiler().path(), "libatomic.a") {
+            println!("cargo:rustc-link-search=native={}", dir.display());
+        }
         println!("cargo:rustc-link-lib={kind}=atomic");
     }
 
@@ -151,6 +166,25 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
         println!("cargo:rustc-link-lib=dylib=bcrypt"); // RNG seeding (absl random)
     }
     Ok(())
+}
+
+/// Directory holding a C++ runtime library, resolved through the compiler
+/// driver the same way the final link resolves it (`-print-file-name`).
+/// gcc echoes the file name back unchanged when it is not installed, so
+/// only absolute results count. Cross toolchains keep their runtime
+/// libraries outside the paths rustc searches on its own.
+fn toolchain_lib_dir(compiler: &Path, file: &str) -> Option<PathBuf> {
+    let output = Command::new(compiler)
+        .arg(format!("-print-file-name={file}"))
+        .output()
+        .ok()?;
+    let found = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let found = Path::new(&found);
+    if !found.is_absolute() {
+        return None;
+    }
+    let found = found.canonicalize().unwrap_or_else(|_| found.to_path_buf());
+    found.parent().map(Path::to_path_buf)
 }
 
 /// Check if we're building for documentation or analysis tools

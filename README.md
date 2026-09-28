@@ -138,7 +138,8 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <tr>
 <th>Platform</th>
 <th>Target Triple</th>
-<th>Status</th>
+<th>Build</th>
+<th>Test</th>
 <th>Notes</th>
 </tr>
 </thead>
@@ -147,20 +148,24 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td rowspan="4"><strong>Linux</strong></td>
 <td><code>x86_64-unknown-linux-gnu</code></td>
 <td>✅</td>
+<td>✅</td>
 <td>Tested</td>
 </tr>
 <tr>
 <td><code>aarch64-unknown-linux-gnu</code></td>
+<td>✅</td>
 <td>✅</td>
 <td>Tested</td>
 </tr>
 <tr>
 <td><code>armv7-unknown-linux-gnueabi</code></td>
 <td>✅</td>
+<td>✅</td>
 <td>Tested via cross-rs</td>
 </tr>
 <tr>
 <td><code>i686-unknown-linux-gnu</code></td>
+<td>✅</td>
 <td>✅</td>
 <td>Tested via cross-rs</td>
 </tr>
@@ -168,26 +173,31 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td rowspan="4"><strong>Linux (musl)</strong></td>
 <td><code>x86_64-unknown-linux-musl</code></td>
 <td>✅</td>
-<td>Tested; full test suite passes. Needs a musl C++ toolchain with GCC ≥ 10 — stock cross-rs musl images ship GCC 9.2 (see [musl support](docs/musl-support.md))</td>
+<td>✅</td>
+<td>Tested via cross-rs; the repo's <code>Cross.toml</code> builds GCC 12.4 images from rust-musl-cross (stock cross-rs musl images ship GCC 9.2, too old for Abseil) — see [musl support](docs/musl-support.md)</td>
 </tr>
 <tr>
 <td><code>aarch64-unknown-linux-musl</code></td>
 <td>✅</td>
-<td>Tested; same toolchain requirements as above</td>
+<td>✅</td>
+<td>Tested via cross-rs (qemu-user)</td>
 </tr>
 <tr>
 <td><code>i686-unknown-linux-musl</code></td>
-<td>🟡</td>
-<td>Should work, same mechanism, untested</td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
 </tr>
 <tr>
 <td><code>armv7-unknown-linux-musleabi</code></td>
-<td>🟡</td>
-<td>No soft-float GCC ≥ 10 musl toolchain is published; see [armv7 notes](docs/musl-support.md#armv7-notes)</td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs (qemu-user); soft-float toolchain, see [armv7 notes](docs/musl-support.md#armv7-notes)</td>
 </tr>
 <tr>
 <td><strong>Windows</strong></td>
 <td><code>x86_64-pc-windows-msvc</code></td>
+<td>✅</td>
 <td>✅</td>
 <td>Tested (Visual Studio 2022+; named IANA timezones resolve through the OS-managed database)</td>
 </tr>
@@ -195,63 +205,75 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td><strong>Windows</strong></td>
 <td><code>x86_64-pc-windows-gnu</code></td>
 <td>✅</td>
+<td>✅</td>
 <td>Tested from an MSYS2 UCRT64 shell (MinGW-w64 GCC); see [Windows GNU builds](#windows-gnu-builds). Named IANA timezones resolve only through a <code>TZDIR</code> tree</td>
 </tr>
 <tr>
 <td rowspan="3"><strong>macOS</strong></td>
 <td><code>x86_64-apple-darwin</code></td>
 <td>✅</td>
+<td>✅</td>
 <td>Tested</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-darwin</code></td>
+<td>✅</td>
 <td>✅</td>
 <td>Tested</td>
 </tr>
 <tr>
 <td><code>arm64e-apple-darwin</code></td>
 <td>✅</td>
+<td>✅</td>
 <td>Tested</td>
 </tr>
 <tr>
 <td rowspan="4"><strong>Android</strong></td>
 <td><code>aarch64-linux-android</code></td>
-<td>🟡</td>
-<td>Should work, use cargo-ndk</td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cargo-ndk (outside cross-rs; not re-verified in this round)</td>
 </tr>
 <tr>
 <td><code>armv7-linux-androideabi</code></td>
-<td>🟡</td>
-<td>Should work, use cargo-ndk</td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cargo-ndk (outside cross-rs; not re-verified in this round)</td>
 </tr>
 <tr>
 <td><code>x86_64-linux-android</code></td>
-<td>🟡</td>
-<td>Should work, use cargo-ndk</td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cargo-ndk (outside cross-rs; not re-verified in this round)</td>
 </tr>
 <tr>
 <td><code>i686-linux-android</code></td>
-<td>🟡</td>
-<td>Should work, use cargo-ndk</td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cargo-ndk (outside cross-rs; not re-verified in this round)</td>
 </tr>
 <tr>
 <td rowspan="4"><strong>iOS</strong></td>
 <td><code>aarch64-apple-ios</code></td>
+<td>🟡</td>
 <td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-ios-sim</code></td>
 <td>🟡</td>
+<td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>x86_64-apple-ios</code></td>
 <td>🟡</td>
+<td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>arm64e-apple-ios</code></td>
+<td>🟡</td>
 <td>🟡</td>
 <td>Should work, untested</td>
 </tr>
@@ -259,15 +281,18 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td rowspan="3"><strong>tvOS</strong></td>
 <td><code>aarch64-apple-tvos</code></td>
 <td>🟡</td>
+<td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-tvos-sim</code></td>
 <td>🟡</td>
+<td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>x86_64-apple-tvos</code></td>
+<td>🟡</td>
 <td>🟡</td>
 <td>Should work, untested</td>
 </tr>
@@ -275,25 +300,30 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td rowspan="5"><strong>watchOS</strong></td>
 <td><code>aarch64-apple-watchos</code></td>
 <td>🟡</td>
+<td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-watchos-sim</code></td>
+<td>🟡</td>
 <td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>x86_64-apple-watchos-sim</code></td>
 <td>🟡</td>
+<td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>arm64_32-apple-watchos</code></td>
 <td>🟡</td>
+<td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>armv7k-apple-watchos</code></td>
+<td>🟡</td>
 <td>🟡</td>
 <td>Should work, untested</td>
 </tr>
@@ -301,10 +331,12 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td rowspan="2"><strong>visionOS</strong></td>
 <td><code>aarch64-apple-visionos</code></td>
 <td>🟡</td>
+<td>🟡</td>
 <td>Should work, untested</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-visionos-sim</code></td>
+<td>🟡</td>
 <td>🟡</td>
 <td>Should work, untested</td>
 </tr>
@@ -312,14 +344,15 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td><strong>WebAssembly</strong></td>
 <td><code>wasm32-unknown-emscripten</code></td>
 <td>✅</td>
+<td>✅</td>
 <td>Tested via cross-rs</td>
 </tr>
 </tbody>
 </table>
 
 **Legend:**
-- ✅ **Tested**: Confirmed working with automated tests
-- 🟡 **Should work**: Build configuration exists but not tested in CI
+- ✅: verified — **Build** compiles, **Test** passes the test suite
+- 🟡 **Should work**: build configuration exists but not verified
 
 ### Timestamp Timezone Resolution
 
@@ -364,11 +397,13 @@ cargo install cross --git https://github.com/cross-rs/cross
 cross build --target aarch64-unknown-linux-gnu
 ```
 
-**Note**: Not all cross-rs targets are supported due to CEL-CPP's build requirements. The stock
-cross-rs musl images ship a GCC 9.2 toolchain, which is too old for cel-cpp's Abseil dependency
-(GCC ≥ 10 required); layer a newer musl toolchain on the image or use one of the other options
-described in [docs/musl-support.md](docs/musl-support.md). musl targets are fully supported with
-a suitable toolchain, including plain `cargo build` on native musl hosts such as Alpine.
+**Note**: Not all cross-rs targets are supported due to CEL-CPP's build requirements. musl
+targets work out of the box through this repo's `Cross.toml`: cross builds the images
+(GCC 12.4, based on [rust-musl-cross](https://github.com/rust-cross/rust-musl-cross))
+on first use, since the stock cross-rs musl images ship a GCC 9.2 toolchain that is too
+old for cel-cxx's Abseil dependency (GCC ≥ 10 required). Non-docker alternatives — a
+host-installed musl toolchain, or plain `cargo build` on native musl hosts such as
+Alpine — are described in [docs/musl-support.md](docs/musl-support.md).
 
 ### Android Build Instructions
 

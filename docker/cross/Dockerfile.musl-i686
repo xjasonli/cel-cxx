@@ -1,0 +1,13 @@
+# Cross image for i686-unknown-linux-musl, based on rust-musl-cross.
+#
+# Same rationale as Dockerfile.musl-x86_64 (stock cross-rs musl images are
+# stuck on GCC 9.2; rust-musl-cross provides GCC 12.4). i686 test binaries
+# run natively on the x86_64 host, so no qemu runner is needed.
+FROM ghcr.io/rust-cross/rust-musl-cross:i686-musl
+
+ENV CROSS_TOOLCHAIN_PREFIX=i686-unknown-linux-musl- \
+    CROSS_SYSROOT=/usr/local/musl
+ENV CARGO_TARGET_I686_UNKNOWN_LINUX_MUSL_LINKER="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    AR_i686_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"ar \
+    CC_i686_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    CXX_i686_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"g++

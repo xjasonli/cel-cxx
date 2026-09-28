@@ -4,10 +4,10 @@ cel-cxx 支持以下 `*-unknown-linux-musl` 目标：
 
 | 目标 | 状态 | 说明 |
 |------|------|------|
-| `x86_64-unknown-linux-musl` | ✅ 已测试 | 完整测试套件通过 |
-| `aarch64-unknown-linux-musl` | ✅ 已测试 | |
-| `i686-unknown-linux-musl` | 🟡 应该可用 | 机制相同，未在 CI 中验证 |
-| `armv7-unknown-linux-musleabi` | 🟡 工具链缺口 | 没有 GCC ≥ 10 的软浮点预编译工具链；见 [armv7 说明](#armv7-说明) |
+| `x86_64-unknown-linux-musl` | ✅ 已测试 | cross-rs 下完整测试套件通过 |
+| `aarch64-unknown-linux-musl` | ✅ 已测试 | 测试二进制经 qemu-user 运行 |
+| `i686-unknown-linux-musl` | ✅ 已测试 | |
+| `armv7-unknown-linux-musleabi` | ✅ 已测试 | 软浮点工具链；测试二进制经 qemu-user 运行 |
 
 产物为静态 PIE 二进制（Rust 的 musl 目标默认 `crt-static`），C++ 运行时
 会被静态链接进最终可执行文件。
@@ -26,15 +26,43 @@ Abseil、Protobuf、ANTLR 运行时），因此需要一个面向 musl 的 **C++
 cxx bridge/FFI 编译需要 `CXX_<target>`（下划线形式）指向该编译器，最终
 链接需要 `CARGO_TARGET_<TARGET>_LINKER`。
 
-## 工具链方案
+## 推荐：cross-rs + 仓库自带镜像
 
-### 方案一：原生 musl 宿主（如 Alpine）
+仓库根目录的 `Cross.toml` 已把全部四个 musl 目标接到 `docker/cross/` 下的
+Dockerfile 所构建的镜像，无需手工配置：
+
+```bash
+cargo install cross --git https://github.com/cross-rs/cross
+cross test --target x86_64-unknown-linux-musl
+```
+
+cross 在首次使用时构建各镜像（docker 层缓存使后续构建增量进行）。镜像基于
+[rust-musl-cross](https://github.com/rust-cross/rust-musl-cross)，其工具链
+（GCC 12.4，前缀 `<triple>-`，位于 `/usr/local/musl` 且已在 `PATH` 上）满足
+上述全部要求。镜像在其基础上补齐：
+
+- `CROSS_TOOLCHAIN_PREFIX` —— 为 libcel 构建激活
+  [rules_cross_rs](https://github.com/xjasonli/rules_cross_rs) 的 Bazel cc
+  工具链接线；
+- `CARGO_TARGET_<TARGET>_LINKER` / `CC_<target>` / `CXX_<target>` —— 让
+  cargo 与 cxx bridge 使用同一工具链；
+- aarch64 与 armv7 的 `qemu-user` 作为 cargo runner（测试二进制是静态的，
+  直接 `qemu-<arch>` 即可执行）；
+- 仅 x86_64 需要修复 `/lib/ld-musl-x86_64.so.1`：该目标的 exec 配置会解析
+  到 musl 工具链本身，其 protoc 以工具链的 musl libc 动态链接——镜像自带的
+  `ld-musl` 符号链接指向 glibc 链接器脚本，因此要重新指向真正的 musl libc
+  （详见 Dockerfile 内注释）。
+
+不能改用 cross-rs 官方 musl 镜像：其工具链由 musl-cross-make 编译，固定在
+GCC 9.2，会被 Abseil 拒绝。
+
+## 备选：原生 musl 宿主（如 Alpine）
 
 宿主默认工具链本身就面向 musl 时，直接 `cargo build` 即可，无需任何额外
 配置：Bazel 自动配置的 C++ 工具链以 musl 为目标，并匹配 musl 平台（该平台
 刻意只声明 cpu + os 约束）。此路径不涉及 cross-rs。
 
-### 方案二：宿主机安装 musl 交叉工具链
+## 备选：宿主机安装 musl 交叉工具链
 
 安装一个 GCC ≥ 10 的 musl 交叉工具链（例如
 [musl.cc](https://musl.cc/) 的 GCC 11.2.1 构建，基于
@@ -58,47 +86,6 @@ env PATH="$T/bin:$PATH" \
 `$(prefix)ld` 并注册匹配的 cc 工具链。在 glibc 宿主上，这正是让 musl 工具链
 在 Bazel 平台解析中胜过本地 glibc 工具链的关键。
 
-### 方案三：cross-rs + 自定义镜像
-
-**cross-rs 官方 musl 镜像无法构建 cel-cxx**：其工具链由 musl-cross-make
-编译，固定在 GCC 9.2，会被 Abseil 拒绝（`#error "This package requires
-GCC 10 or higher."`）。
-
-在 cross 镜像之上叠加一个更新的工具链，使其在 `PATH` 上遮蔽 GCC 9.2，
-并让 musl 动态加载器能找到它的运行时库（官方 sysroot 在 `libstdc++.so` 的
-位置放的是链接器脚本，动态加载器无法使用）：
-
-```dockerfile
-# Dockerfile.cross-musl-x86_64
-FROM ghcr.io/cross-rs/x86_64-unknown-linux-musl:main
-COPY x86_64-linux-musl-cross /opt/musl-gcc11/x86_64-linux-musl-cross
-ENV PATH=/opt/musl-gcc11/x86_64-linux-musl-cross/bin:$PATH
-RUN sed -i '1i /opt/musl-gcc11/x86_64-linux-musl-cross/x86_64-linux-musl/lib' \
-    /etc/ld-musl-x86_64.path
-```
-
-```bash
-curl -sSL https://musl.cc/x86_64-linux-musl-cross.tgz | tar xz
-docker build -t cel-cxx-musl:x86_64 -f Dockerfile.cross-musl-x86_64 .
-```
-
-然后在项目根目录放置 `Cross.toml`，把 cross 指向该镜像：
-
-```toml
-[target.x86_64-unknown-linux-musl]
-image = "cel-cxx-musl:x86_64"
-```
-
-之后正常构建即可：
-
-```bash
-cross build --target x86_64-unknown-linux-musl --example basic
-```
-
-各架构同理（musl.cc 的 `aarch64-linux-musl-cross.tgz`、
-`i686-linux-musl-cross.tgz`；相应调整 `FROM` 镜像和
-`ld-musl-<arch>.path` 文件名）。
-
 ## 工作原理
 
 - `cel-build-utils` 接受 musl triple，并以
@@ -115,18 +102,24 @@ cross build --target x86_64-unknown-linux-musl --example basic
 - `cel-cxx` 为 `cfg(target_env = "musl")` 启用 `link-cplusplus` 的
   `libstdc++` 特性：rustc 在 gnu 目标上会自动链接 libstdc++，但在 musl
   上没有默认的 C++ 运行时。
+- 32 位 ARM 需要链接 `libatomic`（musl 上为静态），供 abseil/protobuf 的
+  64 位原子操作使用。rustc 通过编译器驱动的 `-print-file-name` 解析该归档
+  文件，因为交叉工具链把它放在 rustc 自身搜索路径之外。
+- 32 位 ARM 的预编译 libstdc++ 中包含按 pre-v6 核心编译的对象，其
+  locale/字符串引用计数会调用 `__sync_*` 运行时辅助函数。musl 工具链
+  把它们放在 libgcc.a 里，但 rustc 以 `-nodefaultlibs` 链接、其
+  compiler_builtins 只带该家族的 `__sync_fetch_and_*` 一半——因此 bridge
+  在每个链接都会拉取的 runtime 对象里，以 armv7 指令补齐缺失的
+  `__sync_*_and_fetch_*` 与 `__sync_synchronize`
+  （`crates/cel-cxx-ffi/src/arm_sync_shim.inc`）。
 
 ## armv7 说明
 
 `armv7-unknown-linux-musleabi`（软浮点）需要一个软浮点的 musl C++ 工具链
-且 GCC ≥ 10。目前没有公开的预编译产物——musl.cc 和 Bootlin 只提供 armv7
-硬浮点（`musleabihf`）构建——因此可选方案：
-
-- 自行用 [musl-cross-make](https://github.com/richfelker/musl-cross-make)
-  以更新的 `GCC_VER` 和 `--with-float=soft` 构建，或
-- 改用 `armv7-unknown-linux-musleabihf`：musl.cc 工具链和 cross-rs 镜像
-  都存在（向 `crates/cel-build-utils/src/lib.rs` 的 `SUPPORTED_TARGETS`
-  和 `crates/cel-build-utils/cel/BUILD.bazel` 的平台各加一条即可）。
+且 GCC ≥ 10。rust-musl-cross 恰好提供一个（GCC 12.4，即自带镜像的基镜像），
+这个目标因此变得可测。不要转而使用唾手可得的 armv7 硬浮点
+（`musleabihf`）工具链：该 Rust 目标跨 FFI 边界时浮点参数走通用寄存器，
+硬浮点编译器会静默破坏浮点数据。
 
 ## 注意事项
 

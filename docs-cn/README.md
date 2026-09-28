@@ -162,8 +162,9 @@ cargo run --example tokio --features="tokio"
 
 ### [musl 目标支持](musl-support.md)
 
-构建 `*-unknown-linux-musl` 目标：工具链要求（GCC ≥ 10 的 musl C++ 工具链）、
-cross-rs 自定义镜像、宿主机安装工具链，以及 Alpine 等原生 musl 宿主。
+构建 `*-unknown-linux-musl` 目标：cross-rs + 仓库自带镜像（开箱即用）、
+Alpine 等原生 musl 宿主、宿主机自装工具链，以及工具链要求（GCC ≥ 10 的
+musl C++ 工具链）。
 
 ## 参考
 

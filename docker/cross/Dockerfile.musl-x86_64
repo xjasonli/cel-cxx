@@ -1,0 +1,27 @@
+# Cross image for x86_64-unknown-linux-musl, based on rust-musl-cross.
+#
+# The stock cross-rs musl images pin a GCC 9.2 musl-cross-make toolchain,
+# which Abseil (20260526.x, required by cel-cpp) rejects. rust-musl-cross
+# ships GCC 12.4 with tools under <rust-triple>-* in /usr/local/musl/bin
+# (already on PATH), so wiring it up for cross-rs only needs the env
+# contract cross's own images provide. Test binaries run natively here
+# (x86_64 host), so no qemu runner is needed.
+FROM ghcr.io/rust-cross/rust-musl-cross:x86_64-musl
+
+# For this target the Bazel exec configuration resolves to the musl
+# toolchain itself (target and exec platform share [cpu:x86_64, os:linux]),
+# so the exec tools (protoc) are dynamically linked against its musl.
+# The PT_INTERP is /lib/ld-musl-x86_64.so.1; the toolchain ships its own
+# ld-musl symlink, but it points at /lib/libc.so, which on this glibc-based
+# image is the linker script rather than an ELF. Point the interpreter at
+# the toolchain's real libc (musl combines loader and libc) and set the
+# loader's library search to the toolchain sysroot.
+RUN ln -sf /usr/local/musl/x86_64-unknown-linux-musl/lib/libc.so /lib/ld-musl-x86_64.so.1 && \
+    echo "/usr/local/musl/x86_64-unknown-linux-musl/lib" > /etc/ld-musl-x86_64.path
+
+ENV CROSS_TOOLCHAIN_PREFIX=x86_64-unknown-linux-musl- \
+    CROSS_SYSROOT=/usr/local/musl
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    AR_x86_64_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"ar \
+    CC_x86_64_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    CXX_x86_64_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"g++

@@ -1,0 +1,41 @@
+# cross-rs configuration for cel-cxx's own cross builds and tests, and the
+# reference setup for downstream users.
+#
+# The stock cross-rs musl images compile C/C++ with a GCC 9.2
+# musl-cross-make toolchain, which Abseil (20260526.x, required by cel-cpp)
+# rejects. These targets build images from the Dockerfiles under
+# docker/cross/ instead: a rust-musl-cross base (GCC 12.4, tools already on
+# PATH) plus the env contract cross-rs expects (CROSS_TOOLCHAIN_PREFIX for
+# cel-cxx's Bazel toolchain wiring, cargo linker/CC/CXX env, and a qemu
+# runner for the non-native architectures). cross builds each image on
+# first use and docker's layer cache makes subsequent builds incremental.
+#
+# The GNU targets, x86_64-pc-windows-gnu, and wasm32-unknown-emscripten use
+# the stock cross-rs images (Ubuntu 24.04 toolchains, GCC 13.3) and need no
+# entry here. Android targets do not go through cross-rs (see the
+# cargo-ndk instructions in the README).
+
+[build.env]
+# Rust enables incremental compilation for debug builds by default; its
+# cache lives on the mounted target directory, which is slow through
+# docker's file sharing, and the extra rustc state has been observed to
+# exhaust the container's memory while linking the many test binaries
+# (static links of the full C++ runtime are the expensive part). Keep it
+# off for cross builds; native host builds are unaffected.
+passthrough = ["CARGO_INCREMENTAL=0"]
+
+[target.x86_64-unknown-linux-musl.dockerfile]
+file = "docker/cross/Dockerfile.musl-x86_64"
+context = "docker/cross"
+
+[target.aarch64-unknown-linux-musl.dockerfile]
+file = "docker/cross/Dockerfile.musl-aarch64"
+context = "docker/cross"
+
+[target.i686-unknown-linux-musl.dockerfile]
+file = "docker/cross/Dockerfile.musl-i686"
+context = "docker/cross"
+
+[target.armv7-unknown-linux-musleabi.dockerfile]
+file = "docker/cross/Dockerfile.musl-armv7"
+context = "docker/cross"

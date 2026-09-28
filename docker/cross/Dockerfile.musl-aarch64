@@ -1,0 +1,21 @@
+# Cross image for aarch64-unknown-linux-musl, based on rust-musl-cross.
+#
+# Same rationale as Dockerfile.musl-x86_64 (stock cross-rs musl images are
+# stuck on GCC 9.2; rust-musl-cross provides GCC 12.4). aarch64 test
+# binaries cannot run natively on the x86_64 host, so qemu-user is layered
+# in and wired as cargo's runner. The binaries are static (musl +
+# crt-static), so qemu needs no dynamic-loader setup.
+FROM ghcr.io/rust-cross/rust-musl-cross:aarch64-musl
+
+RUN apt-get update && \
+    apt-get install --assume-yes --no-install-recommends qemu-user && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV CROSS_TOOLCHAIN_PREFIX=aarch64-unknown-linux-musl- \
+    CROSS_SYSROOT=/usr/local/musl
+ENV CROSS_TARGET_RUNNER="qemu-aarch64"
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUNNER="$CROSS_TARGET_RUNNER" \
+    AR_aarch64_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"ar \
+    CC_aarch64_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    CXX_aarch64_unknown_linux_musl="$CROSS_TOOLCHAIN_PREFIX"g++
