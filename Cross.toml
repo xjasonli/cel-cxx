@@ -39,3 +39,11 @@ context = "docker/cross"
 [target.armv7-unknown-linux-musleabi.dockerfile]
 file = "docker/cross/Dockerfile.musl-armv7"
 context = "docker/cross"
+
+[target.armv7-unknown-linux-musleabihf.dockerfile]
+file = "docker/cross/Dockerfile.musl-armv7hf"
+context = "docker/cross"
+
+[target.i586-unknown-linux-musl.dockerfile]
+file = "docker/cross/Dockerfile.musl-i586"
+context = "docker/cross"

@@ -7,7 +7,11 @@ cel-cxx supports the `*-unknown-linux-musl` targets:
 | `x86_64-unknown-linux-musl` | ✅ Tested | Full test suite passes via cross-rs |
 | `aarch64-unknown-linux-musl` | ✅ Tested | Test binaries run under qemu-user |
 | `i686-unknown-linux-musl` | ✅ Tested | |
+| `i586-unknown-linux-musl` | ✅ Tested | |
 | `armv7-unknown-linux-musleabi` | ✅ Tested | Soft-float toolchain; test binaries run under qemu-user |
+| `armv7-unknown-linux-musleabihf` | ✅ Tested | Hard-float toolchain; test binaries run under qemu-user |
+| `loongarch64-unknown-linux-musl` | ✅ Tested | Stock cross-rs image (crosstool-NG 14.2), no custom image |
+| `riscv64gc-unknown-linux-musl` | ✅ Tested | Stock cross-rs image (crosstool-NG 14.2), no custom image |
 
 Binaries are static-pie (`crt-static` is the Rust default for musl), so the
 C++ runtime is linked statically into the final executable.
@@ -28,13 +32,18 @@ bridge/FFI compilation, and `CARGO_TARGET_<TARGET>_LINKER` for the final link.
 
 ## Recommended: cross-rs with the bundled images
 
-The repo's `Cross.toml` wires all four musl targets to images built from the
-Dockerfiles under `docker/cross/`, so no manual setup is needed:
+The repo's `Cross.toml` wires six musl targets (x86_64, aarch64, i686, i586,
+armv7 soft-float and hard-float) to images built from the Dockerfiles under
+`docker/cross/`, so no manual setup is needed:
 
 ```bash
 cargo install cross --git https://github.com/cross-rs/cross
 cross test --target x86_64-unknown-linux-musl
 ```
+
+`loongarch64-unknown-linux-musl` and `riscv64gc-unknown-linux-musl` need no
+custom image: the stock cross-rs images ship crosstool-NG 14.2 toolchains,
+which satisfy the GCC ≥ 10 requirement.
 
 cross builds each image on first use (docker's layer cache makes later runs
 incremental). The images are based on
@@ -123,12 +132,16 @@ toolchain win over the local glibc toolchain during Bazel platform resolution.
 
 ## armv7 Notes
 
-`armv7-unknown-linux-musleabi` (soft-float) needs a soft-float musl C++
-toolchain with GCC ≥ 10. rust-musl-cross ships one (GCC 12.4, the base of the
-bundled image), which is what makes the target testable today. Do not reach
-for the widely available hard-float `armv7`/`musleabihf` toolchains instead:
-the Rust target passes floats in general-purpose registers across the FFI
-boundary, and a hard-float compiler would silently corrupt them.
+The armv7 musl targets need an ABI-matched musl C++ toolchain with GCC ≥ 10:
+`armv7-unknown-linux-musleabi` (soft-float) with a soft-float toolchain,
+`armv7-unknown-linux-musleabihf` (hard-float) with a hard-float one.
+rust-musl-cross ships both (GCC 12.4, the base of the bundled images), which
+is what makes both targets testable today. The ABI must match in both
+directions: the Rust target passes floats in general-purpose or VFP
+registers respectively across the FFI boundary, and a mismatched compiler
+would silently corrupt them. The hard-float toolchain also defaults to
+`-march=armv7-a+fp`, so the build passes `-march=armv7-a+fp` for it (a plain
+`armv7-a` drops the FPU, which `-mfloat-abi=hard` then rejects).
 
 ## Caveats
 

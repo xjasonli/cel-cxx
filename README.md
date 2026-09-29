@@ -145,7 +145,7 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 </thead>
 <tbody>
 <tr>
-<td rowspan="4"><strong>Linux</strong></td>
+<td rowspan="9"><strong>Linux</strong></td>
 <td><code>x86_64-unknown-linux-gnu</code></td>
 <td>✅</td>
 <td>✅</td>
@@ -164,13 +164,43 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td>Tested via cross-rs</td>
 </tr>
 <tr>
+<td><code>armv7-unknown-linux-gnueabihf</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
+</tr>
+<tr>
 <td><code>i686-unknown-linux-gnu</code></td>
 <td>✅</td>
 <td>✅</td>
 <td>Tested via cross-rs</td>
 </tr>
 <tr>
-<td rowspan="4"><strong>Linux (musl)</strong></td>
+<td><code>i586-unknown-linux-gnu</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
+</tr>
+<tr>
+<td><code>powerpc64le-unknown-linux-gnu</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
+</tr>
+<tr>
+<td><code>riscv64gc-unknown-linux-gnu</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
+</tr>
+<tr>
+<td><code>loongarch64-unknown-linux-gnu</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
+</tr>
+<tr>
+<td rowspan="8"><strong>Linux (musl)</strong></td>
 <td><code>x86_64-unknown-linux-musl</code></td>
 <td>✅</td>
 <td>✅</td>
@@ -189,10 +219,34 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td>Tested via cross-rs</td>
 </tr>
 <tr>
+<td><code>i586-unknown-linux-musl</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs</td>
+</tr>
+<tr>
 <td><code>armv7-unknown-linux-musleabi</code></td>
 <td>✅</td>
 <td>✅</td>
 <td>Tested via cross-rs (qemu-user); soft-float toolchain, see [armv7 notes](docs/musl-support.md#armv7-notes)</td>
+</tr>
+<tr>
+<td><code>armv7-unknown-linux-musleabihf</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs (qemu-user); hard-float toolchain, same armv7 notes</td>
+</tr>
+<tr>
+<td><code>loongarch64-unknown-linux-musl</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs (qemu-user); stock cross-rs image (crosstool-NG 14.2)</td>
+</tr>
+<tr>
+<td><code>riscv64gc-unknown-linux-musl</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>Tested via cross-rs (qemu-user); stock cross-rs image (crosstool-NG 14.2)</td>
 </tr>
 <tr>
 <td><strong>Windows</strong></td>

@@ -128,9 +128,16 @@ fn build_ffi(artifacts: &Artifacts) -> Result<()> {
     // -march=armv5t (armel), which routes 4-byte atomics through __sync_*
     // runtime helpers that collide with Rust's compiler_builtins at
     // final-link time; match the target arch (same -march cel-build-utils
-    // passes to the Bazel-built libcel).
+    // passes to the Bazel-built libcel). Hard-float variants add +fp:
+    // a plain -march=armv7-a drops the FPU, which -mfloat-abi=hard
+    // then rejects.
     if target.starts_with("armv7") {
-        build.flag("-march=armv7-a");
+        let suffix = if target.contains("gnueabihf") || target.contains("musleabihf") {
+            "+fp"
+        } else {
+            ""
+        };
+        build.flag(format!("-march=armv7-a{suffix}"));
     }
 
     #[cfg(windows)]

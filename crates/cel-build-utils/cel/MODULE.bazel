@@ -47,7 +47,7 @@ bazel_dep(name = "rules_cross_rs", version = "0.2.0")
 git_override(
     module_name = "rules_cross_rs",
     remote = "https://github.com/xjasonli/rules_cross_rs.git",
-    commit = "968a444368a7b5681d1fd6f49391eb2f838706bb",
+    commit = "b0b5ce24c2d221c019215b0a2ec5ee155939cf08",
 )
 
 # Register the cross-rs toolchain from the root module. Bzlmod ranks

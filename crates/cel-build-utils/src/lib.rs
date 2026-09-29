@@ -21,17 +21,29 @@ const SUPPORTED_TARGETS: &[&str] = &[
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu",
     "armv7-unknown-linux-gnueabi",
+    "armv7-unknown-linux-gnueabihf",
     "i686-unknown-linux-gnu",
+    "i586-unknown-linux-gnu",
+    "powerpc64le-unknown-linux-gnu",
+    "riscv64gc-unknown-linux-gnu",
+    "loongarch64-unknown-linux-gnu",
     // Linux (musl). Built with the same cpu/os platform constraints as the
     // gnu targets: cross-rs selects its toolchain through root-module
     // registration priority (see cel/MODULE.bazel), while native musl hosts
     // (e.g. Alpine) resolve their own auto-configured toolchain.
     // Cross-rs' musl images ship GCC with C++ support; glibc hosts without
-    // a musl C++ compiler cannot build these targets.
+    // a musl C++ compiler cannot build these targets. The loongarch64 and
+    // riscv64gc musl targets use the stock cross-rs images (crosstool-NG
+    // 14.2); the rest go through the docker/cross rust-musl-cross images
+    // referenced by Cross.toml.
     "x86_64-unknown-linux-musl",
     "aarch64-unknown-linux-musl",
     "armv7-unknown-linux-musleabi",
+    "armv7-unknown-linux-musleabihf",
     "i686-unknown-linux-musl",
+    "i586-unknown-linux-musl",
+    "loongarch64-unknown-linux-musl",
+    "riscv64gc-unknown-linux-musl",
     // Android
     "aarch64-linux-android",
     "armv7-linux-androideabi",
@@ -230,10 +242,18 @@ impl Build {
         // atomics then go through __sync_* runtime calls, which collide
         // with Rust's compiler_builtins at final-link time. Match the
         // target arch (the same -march cross-rs itself passes to CMake
-        // projects). --copt applies to C and C++ compiles, target side
-        // only, so the x86_64 exec tools are unaffected.
+        // projects). Hard-float variants add +fp: their compilers default
+        // to armv7-a+fp, and a plain -march=armv7-a drops the FPU, which
+        // -mfloat-abi=hard then rejects. --copt applies to C and C++
+        // compiles, target side only, so the x86_64 exec tools are
+        // unaffected.
         if target.starts_with("armv7") {
-            build_command.arg("--copt=-march=armv7-a");
+            let suffix = if target.contains("gnueabihf") || target.contains("musleabihf") {
+                "+fp"
+            } else {
+                ""
+            };
+            build_command.arg(format!("--copt=-march=armv7-a{suffix}"));
         }
 
         self.run_command(build_command, "building cel")

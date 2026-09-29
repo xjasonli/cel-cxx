@@ -12,7 +12,8 @@
 //! `TZDIR`, containing a deliberately wrong `America/New_York` (constant
 //! UTC). A result matching the crafted data proves the file-based lookup
 //! won; the OS database or a genuine zoneinfo tree would return the real
-//! zone instead.
+//! zone instead. Under cross-rs the child runs through cargo's runner
+//! (see `child_command`), the same way the test binary itself is launched.
 
 use cel_cxx::*;
 use std::io::Write as _;
@@ -78,10 +79,7 @@ fn test_tzdir_precedes_os_timezone_database() -> Result<(), Error> {
     write_constant_utc_tzif(&dir.join("America").join("New_York"))
         .expect("write fixture TZif file");
 
-    let output = std::process::Command::new(
-        std::env::current_exe().expect("resolve current test binary"),
-    )
-    .args(["test_tzdir_precedes_os_timezone_database", "--exact", "--nocapture"])
+    let output = child_command()
         .env(FIXTURE_ENV, &dir)
         .env("TZDIR", &dir)
         .output()
@@ -96,4 +94,37 @@ fn test_tzdir_precedes_os_timezone_database() -> Result<(), Error> {
         String::from_utf8_lossy(&output.stderr),
     );
     Ok(())
+}
+
+/// Command that re-runs this test binary as a fresh process.
+///
+/// Under cross-rs the binary itself is launched through cargo's runner
+/// (qemu-user for foreign architectures, wine for windows-gnu), and a bare
+/// `exec` of `current_exe` would only work if the host registers a
+/// `binfmt_misc` handler for the target — something stock docker hosts do
+/// only for their own emulation set (loongarch64, for one, is missing).
+/// Route the child through the same runner: when cargo exports a
+/// `CARGO_TARGET_<triple>_RUNNER` environment variable, run the binary
+/// under it, exactly as cargo itself does.
+fn child_command() -> std::process::Command {
+    let exe = std::env::current_exe().expect("resolve current test binary");
+    let runner = std::env::vars()
+        .find(|(name, _)| name.starts_with("CARGO_TARGET_") && name.ends_with("_RUNNER"))
+        .map(|(_, value)| {
+            value
+                .split_whitespace()
+                .map(str::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let mut command = if runner.is_empty() {
+        std::process::Command::new(&exe)
+    } else {
+        let mut command = std::process::Command::new(&runner[0]);
+        command.args(&runner[1..]).arg(&exe);
+        command
+    };
+    command.args(["test_tzdir_precedes_os_timezone_database", "--exact", "--nocapture"]);
+    command
 }

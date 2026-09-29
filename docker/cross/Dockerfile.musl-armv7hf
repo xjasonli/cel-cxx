@@ -1,0 +1,24 @@
+# Cross image for armv7-unknown-linux-musleabihf (hard-float), based on
+# rust-musl-cross.
+#
+# Same rationale as Dockerfile.musl-armv7 (stock cross-rs musl images are
+# stuck on GCC 9.2; rust-musl-cross provides GCC 12.4), but the hard-float
+# ABI variant: the Rust target passes floats in VFP registers, and the
+# toolchain must match (rust-musl-cross's armv7-musleabihf build does).
+# armv7 test binaries cannot run natively on the x86_64 host, so qemu-user
+# is layered in and wired as cargo's runner; the binaries are static
+# (musl + crt-static).
+FROM ghcr.io/rust-cross/rust-musl-cross:armv7-musleabihf
+
+RUN apt-get update && \
+    apt-get install --assume-yes --no-install-recommends qemu-user && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV CROSS_TOOLCHAIN_PREFIX=armv7-unknown-linux-musleabihf- \
+    CROSS_SYSROOT=/usr/local/musl
+ENV CROSS_TARGET_RUNNER="qemu-arm"
+ENV CARGO_TARGET_ARMV7_UNKNOWN_LINUX_MUSLEABIHF_LINKER="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    CARGO_TARGET_ARMV7_UNKNOWN_LINUX_MUSLEABIHF_RUNNER="$CROSS_TARGET_RUNNER" \
+    AR_armv7_unknown_linux_musleabihf="$CROSS_TOOLCHAIN_PREFIX"ar \
+    CC_armv7_unknown_linux_musleabihf="$CROSS_TOOLCHAIN_PREFIX"gcc \
+    CXX_armv7_unknown_linux_musleabihf="$CROSS_TOOLCHAIN_PREFIX"g++
