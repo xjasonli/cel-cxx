@@ -286,7 +286,7 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td><code>aarch64-linux-android</code></td>
 <td>✅</td>
 <td>✅</td>
-<td>Tested via cargo-ndk (outside cross-rs; not re-verified in this round)</td>
+<td>Tested via cargo-ndk on an emulator (arm64 binary under NDK translation; see [running tests on a device/emulator](#running-tests-on-a-device-or-emulator))</td>
 </tr>
 <tr>
 <td><code>armv7-linux-androideabi</code></td>
@@ -298,13 +298,13 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td><code>x86_64-linux-android</code></td>
 <td>✅</td>
 <td>✅</td>
-<td>Tested via cargo-ndk (outside cross-rs; not re-verified in this round)</td>
+<td>Tested via cargo-ndk on an emulator (native)</td>
 </tr>
 <tr>
 <td><code>i686-linux-android</code></td>
 <td>✅</td>
 <td>✅</td>
-<td>Tested via cargo-ndk (outside cross-rs; not re-verified in this round)</td>
+<td>Tested via cargo-ndk on an x86 emulator (native)</td>
 </tr>
 <tr>
 <td rowspan="4"><strong>iOS</strong></td>
@@ -502,6 +502,29 @@ cargo ndk --target i686-linux-android build
 `cargo ndk --target aarch64-linux-android build` needs no extra setup beyond `cargo-ndk`, the NDK,
 and MSYS2 (for the `bash`/`patch` tools Bazel uses); the build system neutralizes the Android SDK
 repository environment because libcel only uses the NDK toolchain.
+
+#### Running tests on a device or emulator
+
+The test binaries link `libc++_shared.so` dynamically, so push the NDK's copy alongside the
+binary and give the executable a runpath — `LD_LIBRARY_PATH` does **not** work for arm64
+binaries launched through the NDK translation layer on x86 emulators (environment variables do
+not reach processes started via the binfmt runner, but `DT_RUNPATH` does):
+
+```bash
+NDK=<ndk-dir>
+RUSTFLAGS='-Clink-arg=-Wl,-rpath,/data/local/tmp' \
+ANDROID_NDK_HOME=$NDK cargo ndk -t aarch64-linux-android -P 30 test --tests --no-run
+
+adb push $NDK/toolchains/llvm/prebuilt/*/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so \
+    /data/local/tmp/
+adb push target/aarch64-linux-android/debug/deps/<test-binary> /data/local/tmp/t
+adb shell chmod 755 /data/local/tmp/t
+adb shell /data/local/tmp/t
+```
+
+The `protobuf`/`prost_derive`/`protobuf_legacy_derive` suites read `tests/fixtures/*.proto`
+relative to the working directory, so push that directory to `/data/local/tmp/tests/fixtures`
+and run with `cd /data/local/tmp`.
 
 ### Windows GNU Builds
 
