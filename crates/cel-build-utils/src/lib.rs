@@ -15,7 +15,7 @@ const BAZEL_MINIMAL_VERSION: &str = "8.7.0";
 const BAZEL_MAXIMAL_VERSION: &str = "8.99.99";
 const BAZEL_DOWNLOAD_VERSION: Option<&str> = Some("8.7.0");
 
-/// Supported target triples - must match platform definitions in build/BUILD.bazel
+/// Supported target triples - must match platform definitions in cel/BUILD.bazel
 const SUPPORTED_TARGETS: &[&str] = &[
     // Linux (glibc)
     "x86_64-unknown-linux-gnu",
@@ -52,22 +52,19 @@ const SUPPORTED_TARGETS: &[&str] = &[
     // Apple macOS
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
-    "arm64e-apple-darwin",
     // Apple iOS
     "aarch64-apple-ios",
     "aarch64-apple-ios-sim",
     "x86_64-apple-ios",
-    "arm64e-apple-ios",
+    // Apple Mac Catalyst
+    "aarch64-apple-ios-macabi",
+    "x86_64-apple-ios-macabi",
     // Apple tvOS
     "aarch64-apple-tvos",
     "aarch64-apple-tvos-sim",
-    "x86_64-apple-tvos",
     // Apple watchOS
     "aarch64-apple-watchos",
     "aarch64-apple-watchos-sim",
-    "x86_64-apple-watchos-sim",
-    "arm64_32-apple-watchos",
-    "armv7k-apple-watchos",
     // Apple visionOS
     "aarch64-apple-visionos",
     "aarch64-apple-visionos-sim",
@@ -92,14 +89,22 @@ fn is_cross_rs() -> bool {
 }
 
 /// Bazel --config section for the target triple (see cel/.bazelrc). The
-/// macos/ios sections expand the "gcc" section; every non-MSVC target uses
-/// "gcc" directly, including MinGW via its own "mingw" section.
+/// Apple sections expand "gcc" and set platform-specific deployment
+/// defaults; MinGW uses its own "mingw" section.
 fn target_config(target: &str) -> &'static str {
     if target.contains("apple") {
         if target.contains("darwin") {
             return "macos";
+        } else if target.ends_with("ios-macabi") {
+            return "catalyst";
         } else if target.contains("ios") {
             return "ios";
+        } else if target.contains("tvos") {
+            return "tvos";
+        } else if target.contains("watchos") {
+            return "watchos";
+        } else if target.contains("visionos") {
+            return "visionos";
         }
     }
     if target.contains("windows") {
@@ -217,6 +222,23 @@ impl Build {
         build_command.arg(format!("--platforms=//:{target}"));
 
         build_command.arg(format!("--config={}", target_config(target)));
+
+        // Match deployment overrides used by rustc and cc-rs. Without
+        // these, libcel can require a newer OS than the Rust executable.
+        if target.contains("apple") {
+            let (variable, flag) = match target_config(target) {
+                "macos" => ("MACOSX_DEPLOYMENT_TARGET", "macos_minimum_os"),
+                "ios" | "catalyst" => ("IPHONEOS_DEPLOYMENT_TARGET", "ios_minimum_os"),
+                "tvos" => ("TVOS_DEPLOYMENT_TARGET", "tvos_minimum_os"),
+                "watchos" => ("WATCHOS_DEPLOYMENT_TARGET", "watchos_minimum_os"),
+                "visionos" => ("XROS_DEPLOYMENT_TARGET", "minimum_os_version"),
+                _ => unreachable!(),
+            };
+            println!("cargo:rerun-if-env-changed={variable}");
+            if let Ok(version) = env::var(variable) {
+                build_command.arg(format!("--{flag}={version}"));
+            }
+        }
 
         // Android environment vars leak into Bzlmod repository setup and break
         // builds on hosts with an Android SDK installed:

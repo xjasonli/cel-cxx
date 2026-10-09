@@ -1,3 +1,5 @@
+load("//platforms:apple_catalyst.bzl", "apple_catalyst_platforms")
+
 package(default_visibility = ["//visibility:public"])
 
 # ============================================================================
@@ -192,25 +194,19 @@ _APPLE_PLATFORM_MAPPING = {
     # macOS platforms
     "x86_64-apple-darwin": "darwin_x86_64",
     "aarch64-apple-darwin": "darwin_arm64",
-    "arm64e-apple-darwin": "darwin_arm64e",
     
     # iOS platforms
     "aarch64-apple-ios": "ios_arm64",
     "aarch64-apple-ios-sim": "ios_sim_arm64",
     "x86_64-apple-ios": "ios_x86_64",
-    "arm64e-apple-ios": "ios_arm64e",
-    
+
     # tvOS platforms
     "aarch64-apple-tvos": "tvos_arm64",
     "aarch64-apple-tvos-sim": "tvos_sim_arm64",
-    "x86_64-apple-tvos": "tvos_x86_64",
     
     # watchOS platforms
     "aarch64-apple-watchos": "watchos_device_arm64",
     "aarch64-apple-watchos-sim": "watchos_arm64",
-    "x86_64-apple-watchos-sim": "watchos_x86_64",
-    "arm64_32-apple-watchos": "watchos_arm64_32",
-    "armv7k-apple-watchos": "watchos_armv7k",
     
     # visionOS platforms
     "aarch64-apple-visionos": "visionos_arm64",
@@ -225,6 +221,9 @@ _APPLE_PLATFORM_MAPPING = {
     )
     for rust_target, apple_platform in _APPLE_PLATFORM_MAPPING.items()
 ]
+
+# Mac Catalyst uses the registered Apple toolchain with project-local ABI flags.
+apple_catalyst_platforms()
 
 # Windows platforms
 platform(

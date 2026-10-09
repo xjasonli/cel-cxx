@@ -11,6 +11,15 @@ bazel_dep(name = "bazel_skylib", version = "1.9.2")
 # Apple/iOS support (needed for Apple platform constraints)
 bazel_dep(name = "apple_support", version = "2.9.0")
 
+# Register from the root module so Apple toolchains also win for macOS
+# exec tools (protoc, zlib, etc.). Otherwise rules_cc's generic local
+# toolchain can win and reject Xcode's SDKSettings.json dependency.
+# Catalyst reuses these toolchains through the extra_enabled_features
+# interface; its platforms and ABI flags are defined in platforms/apple_catalyst.bzl.
+apple_cc = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
+use_repo(apple_cc, "local_config_apple_cc_toolchains")
+register_toolchains("@local_config_apple_cc_toolchains//:all")
+
 # Android NDK support (conditional - only when ANDROID_NDK_HOME is set)
 bazel_dep(name = "rules_android_ndk", version = "0.1.5")
 
@@ -28,14 +37,14 @@ archive_override(
     integrity = "sha256-B+eid3ETuz0KQyJl0ceM+qFApbxMgr5MjNmIs0OC7JA=",
     strip_prefix = "rules_android_ndk-0.1.5",
     patches = [
-        "//:rules_android_ndk_archive_param_file.patch",
+        "//patches:rules_android_ndk/rules_android_ndk_archive_param_file.patch",
     ],
     patch_strip = 0,
 )
 
 # Use our conditional Android NDK extension
 # This creates either a real Android NDK repository or a stub, depending on ANDROID_NDK_HOME
-android_conditional = use_extension("//:android_conditional.bzl", "conditional_android_ndk")
+android_conditional = use_extension("//platforms:android_conditional.bzl", "conditional_android_ndk")
 use_repo(android_conditional, "androidndk")
 
 # Register Android NDK toolchains
@@ -75,7 +84,7 @@ register_toolchains("@cross_rs_toolchain//:toolchain_definition")
 # auto-configured MSVC toolchain on the platform's shared
 # [cpu:x86_64, os:windows] constraints — the same ranking the
 # rules_cross_rs registration above relies on.
-mingw_ext = use_extension("//:mingw_conditional.bzl", "conditional_mingw_toolchain")
+mingw_ext = use_extension("//platforms:mingw_conditional.bzl", "conditional_mingw_toolchain")
 use_repo(mingw_ext, "mingw_toolchain")
 register_toolchains("@mingw_toolchain//:toolchain_definition")
 
@@ -97,23 +106,23 @@ git_override(
         # Windows ships no TZif zone database for cctz, so named IANA zones
         # resolve through the OS-managed database via C++20 <chrono> instead
         # (see docs/timezone-support-design.md, Option G).
-        "//:windows_chrono_timezone.patch",
+        "//patches:cel-cpp/windows_chrono_timezone.patch",
         # Cross-compiling from a Windows host (e.g. Android via cargo-ndk)
         # trips a target-vs-host mismatch in cel-cpp's ANTLR copy actions:
         # the grammar output layout depends on the executing host's file
         # separator, but antlr.bzl selects on the target platform. Fall back
         # to the flat output location when the prefixed one is missing.
-        "//:antlr_cross_host_output.patch",
+        "//patches:cel-cpp/antlr_cross_host_output.patch",
         # The same actions also selected their shell by target platform
         # (PowerShell.exe for Windows targets), which does not exist on
         # Linux hosts building windows-gnu via cross-rs. Run the copies
         # through the default shell instead and always try both output
         # layouts.
-        "//:cel_cpp_antlr_exec_shell.patch",
+        "//patches:cel-cpp/cel_cpp_antlr_exec_shell.patch",
         # MinGW (x86_64-pc-windows-gnu) defines _WIN32 but uses the Itanium
         # ABI like GCC elsewhere: route the type-name demangling through
         # abi::__cxa_demangle instead of the MSVC-only __unDName/raw_name.
-        "//:cel_cpp_mingw_demangle.patch",
+        "//patches:cel-cpp/cel_cpp_mingw_demangle.patch",
     ],
     patch_strip = 0,
 )

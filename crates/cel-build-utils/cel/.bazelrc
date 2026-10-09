@@ -38,6 +38,27 @@ build:ios --config=gcc
 build:ios --apple_platform_type=ios
 build:ios --ios_minimum_os=12.0
 
+# Mac Catalyst uses the macOS SDK with iOSSupport headers and libraries.
+# The toolchain enforces iOS 14.0 on ARM64 and 13.1 on x86_64.
+build:catalyst --config=gcc
+build:catalyst --apple_platform_type=macos
+build:catalyst --ios_minimum_os=13.1
+
+# Without explicit minima Bazel defaults to the installed SDK version,
+# which would prevent binaries built with Xcode 27 from running on a
+# 26.x simulator. Environment overrides are forwarded by cel-build-utils.
+build:tvos --config=gcc
+build:tvos --apple_platform_type=tvos
+build:tvos --tvos_minimum_os=12.0
+
+build:watchos --config=gcc
+build:watchos --apple_platform_type=watchos
+build:watchos --watchos_minimum_os=5.0
+
+build:visionos --config=gcc
+build:visionos --apple_platform_type=visionos
+build:visionos --minimum_os_version=1.0
+
 # ============================================================================
 # Windows Build Configuration (MSVC)
 # ============================================================================

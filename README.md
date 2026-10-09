@@ -16,6 +16,7 @@
     - [Custom Types with Derive Macros](#custom-types-with-derive-macros)
   - [Platform Support](#platform-support)
     - [Cross-Compilation Support](#cross-compilation-support)
+    - [Apple Builds and Simulator Tests](#apple-builds-and-simulator-tests)
     - [Android Build Instructions](#android-build-instructions)
     - [Windows GNU Builds](#windows-gnu-builds)
   - [CEL Feature Support](#cel-feature-support)
@@ -263,23 +264,30 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td>Tested from an MSYS2 UCRT64 shell (MinGW-w64 GCC); see [Windows GNU builds](#windows-gnu-builds). Named IANA timezones resolve only through a <code>TZDIR</code> tree</td>
 </tr>
 <tr>
-<td rowspan="3"><strong>macOS</strong></td>
+<td rowspan="2"><strong>macOS</strong></td>
 <td><code>x86_64-apple-darwin</code></td>
 <td>✅</td>
 <td>✅</td>
-<td>Tested</td>
+<td>322 tests passed through Rosetta on macOS 27.0.1 (2026-10-09); see <a href="#apple-verification">Apple verification</a></td>
 </tr>
 <tr>
 <td><code>aarch64-apple-darwin</code></td>
 <td>✅</td>
 <td>✅</td>
-<td>Tested</td>
+<td>322 tests passed natively on macOS 27.0.1; see <a href="#apple-verification">Apple verification</a></td>
 </tr>
 <tr>
-<td><code>arm64e-apple-darwin</code></td>
+<td rowspan="2"><strong>Mac Catalyst</strong></td>
+<td><code>aarch64-apple-ios-macabi</code></td>
 <td>✅</td>
 <td>✅</td>
-<td>Tested</td>
+<td>322 tests passed natively on macOS 27.0.1 (2026-10-09); see <a href="#apple-verification">Apple verification</a></td>
+</tr>
+<tr>
+<td><code>x86_64-apple-ios-macabi</code></td>
+<td>✅</td>
+<td>✅</td>
+<td>322 tests passed through Rosetta on macOS 27.0.1 (2026-10-09); see <a href="#apple-verification">Apple verification</a></td>
 </tr>
 <tr>
 <td rowspan="4"><strong>Android</strong></td>
@@ -307,92 +315,62 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 <td>Tested via cargo-ndk on an x86 emulator (native)</td>
 </tr>
 <tr>
-<td rowspan="4"><strong>iOS</strong></td>
+<td rowspan="3"><strong>iOS</strong></td>
 <td><code>aarch64-apple-ios</code></td>
+<td>✅</td>
 <td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>Build and link verified; device tests not yet run</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-ios-sim</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>✅</td>
+<td>✅</td>
+<td>322 tests passed on an ARM64 iOS 27.0 simulator; see <a href="#apple-verification">Apple verification</a></td>
 </tr>
 <tr>
 <td><code>x86_64-apple-ios</code></td>
+<td>✅</td>
 <td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>Test binaries linked; simulator tests unverified</td>
 </tr>
 <tr>
-<td><code>arm64e-apple-ios</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
-</tr>
-<tr>
-<td rowspan="3"><strong>tvOS</strong></td>
+<td rowspan="2"><strong>tvOS</strong></td>
 <td><code>aarch64-apple-tvos</code></td>
+<td>✅</td>
 <td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>Build and link verified; device tests not yet run</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-tvos-sim</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>✅</td>
+<td>✅</td>
+<td>322 tests passed on an ARM64 tvOS 26.5 simulator; see <a href="#apple-verification">Apple verification</a></td>
 </tr>
 <tr>
-<td><code>x86_64-apple-tvos</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
-</tr>
-<tr>
-<td rowspan="5"><strong>watchOS</strong></td>
+<td rowspan="2"><strong>watchOS</strong></td>
 <td><code>aarch64-apple-watchos</code></td>
+<td>✅</td>
 <td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>Build and link verified (minimum watchOS 26.0); device tests not yet run</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-watchos-sim</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
-</tr>
-<tr>
-<td><code>x86_64-apple-watchos-sim</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
-</tr>
-<tr>
-<td><code>arm64_32-apple-watchos</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
-</tr>
-<tr>
-<td><code>armv7k-apple-watchos</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>✅</td>
+<td>✅</td>
+<td>322 tests passed on an ARM64 watchOS 27.0 simulator; see <a href="#apple-verification">Apple verification</a></td>
 </tr>
 <tr>
 <td rowspan="2"><strong>visionOS</strong></td>
 <td><code>aarch64-apple-visionos</code></td>
+<td>✅</td>
 <td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>Build and link verified; device tests not yet run</td>
 </tr>
 <tr>
 <td><code>aarch64-apple-visionos-sim</code></td>
-<td>🟡</td>
-<td>🟡</td>
-<td>Should work, untested</td>
+<td>✅</td>
+<td>✅</td>
+<td>322 tests passed on an ARM64 visionOS 26.5 simulator; see <a href="#apple-verification">Apple verification</a></td>
 </tr>
 <tr>
 <td><strong>WebAssembly</strong></td>
@@ -405,8 +383,9 @@ let program = env.compile("user.has_role('admin') && user.is_adult()")?;
 </table>
 
 **Legend:**
+
 - ✅: verified — **Build** compiles, **Test** passes the test suite
-- 🟡 **Should work**: build configuration exists but not verified
+- 🟡: runtime tests have not been verified for this target
 
 ### Timestamp Timezone Resolution
 
@@ -458,6 +437,118 @@ on first use, since the stock cross-rs musl images ship a GCC 9.2 toolchain that
 old for cel-cxx's Abseil dependency (GCC ≥ 10 required). Non-docker alternatives — a
 host-installed musl toolchain, or plain `cargo build` on native musl hosts such as
 Alpine — are described in [docs/musl-support.md](docs/musl-support.md).
+
+### Apple Builds and Simulator Tests
+
+Apple cross-builds require a macOS host with full Xcode selected (Command Line
+Tools alone do not provide the iOS, tvOS, watchOS, or visionOS SDKs). Check the
+selected installation and available SDKs/runtimes with:
+
+```bash
+xcode-select -p
+xcodebuild -version
+xcodebuild -showsdks
+xcrun simctl list runtimes
+xcrun simctl list devices available
+```
+
+Install any missing simulator runtimes in Xcode's settings. Physical devices
+are unnecessary for simulator tests or device cross-builds; executing a
+device binary still requires matching hardware and an appropriate app/signing
+setup. Simulator tests below run standalone Rust test executables through
+`simctl`, without an Xcode app project.
+
+**Building:** install the target's Rust standard library, then build a linked
+example (this verifies the Rust/C++ link, as well as library compilation):
+
+```bash
+rustup target add aarch64-apple-darwin x86_64-apple-darwin \
+    aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios \
+    aarch64-apple-ios-macabi x86_64-apple-ios-macabi \
+    aarch64-apple-tvos aarch64-apple-tvos-sim \
+    aarch64-apple-watchos aarch64-apple-watchos-sim \
+    aarch64-apple-visionos aarch64-apple-visionos-sim
+cargo build --target aarch64-apple-ios --example basic
+```
+
+**Running macOS and Mac Catalyst tests:** these targets run directly on macOS.
+The x86_64 binaries require Rosetta on an Apple Silicon host. Mac Catalyst
+uses the macOS SDK's `System/iOSSupport` headers and libraries, with iOS
+versions for `IPHONEOS_DEPLOYMENT_TARGET`; see the
+[Rust target requirements](https://doc.rust-lang.org/rustc/platform-support/apple-ios-macabi.html).
+
+```bash
+cargo test --target aarch64-apple-darwin --tests
+cargo test --target x86_64-apple-darwin --tests
+cargo test --target aarch64-apple-ios-macabi --tests
+cargo test --target x86_64-apple-ios-macabi --tests
+```
+
+**Running simulator tests:** from the repository root, select a simulator UUID
+whose platform matches the target. For example, for an ARM64 iOS simulator:
+
+```bash
+export CEL_CXX_SIMULATOR_UDID=<simulator-uuid>
+xcrun simctl boot "$CEL_CXX_SIMULATOR_UDID"  # omit if already booted
+xcrun simctl bootstatus "$CEL_CXX_SIMULATOR_UDID" -b
+export CARGO_TARGET_AARCH64_APPLE_IOS_SIM_RUNNER="$PWD/scripts/apple-simulator-runner.sh"
+cargo test --target aarch64-apple-ios-sim --tests
+
+# Broader feature coverage; requires protoc and its standard .proto includes
+# on the host (protoc must be on PATH for protobuf-legacy).
+cargo test --target aarch64-apple-ios-sim --tests \
+    --features tokio,smol,prost,protobuf-legacy
+```
+
+Use `CARGO_TARGET_AARCH64_APPLE_TVOS_SIM_RUNNER`,
+`CARGO_TARGET_AARCH64_APPLE_WATCHOS_SIM_RUNNER`, or
+`CARGO_TARGET_AARCH64_APPLE_VISIONOS_SIM_RUNNER` with the same
+[runner](scripts/apple-simulator-runner.sh) for the other ARM64 simulators.
+The runner copies `tests/fixtures` to the simulator's working directory so
+runtime Protobuf descriptor compilation can find the inputs. `--tests`
+covers unit/integration tests; it does not run documentation tests.
+
+Set deployment targets consistently when overriding the defaults:
+`MACOSX_DEPLOYMENT_TARGET`, `IPHONEOS_DEPLOYMENT_TARGET`,
+`TVOS_DEPLOYMENT_TARGET`, `WATCHOS_DEPLOYMENT_TARGET`, and
+`XROS_DEPLOYMENT_TARGET` are forwarded to the Bazel C++ build as well as
+used by Rust/cc-rs. A build against a recent SDK is not evidence that every
+older OS release supported by the deployment setting has been tested.
+
+#### Apple Verification
+
+All **13 Apple target triples** listed above built and linked successfully
+during **2026-09-30–2026-10-09**, using an Apple M2 Mac with macOS 27.0.1,
+Xcode 27.0 (27A266a), SDKs 27.0, and Rust 1.96.0.
+
+Both architectures of macOS and Mac Catalyst, and each ARM64 simulator,
+passed **322 tests across 26 unit/integration test executables**, with default
+`derive` plus `tokio,smol,prost,protobuf-legacy`. Simulator runtimes were
+iOS 27.0, tvOS 26.5, watchOS 27.0, and visionOS 26.5. The iOS simulator also
+passed all 269 default-feature tests. No unit/integration tests were ignored or filtered out.
+Both architectures of macOS and Mac Catalyst passed their documentation
+tests: 317 passed, 4 explicitly ignored, 0 failed. The x86_64 macOS and
+Mac Catalyst test suites ran through Rosetta. Mac Catalyst executables and sampled C++
+objects were confirmed as `MACCATALYST`, with minimum iOS versions of 14.0
+on ARM64 and 13.1 on x86_64. Named IANA timezones and `TZDIR` precedence
+passed on macOS, Mac Catalyst, and in these simulator processes.
+
+Device targets were verified with `cargo build --example basic` and the same
+additional features, including the final Rust/C++ link. Runtime tests on iOS,
+tvOS, watchOS, and visionOS devices have not yet been performed. Simulator
+results do not establish device compatibility, timezone availability, or
+app-signing compatibility. The `x86_64-apple-ios` test executables linked
+successfully; runtime tests remain unverified and require an x86_64-compatible
+iOS simulator runtime.
+
+The build uses the Apple C++ toolchain for macOS execution tools as well as
+for target code. Explicit tvOS/watchOS/visionOS deployment defaults avoid
+Bazel's fallback to the installed SDK version. Rust may enforce a higher
+minimum than an environment override: the verified ARM64 simulator
+executables reported iOS/tvOS 14.0, watchOS 7.0, and visionOS 1.0. Older OS
+versions were not tested. The ARM64 watchOS **device** example reported
+watchOS 26.0; its deployment requirement should not be inferred from the
+simulator result.
 
 ### Android Build Instructions
 
@@ -547,7 +638,7 @@ cargo test --target x86_64-pc-windows-gnu
 
 The Bazel build resolves the gcc toolchain through a conditional extension in
 `cel/MODULE.bazel` that activates whenever the target triple being built is
-`x86_64-pc-windows-gnu` (see `cel/mingw_conditional.bzl`); every other target —
+`x86_64-pc-windows-gnu` (see [mingw_conditional.bzl](crates/cel-build-utils/cel/platforms/mingw_conditional.bzl)); every other target —
 including `x86_64-pc-windows-msvc` on the same host — is unaffected. Any host
 with a mingw-w64 toolchain on `PATH` works the same way, and the docker +
 cross-rs route is also available from any host, including Linux:
