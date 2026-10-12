@@ -6,6 +6,7 @@
 
 - [文档](#文档)
   - [目录](#目录)
+  - [设计文档](#设计文档)
   - [快速开始](#快速开始)
     - [前置要求](#前置要求)
   - [架构](#架构)
@@ -20,7 +21,10 @@
     - [函数注册](#函数注册)
     - [高级特性](#高级特性)
   - [参考](#参考)
-  - [语言文档](#语言文档)
+
+## 设计文档
+
+- [Native Types 扩展与 Prost 设计](design/native-types/README.md)：统一阅读入口，包含扩展边界与核心设计、跨语言实现依据、Option 取舍、验证记录和未来后端调研。新增 API 尚未实现；具体合同以目录中的核心设计为准。
 
 ## 快速开始
 
@@ -172,9 +176,3 @@ musl C++ 工具链）。
 - [API 文档](https://docs.rs/cel-cxx) - docs.rs 上的完整 API 参考
 - [GitHub 仓库](https://github.com/xjasonli/cel-cxx) - 源代码和问题跟踪器
 - [Crates.io](https://crates.io/crates/cel-cxx) - 包注册表
-
-## 语言文档
-
-- [英文文档](../README.md) (主要)
-- [中文文档](../docs-cn/) (中文)
-

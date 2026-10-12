@@ -1,4 +1,26 @@
-# Protobuf Support Design
+# Historical Protobuf Support Proposal
+
+> **Archived; not an implementation specification.** The proposal below was added
+> in commit `72c102b` on 2026-03-04. Its bytes/v3/v4 approach has been superseded.
+> See the [archive index](../README.md) for this document's status.
+
+This archive preserves the original proposal for comparison. Its statements about
+available APIs and future support describe the old analysis, not current support.
+The following corrections clarify which assumptions should no longer be used:
+
+| Earlier assumption | Current design or correction |
+|---|---|
+| prost requires serialization for normal access | Generated Native adapters can retain real Rust objects and read fields directly |
+| protobuf-rust v3 is a supported long-term backend | v3 is outside the new design's scope |
+| StructValue permanently stores message bytes | Native stores owner/view; bytes belong to explicit codecs |
+| upb and C++ protobuf can never coexist | The cited duplicate-symbol restriction concerns the two official Rust kernel runtimes |
+| every C++-created result must be serialized | A compatible CPP full view can retain its owner or be explicitly copied |
+| a CPP pointer cast alone is sufficient | Runtime, full/lite capability, descriptor/factory, concrete type and ownership must all be validated |
+
+The original text follows without adopting its APIs or migration steps as current
+requirements.
+
+---
 
 ## Background
 

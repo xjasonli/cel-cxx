@@ -6,6 +6,7 @@ Welcome to the cel-cxx documentation! This guide covers everything you need to k
 
 - [Documentation](#documentation)
   - [Table of Contents](#table-of-contents)
+  - [Design Documents](#design-documents)
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
   - [Architecture](#architecture)
@@ -20,7 +21,10 @@ Welcome to the cel-cxx documentation! This guide covers everything you need to k
     - [Function Registration](#function-registration)
     - [Advanced Features](#advanced-features)
   - [Reference](#reference)
-  - [Language Documentation](#language-documentation)
+
+## Design Documents
+
+- [Native types and Prost design documents](design/native-types/README.md): the historical English protobuf proposal, preserved with its status and corrections clearly marked.
 
 ## Getting Started
 
@@ -182,8 +186,3 @@ C++ toolchain).
 - [API Documentation](https://docs.rs/cel-cxx) - Complete API reference on docs.rs
 - [GitHub Repository](https://github.com/xjasonli/cel-cxx) - Source code and issue tracker
 - [Crates.io](https://crates.io/crates/cel-cxx) - Package registry
-
-## Language Documentation
-
-- [English Documentation](../README.md) (Main)
-- [中文文档](../docs-cn/) (Chinese)
